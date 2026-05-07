@@ -12,10 +12,34 @@
 - **Keep tests passing.** Do not commit code that breaks existing tests. If a change requires updating tests, update them in the same commit.
 
 ## Project Description
-_TODO: Describe what this project is about._
+
+Yantra is a neuro-symbolic, GPU-native operating system written in Sutra.
+The OS is one big differentiable tensor-op graph: kernel, processes, IPC,
+and GUI all live in the same tensor space. The CPU is a small orchestrator
+that boots the system and shuffles inactive processes between GPU and RAM.
+
+Target market is critical systems (defense, aerospace, industrial,
+medical, autonomous) where predictable latency, formal verifiability, and
+a small attack surface matter more than mass-market compatibility.
+
+This repo currently holds **planning documents**, not an implementation.
+The Sutra compiler/runtime and the JS/TS and C transpilers live in
+adjacent projects.
 
 ## Architecture and Conventions
-_TODO: Document key decisions, file structure, and patterns as they emerge._
+
+- All design notes live in [`planning/`](planning/README.md), numbered for
+  reading order. Treat them as planning, not specification — they reflect
+  current best thinking, not committed APIs.
+- The chats the design grew out of are preserved as readable Markdown
+  under [`chats/`](chats/). Re-extractable from saved HTML via
+  `scripts/extract_chats.py`.
+- New architectural decisions go into the relevant `planning/NN-*.md`
+  file, with a one-line update in `planning/15-open-questions.md` if
+  something there moved from open to resolved (or vice versa).
+- Code does not live in this repo yet. When it does, expect the layout
+  to be: `kernel/`, `runtime/`, `transpilers/`, `apps/`, `docs/`. Until
+  then the structure is intentionally minimal.
 
 # currentDate
 Today's date is 2026-05-07.
