@@ -54,7 +54,13 @@ Mechanism details, threat-model, and crosstalk analysis live in
 
 ## Filesystem bridge
 
-The conventional filesystem returns axons to processes via syscalls:
+The conventional filesystem returns axons to processes via syscalls.
+The notation below is **informal documentation of what keys each
+syscall expects on its input axon and produces on its output axon** —
+it is not a compile-time type contract. Per the Sutra spec, axons
+have no declared schema; the compiler does dataflow analysis but
+does not type-check key sets. Yantra documents call shapes this way
+for human readers, the same way a man page documents `read(2)`.
 
 ```
 read_file  : { R_path } -> { R_bytes_axon, R_metadata_axon }
