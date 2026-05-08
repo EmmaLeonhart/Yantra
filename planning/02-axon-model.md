@@ -1,120 +1,102 @@
-# The axon model
+# The axon model (Yantra-side notes)
 
-> A `.su` file is, in 95% of cases, a function `(Axon) -> Axon`. The whole
-> OS is what you get when you wire a few hundred of those together.
+> **Authoritative axon spec lives in Sutra**, at
+> `Sutra/planning/sutra-spec/axons.md`. Axons are a Sutra concept;
+> Yantra uses axons because Sutra has them. This file holds only the
+> Yantra-OS-specific design notes that build on top of the Sutra spec —
+> read the Sutra spec first.
+>
+> Anything below that contradicts the Sutra spec is wrong here, not
+> there. Open the Sutra spec and update this file.
 
-## What an axon is
+## What an axon is (one-line refresher)
 
-An **axon** is a structured embedding: a fixed-width tensor whose contents
-are produced by **rotation binding** over a known **codebook of roles**.
-Concretely, an axon carries a small bundle of role/filler pairs:
+A fixed-width vector produced by rotation binding over a codebook of
+roles — `bundle( bind(R_subject, F_alice), bind(R_action, F_send), … )`.
+The full definition, the role-as-operator story, and the open spec
+questions are all in `Sutra/planning/sutra-spec/axons.md`.
 
-```
-axon = bundle( bind(R_subject, F_alice),
-               bind(R_action,  F_send),
-               bind(R_object,  F_message_42) )
-```
+In Yantra, *every* `.su` file is, in 95% of cases, a function
+`(Axon) -> Axon`. The whole OS is what you get when you wire a few
+hundred of those together.
 
-Where `R_*` are unit-norm rotation operators (one per role, drawn from a
-codebook fixed at compile time) and `F_*` are fillers (vectors that may
-themselves come from an embedding model, a Sutra-compiled symbol, or
-another axon — they are all the same shape).
+## Why axons are the right unit of IPC
 
-Why rotation binding rather than Hadamard or circular convolution:
-empirically it dominates the alternatives across multiple real embedding
-models, including cross-modality, and it has a clean compile-time story
-because the rotation matrices can be materialised once.
+The Sutra spec gives the general argument (composable without parsing,
+differentiable end-to-end, same shape as model inputs). For Yantra
+specifically, those three properties cash out as:
 
-## Why this is the right unit of IPC
+- The IPC graph is one smooth tensor function. Training across process
+  boundaries is not a special case.
+- A model that consumes embeddings is already prepared to consume what
+  another process emits. JEPA's predicted latents, an LLM's activation
+  residual, and a `read_file()` syscall result are all the same kind
+  of tensor.
+- No serializer / deserializer pair sits between processes. A receiver
+  decodes the role it needs by `unbind`.
 
-Three properties make axons the natural inter-process currency:
+## Capability transfer at the OS level
 
-1. **Composable without parsing.** Two axons combine into a third by
-   bundling. No serialization, no schema validation, no version
-   negotiation. The receiver decodes the role it needs by unbinding.
-2. **Differentiable end-to-end.** Gradients flow through bind/bundle
-   exactly the way they flow through any tensor operation. The whole
-   IPC graph is a smooth function. Training across process boundaries is
-   not a special case.
-3. **Same shape as model inputs.** A model that consumes embeddings is
-   already prepared to consume axons. JEPA's predicted latents, an LLM's
-   activation residual, and a `read_file()` syscall result are all the
-   same kind of tensor.
+The Sutra spec defines that roles are operators, not labels — possessing
+the rotation operator is the only way to read or write the slot. Yantra
+turns that into a security mechanism:
 
-## Axon types
+- **Process isolation.** A process is bound to a set of roles. Roles it
+  doesn't possess decode any axon's slot to noise.
+- **Sandboxing.** Hand a child process a smaller codebook (or a
+  derived child codebook) and it can only operate on that subset.
+- **Revocation.** Rotate the parent operator; child copies of the
+  derived operator decode to noise. Existing axons in flight that
+  carried the revoked role become unreadable in that slot.
 
-A type system over axons is essentially a contract about *which roles are
-expected to be bound* on entry and exit. A type signature looks like:
-
-```
-ProcessFoo : { R_input_query, R_caller_ctx } -> { R_response, R_provenance }
-```
-
-The compiler can statically check that the body of `ProcessFoo` only reads
-roles that are guaranteed by the input type, and only writes roles that
-its output type promises. This is structural typing on a vector — the
-"type" is which rotation slots are populated, with what fillers, drawn
-from what codebooks.
-
-## Capability story
-
-Roles double as capabilities. A process that doesn't possess the rotation
-operator `R_x` cannot read or write the `x` slot of an axon, because the
-operator literally is the only key into that slot. Capability transfer
-happens by bundling the operator (or a derived child operator) into an
-axon and handing the axon to another process. This is the same machinery
-that does ordinary IPC, used reflectively.
-
-This means:
-
-- Process isolation is a function of which roles each process knows.
-- Sandboxing a tab is "give it a child role-codebook with fewer slots."
-- A capability revocation is "rotate the parent role; child copies become
-  noise that decodes to nothing meaningful."
-
-See `08-security-and-isolation.md` for crosstalk and partitioning details.
+Mechanism details, threat-model, and crosstalk analysis live in
+`08-security-and-isolation.md`.
 
 ## Filesystem bridge
 
 The conventional filesystem returns axons to processes via syscalls:
 
 ```
-read_file : { R_path } -> { R_bytes_axon, R_metadata_axon }
+read_file  : { R_path } -> { R_bytes_axon, R_metadata_axon }
 write_file : { R_path, R_payload_axon } -> { R_status }
 ```
 
 `R_bytes_axon` carries the file's contents as either:
 
-- a literal embedding produced by an embedding model (e.g. `nomic-embed-text`,
-  `mxbai-embed-large`, `ESM-2`) when the file is meant to be consumed
-  semantically, or
-- a Sutra-compiled axon that decodes losslessly to bytes when the file is
-  meant to be consumed exactly (executables, configs, binary blobs).
+- a literal embedding produced by an embedding model
+  (`nomic-embed-text`, `mxbai-embed-large`, `ESM-2`, …) when the file
+  is meant to be consumed semantically, or
+- a Sutra-compiled axon that decodes losslessly to bytes when the file
+  is meant to be consumed exactly (executables, configs, binary blobs).
 
-Which mode applies is part of the file's metadata, not the syscall's job.
+Which mode applies is part of the file's metadata, not the syscall's
+job. See `05-filesystem-bridge.md`.
 
-## Constraints that fall out of the model
+## Yantra-specific constraints on axons
 
-- **Fixed-width state per process.** A process's state at any instant is
-  one axon (plus its compiled program). The width is part of its install
-  manifest. This is what makes "no degradation under load" enforceable —
-  the runtime knows in advance how much GPU it owes the process.
-- **No higher-order axons (yet).** The current Sutra core does not bind
-  programs as fillers; you can pass embeddings of programs, but not
-  programs as first-class axons that other programs can apply. Lifting
-  this restriction is research-grade work, not v1.
-- **Crosstalk is bounded by codebook depth.** Nesting too many bind/bundle
-  layers in a single axon eventually degrades decoding quality. The OS
-  should treat "your axon is too deep" as a runtime error, not a slow
-  decline.
+These are tightenings of what the Sutra spec leaves open:
 
-## Open questions
+- **Fixed width is mandatory in Yantra, not optional.** The Sutra spec
+  treats default axon width as an open question. For Yantra to schedule
+  GPU allocation under load, the axon width per process must be known
+  at install time — it goes in the program's install manifest. Within
+  Yantra, "carry width as part of the type" is not the chosen path.
+- **Crosstalk depth caps are surfaced as runtime errors, not silent
+  degradation.** The Sutra spec acknowledges crosstalk grows with
+  codebook depth. Yantra commits to detecting depth-cap violations at
+  runtime and surfacing them as errors, so a process gets a clean
+  rejection instead of garbled output.
 
-- What's the right default axon width? Embedding models vary (768, 1024,
-  4096). Picking one and forcing converters at the edges vs. carrying
-  width as part of the type are both viable.
-- Should axons carry an explicit provenance role by default? Useful for
-  debugging and for the alignment monitor (`10-ai-native-interface.md`),
-  but it costs codebook entries.
-- Per-tenant codebooks vs one global codebook with namespaced roles —
-  a real partitioning question for multi-process safety.
+## Yantra-specific open questions
+
+(General axon open questions live in `Sutra/planning/sutra-spec/open-questions.md`
+and `Sutra/planning/sutra-spec/axons.md`.)
+
+- Should every axon at the OS layer carry a provenance role by default,
+  even when the underlying program doesn't request one? Useful for the
+  alignment monitor (`10-ai-native-interface.md`); costs a codebook
+  entry per process.
+- Per-tenant codebooks vs. one global codebook with namespaced roles.
+  This is a real partitioning question for multi-tenant deployments
+  and the answer will differ between defense / aerospace targets and a
+  hypothetical consumer-grade Yantra.
