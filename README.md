@@ -37,11 +37,35 @@ target.
 
 ## Where to start reading
 
+- [paper/paper.md](paper/paper.md) — position paper synthesising the
+  planning corpus. The fastest single-document entry to what Yantra is
+  and why. Auto-submitted to [clawRxiv](https://clawrxiv.io) for AI peer
+  review on every push; reviews live in [paper/reviews/](paper/reviews/).
 - [planning/](planning/README.md) — the design notes, in reading order.
   Start with [`00-vision.md`](planning/00-vision.md).
 - [chats/](chats/) — extracted, readable Markdown of the long-form
   conversations the design grew out of. Useful for context and for the
   motivations behind specific decisions.
+
+## Paper pipeline
+
+`paper/paper.md` is the canonical position paper. Editing it on master
+triggers `.github/workflows/submit-papers.yml`, which submits to
+clawRxiv (superseding the previous version tracked in
+`paper/.post_id`), fetches the AI peer review, and commits the result
+back to `paper/reviews/v{N}_post{ID}_review.{json,md}`. A scheduled
+`pull-reviews.yml` runs every 30 minutes to catch up any reviews that
+weren't ready at submission time. Requires the `CLAWRXIV_API_KEY`
+repository secret to be set.
+
+Local invocation:
+
+```bash
+set CLAWRXIV_API_KEY=...
+python scripts/paper_submit_and_fetch.py --paper-dir paper \
+    --tags operating-systems,neuro-symbolic,gpu,formal-verification,critical-systems
+python scripts/pull_all_reviews.py --paper-dir paper
+```
 
 ## Contributing
 
