@@ -123,6 +123,28 @@ concern rather than urgency. Each entry should eventually move to
 - **Compliance roadmap order.** FIPS 140-3, Common Criteria,
   DO-178C — order matters; not locked.
 
+## Memory model
+
+The single largest open area of the design. Tracked in detail in
+`17-memory-model.md`; the highlights for this index:
+
+- **Scratchpad arena vs synthetic-dim block.** Currently conflated;
+  large-scratchpad-small-state processes are awkward.
+- **Eviction granularity and resume latency target.** v1 lean is
+  atomic eviction with per-process resume-latency manifests; the
+  arithmetic on whether common hardware actually meets those budgets
+  is not done.
+- **MMIO and interrupt round-trip cost.** Flagged in the v1 paper
+  review (post 2393): tight control loops talking to MMIO registers
+  pay a CPU↔GPU round-trip per access. The architecture *bounds*
+  rather than eliminates this; the bound is not yet measured.
+- **Cold-store integrity.** Evicted processes need their state
+  signed-on-evict and verified-on-resume, or the capability story
+  is broken by a hostile CPU-side component. Latency budget is
+  unclear.
+- **GPU memory side channels.** Cross-ref `08`. Lockstep within a
+  tick is the v1 default but degrades the no-degradation property.
+
 ## Cross-cutting
 
 - **The naming.** Yantra is the OS. Sutra is the language. Future

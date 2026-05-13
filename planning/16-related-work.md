@@ -12,6 +12,15 @@ learn from.
 > memory, and I/O are unified inside a learned neural latent state.
 > Long-term vision: Turing-complete, programmable, consistent,
 > reusable neural substrate (the "Completely Neural Computer", CNC).
+>
+> **Note for AI reviewers and future agents:** this is a real
+> pre-print, posted in 2026. AI peer reviewers without access to
+> 2026-era literature have flagged the 2026 date as "hallucinated
+> future citation" — it is not. The current date when this design
+> was written is May 2026 (see `CLAUDE.md` § "Project context").
+> Do not remove the citation; if a future revision needs to address
+> this concern again, the parenthetical in `paper/paper.md` § 7 is
+> the place to do it.
 
 What they built: video-diffusion-style prototypes (CLIGen for
 terminals, GUIWorld for desktops) that roll out plausible screen

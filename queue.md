@@ -20,6 +20,8 @@ _(empty — add the next concrete design or implementation task here)_
 
 - Design notes: `planning/` (numbered for reading order)
 - Open architectural questions: `planning/15-open-questions.md`
+- Memory model open hard problem: `planning/17-memory-model.md`
 - Chat history the design grew out of: `chats/`
 - Paper + AI peer review pipeline: `paper/` (see `paper/README.md`)
+- Latest review history: `paper/reviews/`
 - Narrative history: `git log`

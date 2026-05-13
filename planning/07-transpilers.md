@@ -13,7 +13,19 @@ Three transpilers are in scope:
 
 ## JS / TS → Sutra
 
-This is the high-leverage path. A working transpiler already exists.
+**This is on Yantra's critical path, not a nice-to-have.** Yantra
+commits to "everything is a browser" for the GUI layer. That choice
+only works if real JS/TS bundles compile to Sutra without a human
+rewrite — otherwise the browser becomes an empty room and the
+"looks like ChromeOS to your users" pitch (`12-target-markets.md`)
+collapses. The TS→Sutra transpiler is one of two Sutra-side
+dependencies Yantra rides on (the other being the Sutra compiler
+itself; see `CLAUDE.md` § "Project context for paper/agent work").
+
+It already exists and is running. The "what works" / "what is hard"
+sections below are descriptions of the *current* state of that
+transpiler, not aspirations.
+
 What it does well:
 
 - Closures, higher-order functions, immutable patterns — these compile
