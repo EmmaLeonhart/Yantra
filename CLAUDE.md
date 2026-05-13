@@ -48,5 +48,55 @@ adjacent projects.
   to be: `kernel/`, `runtime/`, `transpilers/`, `apps/`, `docs/`. Until
   then the structure is intentionally minimal.
 
+## Project context for paper/agent work
+
+- **Meta's *Neural Computers* paper IS real.** Schmidhuber et al.,
+  *Neural Computers*, arXiv:2604.06425, 76 pp., 2026. AI reviewers
+  flag the 2026 date as a hallucinated future citation — it is not,
+  this is May 2026 and the paper is a real recent pre-print. Do not
+  remove or qualify the citation; if a reviewer rejects on this basis,
+  push back in the next revision with a parenthetical that the paper
+  exists. Yantra's position is that *Neural Computers* validates the
+  design space but its video-diffusion approach takes the opposite
+  engineering posture from Yantra — useful as inspiration and
+  competitive awareness, not as a foundation Yantra rides on.
+- **Two core dependencies Yantra rides on, both Sutra-side:**
+  1. **Sutra** — the typed functional language with rotation-binding +
+     polynomial Kleene logic + tail-recursive RNN-cell loops. The
+     Sutra paper at `Sutra/paper/paper.md` is the canonical reference
+     for empirical claims Yantra makes (100% bundle decoding through
+     width k=8 across four substrates, ~1.5×10⁻¹⁵ round-trip error,
+     4→95% end-to-end-differentiable training in 50 epochs on a
+     19-AND fuzzy rule tree). When Yantra makes a claim that depends
+     on Sutra empirics, cite the Sutra paper explicitly rather than
+     hand-waving.
+  2. **TypeScript → Sutra transpiler** — already running. Essential
+     for the browser GUI layer because "everything is a browser" only
+     works if real JS/TS bundles can be AOT-compiled to Sutra without
+     a human rewrite. The transpiler is the on-ramp; the browser
+     layer is non-negotiable because users will need to render web
+     content (`planning/06-gui-stack.md`, `planning/07-transpilers.md`).
+- **The memory model is the long-term hard problem.** Process memory,
+  the CPU-side RAM cold-store, MMIO patterns, and the boundary where
+  axon-typed compute meets byte-typed hardware do not yet have a
+  worked-out design. `planning/17-memory-model.md` exists to keep
+  the open questions in one place. Do not promise solutions in the
+  paper that the planning corpus does not yet have.
+
+## Paper revision discipline
+
+- The paper at `paper/paper.md` auto-submits to clawRxiv on push (see
+  `paper/README.md`). Each revision should land *one* coherent set of
+  changes, not a kitchen sink — reviewers see version diffs and
+  oscillating scope hurts.
+- When addressing a review, name the specific con being addressed in
+  the commit message. Don't claim a con is "addressed" if the change
+  is cosmetic; reviewers will catch this.
+- Sutra-empirics claims must cite the Sutra paper. Don't paraphrase
+  numbers — quote them with their context (substrate, width, etc.).
+- Honest scope limits beat overclaim every time. If a hardware reality
+  (interrupts, MMIO, side channels) is not solved, say so in the paper
+  rather than letting a reviewer find the gap.
+
 # currentDate
 Today's date is 2026-05-07.
