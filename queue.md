@@ -1,0 +1,24 @@
+# Yantra — Work Queue
+
+**This file is a queue, not a state snapshot.** It lists what is being worked on right now. Finished work lives in `git log`; longer-horizon ideas live in `planning/` or `todo.md`. When an item is done, delete it — no checkmarks, no status indicators. If an item is still here, it is not done.
+
+**Why this file exists:** when a planning step (formal planning mode or just "think before doing") produces a plan, that plan is written here BEFORE execution starts. An interrupted session can pick up from the queue rather than from chat context that may be gone.
+
+This repo currently holds **planning documents**, not an implementation, so most "work" here is design — but the same rule applies: design plans go into queue.md before they get executed against `planning/*.md`.
+
+See `CLAUDE.md` § "Workflow Rules" for how this file, planning mode, and the task tool stay in sync.
+
+---
+
+## Active
+
+_(empty — add the next concrete design or implementation task here)_
+
+---
+
+## Pointers
+
+- Design notes: `planning/` (numbered for reading order)
+- Open architectural questions: `planning/15-open-questions.md`
+- Chat history the design grew out of: `chats/`
+- Narrative history: `git log`
