@@ -85,11 +85,19 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet paper/; then
+          # Stage first, THEN detect. `git diff --quiet paper/` ignores
+          # untracked files, so on the very first run (when .post_id and
+          # the first review files don't yet exist in HEAD) it
+          # incorrectly reports "no changes" and the new files are
+          # silently dropped. Stage everything under paper/ and use
+          # `git diff --cached --quiet` against the index instead.
+          git add paper/
+          if git diff --cached --quiet; then
             echo "No paper/ changes after submit; nothing to commit"
             exit 0
           fi
-          git add paper/
+          echo "Staged changes:"
+          git diff --cached --stat
           git commit -m "papers-ci: paper submission + review
 
           $(date -u +%Y-%m-%dT%H:%M:%SZ) auto-commit by submit-papers.yml
