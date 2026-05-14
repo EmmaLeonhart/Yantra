@@ -1,0 +1,22 @@
+# Manifest for the echo userspace utility — the first apps/ entry.
+#
+# Reads R_stdin, writes R_stdout. The axon-internal keys it cares
+# about: reads "stdin_text" (the producer's input slot), binds
+# "stdout_text" (its own output slot). These match what echo.su
+# statically declares, so SutraService's auto-populate path picks
+# them up at admission time without any extra wiring.
+
+name = "echo"
+axon_width = 768
+compute_units = 1
+
+# Channels echo connects on at the kernel-router level.
+read_roles = ["R_stdin"]
+write_roles = ["R_stdout"]
+
+# Axon-internal keys for the lazy-router intersection check. Only
+# delivers axons whose keys overlap with what echo actually reads.
+axon_keys = ["stdin_text"]
+
+# Source that compiles to the running .su program.
+source = "echo.su"
