@@ -256,6 +256,68 @@ editing Sutra docs / pyproject / CLI scaffolding, they don't, but
 the workflow rules (commit + push immediately, plan into Sutra's
 own queue.md, mirror to task tool) still apply.
 
+## Honesty rules (added 2026-05-14)
+
+Two rules added after the user pointed out the docs were papering
+over difficulty:
+
+### Python is dev tooling, not runtime
+
+- **No Python in the boot path.** The bootloader is Rust (or C);
+  there is no interpreter at boot. See
+  `planning/19-boot-sequence.md` § "Stage 3" for the long version.
+  A Python "bootloader" is a category error — there is nothing for
+  the interpreter to run on.
+- **No Python features in `kernel/` that wouldn't port cleanly to
+  Rust.** The Python in `kernel/` is the behavioural reference for
+  the eventual Rust orchestrator. Decorators that do nontrivial
+  work, `__getattr__` magic, dynamic monkey-patching, runtime
+  type-juggling (e.g. `isinstance` switches that change behaviour),
+  metaclass tricks — none of these belong in `kernel/`. If the
+  Python is doing something the Rust port can't naturally do, the
+  Python is wrong.
+- **The Rust port is the production target.** Treat the Python as
+  load-bearing for tests, not for runtime. When in doubt, ask:
+  "would this compile to a clean Rust translation?" If the answer
+  is "you'd have to redesign," don't add it.
+
+### Don't paper over difficulty
+
+When something is hard or unbuilt, name it. Specific things that
+are hard, that are not yet built, and that should be called out
+plainly when they come up rather than waved past:
+
+- **The bootloader.** Doesn't exist. Rust target. Has to deal with
+  bare-metal CPU + GPU initialization, BIOS/UEFI handoff,
+  loading the compiled Sutra image into GPU memory.
+- **The Rust orchestrator.** Doesn't exist. The Python in
+  `kernel/` is a behavioural reference for what its API surface
+  should look like, not a "smaller version" of it.
+- **Lazy axon evaluation.** Without it, the connectome bandwidth
+  is O(N²·D) and collapses under its own weight. See
+  `planning/20-lazy-axon-evaluation.md`. The kernel/router.py in
+  this repo implements the skip-uninterested-receivers slice of
+  this; full per-receiver projection is upstream-Sutra-dependent.
+- **The multi-threaded Sutra runtime.** Upstream Sutra-side work,
+  not shipped yet. Without it, the orchestrator can't actually
+  run all admitted programs simultaneously on a single GPU.
+- **Disc ↔ RAM ↔ GPU storage-tier moves.** The Connectome
+  Manager's primary job. Not implemented. Blocked on Sutra-side
+  primitives (serialise-process-state, evict-from-GPU) that
+  don't yet exist.
+- **GPU memory carve-outs per process.** Bookkeeping only in the
+  Python prototype. Real per-process arenas need the multi-process
+  Sutra runtime.
+- **Boot-time hardware discovery (PCI scan, GPU init, MMIO
+  setup).** Bootloader-stage work. None of it exists.
+
+When writing docs, code comments, commit messages, or paper text,
+if you find yourself reaching for "the prototype demonstrates the
+shape" or "we'll figure that out later" or "this is a v0
+limitation," **first check whether the underlying difficulty is on
+the list above and name it explicitly**. The user has called this
+out twice; do not let the docs drift back to softer framing.
+
 ## External dependencies (`external/`)
 
 Submodules pinned at known-good releases. Layout:
