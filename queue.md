@@ -12,11 +12,7 @@ See `CLAUDE.md` § "Workflow Rules" for how this file, planning mode, and the ta
 
 ## Active
 
-### 3. Multi-process Sutra runtime
-
-The big one. Per-process GPU memory arenas; simultaneous execution of N admitted programs at each tick (instead of Yantra's current sequential `Init.tick()` stand-in). Biggest blocker on Yantra's "no degradation under load" property.
-
-The user has flagged this as the biggest single piece of work in the upstream-Sutra queue. Not necessarily a single-session task — if it doesn't fit, ship as much as I can in coherent pieces and continue.
+_(empty — add the next concrete design or implementation task here)_
 
 ---
 
