@@ -75,6 +75,29 @@ production form is Rust. Hardening list:
   C→Sutra transpiler is the long-term target if we want the
   bootloader inside the verification surface.
 
+## Investigate: bundle-decoding regression on this machine (filed 2026-05-14)
+
+`examples/multi_program_axon/_run.py` in the Sutra submodule produces
+cosine recovery margins ~10× smaller than the README's expected
+output (e.g. `cos(recovered, 'dog') = +0.04` here vs `+0.40` in the
+expected output). Same code path; different numbers. Likely a
+runtime / numerical regression somewhere recent in Sutra. Worth
+investigating separately — it's not blocking Yantra-side work
+(the wiring is correct, the round-trip mechanism works) but it
+degrades the actual VSA capacity story the Sutra paper rests on.
+
+Root-cause candidates to check first:
+- One of the recent additions (axon-keys analysis, axon_project,
+  device-coherence as_tensor coercion) silently changed dtype or
+  rounding behaviour somewhere in the bind/permute chain.
+- The defensive `as_tensor(filler, dtype=self.dtype, device=...)`
+  in `bind()` might be casting from float64 to float32 in a way
+  that wasn't happening before, accumulating more rounding error
+  through chained binds.
+- Or a Sutra-side runtime change unrelated to my work.
+
+Reproduce locally: `cd external/Sutra && python examples/multi_program_axon/_run.py`.
+
 ## 2. Userspace utilities — native Sutra rewrites — second milestone
 
 **Build order:** these are the **second milestone** after the

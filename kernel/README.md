@@ -133,21 +133,45 @@ Sutra-side work that hasn't shipped:
 2. Write a manifest TOML in `kernel/manifests/<name>.toml` with
    the process's `axon_width`, `compute_units`, `read_roles`,
    `write_roles`, and `source` (path to the `.su` file).
-3. Construct a `SutraService` and admit it:
+3. Construct a `SutraService` and admit it.
 
-   ```python
-   from kernel import Init, SutraService
-   svc = SutraService(
-       source_path="kernel/services/myservice.su",
-       output_role="R_my_output",
-   )
-   init.admit_from_path("kernel/manifests/myservice.toml", svc)
-   ```
+### Two construction patterns
+
+**Per-service compile** (one `_VSA` per service — fine for one or
+two test services):
+
+```python
+from kernel import Init, SutraService
+svc = SutraService(
+    source_path="kernel/services/myservice.su",
+    output_role="R_my_output",
+)
+init.admit_from_path("kernel/manifests/myservice.toml", svc)
+```
+
+**Shared MultiProcessRuntime** (Sutra v0.4.0+, recommended for N
+services — shares one `_VSA` + codebook + embedding cache + GPU
+device across all of them):
+
+```python
+from kernel import Init, make_shared_sutra_services
+runtime, services = make_shared_sutra_services([
+    {"name": "echo", "source_path": "kernel/services/echo.su",
+     "output_role": "R_output"},
+    {"name": "sink", "source_path": "kernel/services/sink.su",
+     "output_role": "R_stat"},
+])
+for svc, manifest_name in zip(services, ["echo.toml", "sink.toml"]):
+    init.admit_from_path(f"kernel/manifests/{manifest_name}", svc)
+```
+
+The factory builds the shared runtime + N services wired to it.
+Both patterns produce services that drop into `Init.admit()`
+identically; the shared-runtime path just shares more
+infrastructure. `PythonService` remains available for tests +
+harness code that doesn't need real Sutra compute.
 
 4. Drive it: `init.tick()` runs every service's tick once.
-
-`PythonService` exists for tests + harness code that doesn't
-need real Sutra compute. Production services are `SutraService`.
 
 ## Hard things deliberately out of scope
 

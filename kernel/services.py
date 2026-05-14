@@ -121,11 +121,24 @@ class SutraService(Service):
         entry_point: str = "on_axon",
         output_role: str,
         llm_model: str = "nomic-embed-text",
+        runtime: Any = None,
+        runtime_program_name: str | None = None,
     ) -> None:
         self._source_path = pathlib.Path(source_path)
         self._entry_point = entry_point
         self._output_role = output_role
         self._llm_model = llm_model
+        # Optional shared MultiProcessRuntime (Sutra v0.4.0+).
+        # When provided, `bind()` skips per-service compilation and
+        # pulls handles + key sets from the shared runtime instead.
+        # `runtime_program_name` is the name the program is registered
+        # under in the runtime — required when `runtime` is set.
+        self._runtime = runtime
+        self._runtime_program_name = runtime_program_name
+        if runtime is not None and runtime_program_name is None:
+            raise ValueError(
+                "SutraService(runtime=...) also requires runtime_program_name"
+            )
         self._compiled_module: types.ModuleType | None = None
         self._on_axon: Callable[[Any], Any] | None = None
         # Populated from compiled-module constants in bind(). Used
@@ -146,28 +159,50 @@ class SutraService(Service):
 
     def bind(self, *, manifest: Manifest, router: AxonRouter) -> None:
         super().bind(manifest=manifest, router=router)
-        self._compiled_module = _compile_su_to_module(
-            self._source_path,
-            llm_model=self._llm_model,
-            runtime_dim=manifest.axon_width,
-        )
-        if not hasattr(self._compiled_module, self._entry_point):
-            raise AttributeError(
-                f"{self._source_path} compiled module has no "
-                f"`{self._entry_point}` symbol; available: "
-                f"{[n for n in dir(self._compiled_module) if not n.startswith('_')]}"
+        if self._runtime is not None:
+            # Shared-runtime path: pull handles from the
+            # MultiProcessRuntime instead of compiling here.
+            # The runtime already compiled this program at
+            # construction time and rebound its _VSA to the
+            # shared one; we just need to surface the entry
+            # point + key sets to ourselves.
+            name = self._runtime_program_name
+            assert name is not None  # ctor guarantees this
+            prog = self._runtime._programs.get(name)  # noqa: SLF001
+            if prog is None:
+                raise KeyError(
+                    f"SutraService(runtime=...) program {name!r} not "
+                    f"admitted to the runtime; admitted: "
+                    f"{self._runtime.admitted()}"
+                )
+            self._compiled_module = prog.module
+            self._on_axon = prog.on_axon
+            self._axon_keys_bound = prog.axon_keys_bound
+            self._axon_keys_read = prog.axon_keys_read
+        else:
+            # Per-service-compile path (original v0.0 behaviour).
+            self._compiled_module = _compile_su_to_module(
+                self._source_path,
+                llm_model=self._llm_model,
+                runtime_dim=manifest.axon_width,
             )
-        self._on_axon = getattr(self._compiled_module, self._entry_point)
-        # Pull the static-analysis results out of the compiled
-        # module. Always present in Sutra v0.3.3+; getattr with
-        # frozenset() default keeps us safe against an older
-        # compiled module slipping in via cache.
-        self._axon_keys_bound = frozenset(
-            getattr(self._compiled_module, "AXON_KEYS_BOUND", frozenset())
-        )
-        self._axon_keys_read = frozenset(
-            getattr(self._compiled_module, "AXON_KEYS_READ", frozenset())
-        )
+            if not hasattr(self._compiled_module, self._entry_point):
+                raise AttributeError(
+                    f"{self._source_path} compiled module has no "
+                    f"`{self._entry_point}` symbol; available: "
+                    f"{[n for n in dir(self._compiled_module) if not n.startswith('_')]}"
+                )
+            self._on_axon = getattr(self._compiled_module, self._entry_point)
+            # Pull the static-analysis results out of the compiled
+            # module. Always present in Sutra v0.3.3+; getattr with
+            # frozenset() default keeps us safe against an older
+            # compiled module slipping in via cache.
+            self._axon_keys_bound = frozenset(
+                getattr(self._compiled_module, "AXON_KEYS_BOUND", frozenset())
+            )
+            self._axon_keys_read = frozenset(
+                getattr(self._compiled_module, "AXON_KEYS_READ", frozenset())
+            )
         # Register the per-receiver projection function with the
         # router. Sutra v0.3.5+ ships _VSA.axon_project. With this
         # registered, the router can slim payloads to per-receiver
@@ -256,6 +291,66 @@ def _compile_su_to_module(
     mod.__file__ = f"<compiled from {src_path}>"
     exec(compile(py_src, mod.__file__, "exec"), mod.__dict__)
     return mod
+
+
+def make_shared_sutra_services(
+    specs: list[dict],
+    *,
+    llm_model: str = "nomic-embed-text",
+    runtime_dim: int = 768,
+) -> tuple[Any, list["SutraService"]]:
+    """Construct N SutraServices over a single shared MultiProcessRuntime.
+
+    `specs` is a list of dicts:
+      [{"name": str, "source_path": Path, "output_role": str,
+        "entry_point": str = "on_axon"}, ...]
+
+    Returns (runtime, services). The runtime is a Sutra v0.4.0
+    `MultiProcessRuntime`; the services are constructed wired to it,
+    so admission to the same `Init` shares one _VSA + codebook +
+    embedding cache across all of them. Reduces per-service compile
+    overhead and makes cross-service axon-passing coherent without
+    each service rebuilding its own rotation cache.
+
+    The kernel `Init.admit()` workflow is unchanged — call it once
+    per returned service. The shared runtime is held alive by the
+    services' references to it (each service stores its
+    `runtime=...`); callers don't need to keep a separate reference
+    unless they want runtime-level operations like
+    `runtime.axon_project(...)` or `runtime.tick("name", input)`.
+
+    Sutra v0.4.0+ required.
+    """
+    # Lazy import — only callers that actually use shared services
+    # pay the import cost. Same pattern as _compile_su_to_module.
+    from sutra_compiler.multi_process import (
+        MultiProcessRuntime,
+        ProgramSpec,
+    )
+
+    program_specs = [
+        ProgramSpec(
+            name=s["name"],
+            source_path=pathlib.Path(s["source_path"]),
+            entry_point=s.get("entry_point", "on_axon"),
+        )
+        for s in specs
+    ]
+    runtime = MultiProcessRuntime(
+        program_specs, llm_model=llm_model, runtime_dim=runtime_dim,
+    )
+    services = [
+        SutraService(
+            source_path=s["source_path"],
+            entry_point=s.get("entry_point", "on_axon"),
+            output_role=s["output_role"],
+            llm_model=llm_model,
+            runtime=runtime,
+            runtime_program_name=s["name"],
+        )
+        for s in specs
+    ]
+    return runtime, services
 
 
 # --- Python service variant — for harness code only ---------------------

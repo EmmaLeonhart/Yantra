@@ -69,7 +69,12 @@ from kernel.init import (
     Init,
     PoolExhaustedError,
 )
-from kernel.services import PythonService, Service, SutraService
+from kernel.services import (
+    PythonService,
+    Service,
+    SutraService,
+    make_shared_sutra_services,
+)
 
 __all__ = [
     "AdmissionError",
@@ -85,4 +90,5 @@ __all__ = [
     "Service",
     "SutraService",
     "load_manifest",
+    "make_shared_sutra_services",
 ]
