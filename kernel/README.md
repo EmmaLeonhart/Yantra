@@ -1,35 +1,43 @@
-# `kernel/` — Connectome Manager prototype (Python; v0.0)
+# `kernel/` — Connectome Manager (v0.0)
 
-> **What this is.** A **Python prototype** of the Connectome Manager
-> described in `planning/01-architecture.md` § "The kernel is a
-> Connectome Manager." The smallest thing that demonstrates Yantra's
-> process model end-to-end: an init/resource-manager + axon router
-> that admits Sutra services as processes, gives each one a fixed
-> budget at admission time, and routes axons between them with
-> capability checks.
+> **Sutra is doing the computation.** Each service is a real
+> Sutra-compiled `.su` program whose `on_axon(vector) -> vector`
+> function runs on real torch tensors that the router carries
+> through as axon payloads. This is verified by
+> `tests/test_kernel_sutra.py` — 6 tests that compile + run echo.su
+> and sink.su through the live Sutra v0.3.1 compiler and route a
+> real `torch.randn(768)` tensor producer → echo (Sutra) → sink
+> (Sutra) end-to-end.
 >
-> **What this is not.** The production Connectome Manager. The
-> production form is **Rust** on the CPU side (see
+> **The orchestration layer is in Python in this repo.** The
+> CPU-side init/resource-manager + axon router that decides who's
+> admitted, who's connected to whom, and what gets ticked. **It
+> does not do the compute**; it schedules and connects the things
+> that do. The production form on the CPU side is **Rust** (per
 > `planning/01-architecture.md` § "CPU side: small, Rust,
-> orchestrator"). This Python implementation is a behavioural
-> harness — it exists so the architectural shape can be exercised
-> and tested before the Rust port is written, and so future
-> implementers have a reference for "what does the API look like in
-> practice." Treat the Python here as load-bearing for *tests*,
-> *not* for runtime.
+> orchestrator"); the Python here pins the API shape and gives
+> the Rust port a target test suite. The Python is also fine
+> long-term as a development VM for non-critical-path work.
 
 ## What runs today
 
 ```bash
-python -m pytest tests/test_kernel.py -v
+# All kernel tests (19 unit + 6 real-Sutra integration = 25):
+python -m pytest tests/test_kernel.py tests/test_kernel_sutra.py -v
 ```
 
-19 tests pass. The flagship test
-(`test_echo_sink_round_trip_with_real_manifests`) admits an `echo`
-service and a `sink` service from real manifest TOML files, sends
-three payloads via a `producer` process, runs one tick, and verifies
-all three round-tripped from producer → echo → sink with the
-capability check firing on every hop.
+**`tests/test_kernel_sutra.py` is the one that proves Sutra is
+running.** It admits two real `SutraService`s — `echo.su` and
+`sink.su` compiled by the Sutra v0.3.1 compiler — and routes a
+real `torch.randn(768)` tensor through the chain
+producer → echo (Sutra compute) → sink (Sutra compute), verifying
+the receive end gets a real torch tensor back. The first test in
+that file pays the embedding-model download cost (~tens of seconds
+to minutes on cold cache); the rest reuse the cached compile.
+
+`tests/test_kernel.py` is the unit-test layer for admission
+control + router + capability check, using Python stand-ins so
+the unit tests don't pay the Sutra compile cost.
 
 ## Layout
 
@@ -38,20 +46,27 @@ capability check firing on every hop.
 | `manifest.py` | TOML manifest parser. One process per manifest. |
 | `router.py`   | Axon router with capability check on send + receive. |
 | `init.py`     | Resource manager: admission against a fixed pool budget; tick scheduler. |
-| `services.py` | `Service` base class + `PythonService` + `EchoService` + `SinkService`. Stub `load_su_service()` for v0.1. |
+| `services.py` | `Service` base + `SutraService` (compiles + runs `.su` programs) + `PythonService` (test/harness only). |
 | `manifests/`  | `echo.toml`, `sink.toml` — declarative process descriptors. |
-| `services/`   | `echo.su`, `sink.su` — seed Sutra source for the v0.1 `.su` loader. |
+| `services/`   | `echo.su`, `sink.su` — real Sutra source executed by the Sutra v0.3.1 compiler at admission time. |
 
 ## What is real, what is stubbed
 
 **Real** in v0.0:
 
+- **Real Sutra compute.** `SutraService` compiles a `.su` source
+  at admission time via the Sutra v0.3.1 compiler in
+  `external/Sutra/sdk/sutra-compiler/`, exposes its `on_axon`
+  function, and invokes it on every inbound axon. Inputs and
+  outputs are real torch tensors of shape `(axon_width,)`. Tested
+  end-to-end in `tests/test_kernel_sutra.py`.
 - Manifest parsing with structured validation errors.
 - Per-process admission against a fixed `compute_pool` budget;
   refusal-on-exhaustion is clean (`PoolExhaustedError`); deregister
   releases budget.
 - Capability check on write (sender must hold the role) and read
-  (receiver must hold the role) at every send.
+  (receiver must hold the role) at every send. Fires the same way
+  whether the service is `SutraService` or `PythonService`.
 - Black-hole policy: a send to a role no admitted process reads is
   audited and dropped, not raised — startup-order tolerance per
   `planning/01-architecture.md`.
@@ -59,41 +74,61 @@ capability check firing on every hop.
 - `tick()` scheduler that drains every service's inbox once per tick
   and reports per-process processed counts.
 
-**Stubbed** in v0.0 — documented at the call sites:
+**Honestly out of scope** in v0.0 — these all require upstream
+Sutra-side work that hasn't shipped:
 
-- **GPU memory arena allocation.** `compute_units` in the manifest
-  is bookkeeping only; the runtime does not yet carve out actual
-  GPU memory per process. The v0.1 multi-process Sutra runtime
-  needs to make this real.
-- **Concurrency model.** v0.0 is single-threaded: `Init.tick()`
-  iterates services sequentially. Production Yantra runs all
+- **Real per-process GPU memory arenas.** `compute_units` is
+  bookkeeping only because PyTorch's GPU memory model is
+  per-process — one Python process can't hand pre-allocated GPU
+  memory regions to N other processes running concurrently on the
+  same device. The fix is the **multi-threaded Sutra runtime**
+  being built in the Sutra repo upstream; until that lands, no
+  orchestrator (Python or Rust) can make real per-process arenas
+  work.
+- **Disc ↔ RAM ↔ GPU storage-tier moves** — the Connectome
+  Manager's actual job. Blocked on Sutra-side primitives that
+  don't exist yet: serialise-process-state-to-bytes (so a live
+  Sutra process can be paused) and evict-from-GPU. The
+  multi-program axon-passing demo in
+  `external/Sutra/examples/multi_program_axon/` runs each program
+  to completion and serialises its *output*; it doesn't
+  pause-and-resume a live process.
+- **GPU-tick-parallel scheduling.** `Init.tick()` iterates
+  services sequentially on the CPU. Production Yantra runs all
   admitted processes simultaneously on the GPU at each tick. The
-  service abstraction is concurrency-agnostic — a v0.1 scheduler
-  that runs services in parallel can drop in without changing the
-  service interface.
-- **`.su` service loading.** `services.load_su_service()` raises
-  `NotImplementedError` with a docstring pointing at the wiring
-  plan. v0.0 services are Python (`PythonService` subclasses); the
-  seed `.su` files in `services/` document the convention real
-  services will follow.
-- **Eviction to RAM cold-store.** `planning/03-process-lifecycle.md`
-  describes admit/active/cold-store/evict. v0.0 only implements
-  admit + deregister. Cold-store is v0.2 work.
+  service abstraction is concurrency-agnostic so the swap is
+  drop-in once the upstream Sutra runtime supports it.
+- **Eviction to RAM cold-store.** Same blocker as the storage-tier
+  moves. v0.0 only implements admit + deregister.
+- **Rotation-operator-based capability check.** v0.0 trusts the
+  sender's name (admission grants identity; capability is checked
+  by name). Production's threat model
+  (`paper/paper.md` § 3.3.1) is operator-based: possession of
+  `R_role` is the capability. Lands when the Sutra-side service
+  format formalises operator carriage.
 
-## How to add a new service in v0.0
+## How to add a new service
 
-1. Write a manifest TOML in `kernel/manifests/<name>.toml` with the
-   process's `axon_width`, `compute_units`, `read_roles`,
-   `write_roles`, and `source` (path to the eventual `.su` file).
-2. Either subclass `PythonService` and implement `tick()` directly,
-   or use `PythonService(on_axon=callable)` for a pure-callback
-   service.
-3. Admit it: `init.admit_from_path("kernel/manifests/<name>.toml", svc)`.
+1. Write a `.su` source file under `kernel/services/<name>.su`
+   exporting a `function vector on_axon(vector input_axon)`.
+2. Write a manifest TOML in `kernel/manifests/<name>.toml` with
+   the process's `axon_width`, `compute_units`, `read_roles`,
+   `write_roles`, and `source` (path to the `.su` file).
+3. Construct a `SutraService` and admit it:
+
+   ```python
+   from kernel import Init, SutraService
+   svc = SutraService(
+       source_path="kernel/services/myservice.su",
+       output_role="R_my_output",
+   )
+   init.admit_from_path("kernel/manifests/myservice.toml", svc)
+   ```
+
 4. Drive it: `init.tick()` runs every service's tick once.
 
-When v0.1 wires up the `.su` loader, step 2 changes to "drop the
-service's `.su` source under `kernel/services/<name>.su`" and the
-manifest's `source` field actually loads.
+`PythonService` exists for tests + harness code that doesn't
+need real Sutra compute. Production services are `SutraService`.
 
 ## Hard things deliberately out of scope
 
