@@ -55,16 +55,19 @@ Committed:
   fits Sutra's symbolic flavor ✓
 - WebSockets for data ✓
 
-Explicitly **dropped** (decision 2026-05-14):
+Explicitly **deferred — eventually, but not soon** (decision 2026-05-14):
 
 - **WebAssembly.** Earlier plans listed best-effort WASM via the C
-  transpiler. That is no longer the plan. WASM was an "absolute
-  nightmare" worth of edge cases and threading and memory-model
-  complexity for a substrate that does not naturally model linear
-  memory at all. Yantra's GUI stack is HTML5 + CSS + JavaScript +
-  WebGL/Three.js, period. Web apps that ship as WASM bundles either
-  re-ship as JS/TS or do not run on Yantra. This is a v0
-  scope-shrink, not a v0 limitation we plan to lift later.
+  transpiler. WASM is *eventually* in scope but **not now and not
+  for a long time** — not v0, not v0.1, not on any near-term
+  roadmap. The edge cases, threading, and linear-memory model
+  complexity make it a poor fit for the v0 GUI stack the way
+  Sutra+rotation-binding works today. v0's GUI stack is HTML5 +
+  CSS + idiomatic TypeScript + WebGL/Three.js. Web apps that ship
+  only as WASM bundles either re-ship as JS/TS for v0 or wait for
+  the eventual WASM transpile path. See `planning/07-transpilers.md`
+  § "WASM → Sutra — deferred (eventually, but not soon)" for the
+  decision record.
 
 Explicitly **not** supported:
 
