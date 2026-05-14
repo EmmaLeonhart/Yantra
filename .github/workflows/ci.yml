@@ -22,9 +22,17 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pytest
+          # CPU-only torch wheel — the Sutra compiler (used by the
+          # SutraService kernel tests) needs torch, but we don't need
+          # CUDA for CI smoke tests. The CPU wheel is ~200MB; the
+          # full CUDA wheel would be >2GB, which isn't worth the CI
+          # minutes for a runtime smoke test.
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
           if [ -f requirements.txt ]; then
             pip install -r requirements.txt
           fi
+      - name: Init submodules (Sutra compiler is needed for SutraService tests)
+        run: git submodule update --init external/Sutra
       - name: Run tests
         run: |
           if [ -d tests ]; then

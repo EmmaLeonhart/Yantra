@@ -75,13 +75,18 @@ adjacent projects.
   than to traditional RAM), and **GPU** (programs in the live
   connectome). The kernel moves programs between tiers; it does
   not schedule or context-switch.
-- **Kernel implementation: Rust on the CPU side.** Vision is "as
-  small as possible" with strong static guarantees. The
-  `kernel/` directory in this repo holds a Python *prototype* of
-  the Connectome Manager — behavioural harness for the Rust
-  port. Treat the Python as load-bearing for tests, not for
-  runtime. See `planning/01-architecture.md` § "CPU side: small,
-  Rust, orchestrator."
+- **Kernel implementation.** The `kernel/` directory in this repo
+  is the v0.0 Connectome Manager. **Sutra is doing the
+  computation** — `SutraService` compiles `.su` source via the
+  Sutra v0.3.1 compiler and runs `on_axon(vector) -> vector` on
+  real torch tensors routed through the kernel. The
+  **orchestration layer** (init/resource-manager + axon router +
+  capability check) is in Python here; the production form on the
+  CPU side is **Rust** per `planning/01-architecture.md` § "CPU
+  side: small, Rust, orchestrator." When updating Yantra-side
+  kernel code today, edit the Python and write `.su` files;
+  treat the Python as the API-shape pin the eventual Rust
+  reimplementation must match.
 - **Kernel is NOT C-transpiled.** The verification surface in
   `paper/paper.md` § 4 depends on the trusted base reducing
   cleanly to tensor normal form; running the kernel through a

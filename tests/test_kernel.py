@@ -29,17 +29,41 @@ from kernel import (
     AdmissionError,
     AxonRouter,
     CapabilityError,
-    EchoService,
     Init,
     Manifest,
     ManifestError,
     NotAdmittedError,
     PoolExhaustedError,
     PythonService,
-    SinkService,
     load_manifest,
 )
 from kernel.router import Axon
+
+
+def _echo_python(output_role: str = "R_output") -> PythonService:
+    """Python stand-in for an echo service (real version uses SutraService)."""
+    def on_axon(svc: PythonService, ax: Axon) -> None:
+        svc.emit(output_role, ax.payload)
+    return PythonService(on_axon=on_axon)
+
+
+class _CountingSink(PythonService):
+    """Python stand-in for a sink that counts axons and emits stats."""
+
+    def __init__(self, *, stat_role: str = "R_stat", report_every: int = 1) -> None:
+        self._stat_role = stat_role
+        self._report_every = report_every
+        self.count = 0
+        self._since = 0
+
+        def on_axon(svc: PythonService, ax: Axon) -> None:
+            self.count += 1
+            self._since += 1
+            if self._since >= self._report_every:
+                svc.emit(self._stat_role, {"count": self.count})
+                self._since = 0
+
+        super().__init__(on_axon=on_axon)
 
 
 KERNEL_DIR = pathlib.Path(__file__).resolve().parent.parent / "kernel"
@@ -234,10 +258,15 @@ def test_inbox_depth_unadmitted_raises() -> None:
 
 
 def test_echo_sink_round_trip_with_real_manifests() -> None:
-    """The flagship demo: real manifests, two services, axons routed."""
+    """Infrastructure round-trip: real manifests, two services, axons routed.
+
+    Uses PythonService stand-ins so this test runs without the Sutra
+    runtime cost. The same scenario with real Sutra-compiled services
+    is in tests/test_kernel_sutra.py.
+    """
     init = Init(compute_pool=4)
-    echo = EchoService(output_role="R_output")
-    sink = SinkService(stat_role="R_stat", report_every=10_000)
+    echo = _echo_python(output_role="R_output")
+    sink = _CountingSink(stat_role="R_stat", report_every=10_000)
 
     init.admit_from_path(MANIFESTS / "echo.toml", echo)
     init.admit_from_path(MANIFESTS / "sink.toml", sink)
@@ -274,8 +303,8 @@ def test_echo_sink_round_trip_with_real_manifests() -> None:
 def test_sink_stat_emit_is_black_hole_no_logger() -> None:
     """Sink emits R_stat every report_every ticks; no logger ⇒ dropped."""
     init = Init(compute_pool=3)
-    echo = EchoService()
-    sink = SinkService(stat_role="R_stat", report_every=2)
+    echo = _echo_python()
+    sink = _CountingSink(stat_role="R_stat", report_every=2)
     init.admit_from_path(MANIFESTS / "echo.toml", echo)
     init.admit_from_path(MANIFESTS / "sink.toml", sink)
     producer = PythonService(lambda s, ax: None)
