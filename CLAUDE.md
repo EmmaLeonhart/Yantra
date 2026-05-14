@@ -104,10 +104,11 @@ adjacent projects.
   v0.1 target, not on any near-term roadmap). See
   `planning/07-transpilers.md` and `planning/06-gui-stack.md`.
 - **TS→Sutra transpiler is browser/GUI-scoped only.** Outside the
-  browser layer, TS→Sutra is not used. The lowering engine works
-  (1474-line `lower.py`, 17 passing fixtures); the CLI wrapper is
-  unwired (the README is stale). Wiring up the CLI is a small
-  upstream Sutra task that unblocks browser work.
+  browser layer, TS→Sutra is not used. **Shipped as Sutra v0.3.2**
+  (released 2026-05-14): CLI works, 17 fixtures pass, `pip install
+  sutra-dev[ts]` bundles it. Coverage caveat: typed core works,
+  but TS-completeness is not a solved problem — real-world bundles
+  may need new lowering rules. Foundation, not finished feature.
 
 ### Userspace utilities (cat, ls, grep, awk, sed, sort, etc.)
 
@@ -132,7 +133,7 @@ vocabulary matures and the kernel `.su` loader lands. Q-list is in
 - **Two core dependencies Yantra rides on, both Sutra-side:**
   1. **Sutra** — the typed functional language with rotation-binding +
      polynomial Kleene logic + tail-recursive RNN-cell loops. Pinned
-     in this repo at `external/Sutra` (submodule, currently v0.3.1).
+     in this repo at `external/Sutra` (submodule, currently v0.3.2).
      Language website: [sutralang.dev](https://sutralang.dev). The
      Sutra paper at `external/Sutra/paper/paper.md` is the canonical
      reference for empirical claims Yantra makes (100% bundle

@@ -126,12 +126,12 @@ Three parallel tracks once we get to milestone three:
   a `kernel/services/display.su` once we have a real kernel loader.
   First concrete deliverable: render a hand-written Sutra "page"
   (literally just text + a colored rectangle) without touching HTML.
-- **TS→Sutra transpiler CLI wired up.** Currently
-  `external/Sutra/sdk/sutra-from-ts/sutra_from_ts/__main__.py` is
-  the skeleton stub even though `lower.py` works. Wiring is small
-  and unblocks all browser work that loads real JS/TS bundles.
-  This is upstream work, not Yantra-side — a PR or issue in the
-  Sutra repo.
+- ~~**TS→Sutra transpiler CLI wired up.**~~ Done in Sutra v0.3.2
+  (released 2026-05-14). `python -m sutra_from_ts in.ts -o out.su`
+  works end-to-end; `pip install sutra-dev[ts]` bundles it. Real
+  TS-completeness work (rules for constructs the 17 fixtures don't
+  cover) is the ongoing version of this item, but the CLI itself
+  is no longer a blocker.
 - **First transpiled web app.** Once the CLI is wired, a
   hello-world reactive component (Solid/Svelte-style) compiled
   through `ts2su → sutrac → executes` is the smallest demonstration
