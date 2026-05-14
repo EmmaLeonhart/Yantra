@@ -1,9 +1,17 @@
-"""Yantra kernel — multi-process runtime nucleus.
+"""Yantra kernel — Connectome Manager prototype (Python).
 
-This package is the v0.0 of the Yantra kernel: the Python-side
-init/resource-manager + axon router that admits Sutra services as
-processes, gives each one a fixed budget at admission time, and
-routes axons between them with capability checks.
+This package is the v0.0 PYTHON PROTOTYPE of the Yantra Connectome
+Manager. The production target is **Rust** on the CPU side; the
+Python implementation here is a behavioural harness that exercises
+the architectural shape (admission control, axon routing,
+capability checks) before the Rust port is written.
+
+See `planning/01-architecture.md` § "The kernel is a Connectome
+Manager" and § "CPU side: small, Rust, orchestrator" for the full
+framing. The kernel is the init/resource-manager + axon router
+that admits Sutra services as processes, gives each one a fixed
+budget at admission time, and routes axons between them with
+capability checks.
 
 What is real here:
 

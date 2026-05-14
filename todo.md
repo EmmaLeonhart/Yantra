@@ -10,24 +10,37 @@
 
 ---
 
-## 1. Kernel — beyond the v0.0 nucleus
+## 1. Kernel — Connectome Manager, beyond the Python v0.0 prototype
 
-The `kernel/` directory ships a working v0.0 (manifest + router +
-init + two example services + 19 passing tests). The hardening list
-to take it from "demonstrates the architecture's shape" to "could
-actually run a workload":
+The `kernel/` directory ships a working **Python prototype** of the
+Connectome Manager (manifest + router + init + two example services
++ 19 passing tests). The Python is a behavioural harness; the
+production form is Rust. Hardening list:
 
+- **Rust port of the Connectome Manager.** The production form on
+  the CPU side. "As small as possible" with strong static
+  guarantees; the Python prototype is the API reference. Single
+  largest piece of work in this list, and the one that turns
+  `kernel/` from "behavioural harness" into "runtime."
+- **Storage-tier moves: disc ↔ RAM ↔ GPU.** The Python prototype
+  only implements admit/deregister against an in-memory pool. The
+  Connectome Manager's actual job is shuffling programs between
+  disc, RAM, and GPU per the architecture. RAM in Yantra is
+  semantically closer to disc than to traditional RAM
+  (`planning/01-architecture.md` § "The kernel is a Connectome
+  Manager"); the manager decides which tier each program lives in
+  at any moment.
 - **Real per-process GPU memory arenas.** v0.0's `compute_units`
   is bookkeeping only. Production needs the multi-process Sutra
-  runtime to carve out actual device memory per admitted process,
-  with an admission-time refusal that corresponds to actual
-  hardware capacity rather than an integer counter. Single biggest
-  blocker on the "no degradation under load" property.
+  runtime (being implemented in the Sutra repo upstream) to carve
+  out actual device memory per admitted process, with admission-
+  time refusal that corresponds to actual hardware capacity rather
+  than an integer counter.
 - **GPU-tick-parallel scheduling.** v0.0 ticks services
   sequentially on CPU. Production runs every admitted process
-  simultaneously on the GPU at each tick. Drop-in replacement for
-  `Init.tick()` once the parallel scheduler exists; the service
-  abstraction is concurrency-agnostic.
+  simultaneously on the GPU at each tick. Drop-in once the Sutra
+  multi-process runtime lands upstream; the service abstraction is
+  concurrency-agnostic.
 - **`.su` service loading** (`kernel.services.load_su_service()`
   is currently `NotImplementedError`). Needs the Sutra-side
   convention for "what does a service-shaped `.su` program
@@ -37,24 +50,25 @@ actually run a workload":
   sender's name (admission grants identity; capability is checked
   by name). Production's threat model (`paper/paper.md` § 3.3.1)
   is operator-based: possession of `R_role` is the capability.
-  Lands when the `.su` loader does — a Sutra-side service can
-  carry its operators directly.
-- **Eviction to RAM cold-store** (`planning/03-process-lifecycle.md`).
-  Atomic per-process eviction with bit-exact serialise/resume. The
-  open question of cold-store integrity (signed-on-evict,
-  verified-on-resume) lives in `planning/17-memory-model.md`.
+  Lands when the `.su` loader does.
 - **CPU-side hardware shim** for the interrupt + MMIO + tick
   pattern in `paper/paper.md` § 3.5. Blocked on having target
-  hardware.
+  hardware. The shim itself is in the Rust orchestrator's scope.
 - **Bootloader.** A small program that loads the compiled kernel
-  image onto the GPU and starts it executing. The bootloader is the
-  one place a C origin is genuinely useful; the C→Sutra transpiler
-  is the long-term target for compiling it.
+  image onto the GPU and starts it executing. C or Rust; the
+  C→Sutra transpiler is the long-term target if we want the
+  bootloader inside the verification surface.
 
-## 2. Userspace utilities — native Sutra rewrites
+## 2. Userspace utilities — native Sutra rewrites — second milestone
 
-**Policy:** these are written natively in Sutra. Not C-transpiled.
-The `external/{coreutils,util-linux,busybox}` submodules are
+**Build order:** these are the **second milestone** after the
+Connectome Manager works. Initial system access is **command-line
+only** (SSH or serial from a host computer). No GUI in this phase.
+The vision is "we can edit files on this thing from my computer";
+once that works the browser becomes the third milestone.
+
+**Policy:** written natively in Sutra. Not C-transpiled. The
+`external/{coreutils,util-linux,busybox}` submodules are
 behavioural reference, not transpile inputs.
 
 **Status: cannot do right now.** The blocker is not the language —
@@ -88,10 +102,20 @@ The Q-list, in rough order of priority:
 Each utility lands as `apps/<name>.su` once the Sutra stdlib +
 kernel loader can support it. Manifest goes in `apps/manifests/`.
 
-## 3. Browser — renderer + TS-transpiler-CLI + first transpiled web app
+## 3. Browser — renderer + TS-transpiler-CLI + first transpiled web app — third milestone
 
-The browser is "everything is a browser" — Yantra's GUI claim. Three
-parallel tracks:
+**Build order: third milestone**, after (1) Connectome Manager and
+(2) command-line userspace utilities are working. The browser is
+"everything is a browser" — every GUI component (start menu, mouse
+cursor, login screen, file manager) is a browser-rendered HTML
+page. Single GUI framework, no exceptions.
+
+**Stack: HTML5 + CSS + idiomatic TypeScript + WebGL/Three.js. NO
+WebAssembly** (decision 2026-05-14, see `planning/06-gui-stack.md`
+and `planning/07-transpilers.md`). TS components are pre-transpiled
+to Sutra ahead of time, not at runtime.
+
+Three parallel tracks once we get to milestone three:
 
 - **Sutra-native renderer.** Layout engine + display server pair
   that consumes axons describing the screen state and emits
