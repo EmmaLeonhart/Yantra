@@ -62,26 +62,57 @@ adjacent projects.
   competitive awareness, not as a foundation Yantra rides on.
 - **Two core dependencies Yantra rides on, both Sutra-side:**
   1. **Sutra** — the typed functional language with rotation-binding +
-     polynomial Kleene logic + tail-recursive RNN-cell loops. The
-     Sutra paper at `Sutra/paper/paper.md` is the canonical reference
-     for empirical claims Yantra makes (100% bundle decoding through
-     width k=8 across four substrates, ~1.5×10⁻¹⁵ round-trip error,
-     4→95% end-to-end-differentiable training in 50 epochs on a
-     19-AND fuzzy rule tree). When Yantra makes a claim that depends
-     on Sutra empirics, cite the Sutra paper explicitly rather than
-     hand-waving.
-  2. **TypeScript → Sutra transpiler** — already running. Essential
-     for the browser GUI layer because "everything is a browser" only
-     works if real JS/TS bundles can be AOT-compiled to Sutra without
-     a human rewrite. The transpiler is the on-ramp; the browser
-     layer is non-negotiable because users will need to render web
-     content (`planning/06-gui-stack.md`, `planning/07-transpilers.md`).
+     polynomial Kleene logic + tail-recursive RNN-cell loops. Pinned
+     in this repo at `external/Sutra` (submodule, currently v0.3.1).
+     Language website: [sutralang.dev](https://sutralang.dev). The
+     Sutra paper at `external/Sutra/paper/paper.md` is the canonical
+     reference for empirical claims Yantra makes (100% bundle
+     decoding through width k=8 across four substrates, ~1.5×10⁻¹⁵
+     round-trip error, 4→95% end-to-end-differentiable training in
+     50 epochs on a 19-AND fuzzy rule tree). When Yantra makes a
+     claim that depends on Sutra empirics, cite the Sutra paper
+     explicitly rather than hand-waving.
+  2. **TypeScript → Sutra transpiler** — the lowering engine
+     (`external/Sutra/sdk/sutra-from-ts/sutra_from_ts/lower.py`) is
+     ~1474 lines of real code with 17 passing fixtures covering
+     functions, classes, async/await, discriminated unions, etc. The
+     CLI wrapper (`__main__.py`) is *not* yet wired up to the
+     lowering pass and the README still says "skeleton" — that README
+     is out of date relative to the actual code. **When discussing
+     the TS transpiler, say "the lowering engine works; the CLI is
+     unwired" rather than "it's a skeleton" or "it's done." Both
+     extremes are wrong.** Essential for the browser GUI layer
+     because "everything is a browser" only works if real JS/TS
+     bundles can be AOT-compiled to Sutra without a human rewrite.
 - **The memory model is the long-term hard problem.** Process memory,
   the CPU-side RAM cold-store, MMIO patterns, and the boundary where
   axon-typed compute meets byte-typed hardware do not yet have a
   worked-out design. `planning/17-memory-model.md` exists to keep
   the open questions in one place. Do not promise solutions in the
   paper that the planning corpus does not yet have.
+- **Kernel + browser readiness lives in `planning/18-kernel-browser-
+  readiness.md`** — honest engineering accounting, not paper-tone.
+  Read this before claiming the OS is or isn't writable; refresh it
+  when the situation changes.
+
+## External dependencies (`external/`)
+
+Submodules pinned at known-good releases. Layout:
+
+- `external/Sutra` (tag `v0.3.1`) — the language, compiler, runtime,
+  and Sutra paper Yantra depends on.
+- `external/coreutils` (tag `v9.11`) — GNU userspace utilities
+  reserved for the C→Sutra transpilation path. **Not usable today**
+  because the C transpiler is genuinely a skeleton (~57 lines of
+  CLI scaffolding, no lowering pass).
+- `external/util-linux` (tag `v2.42`) — administrative-layer Linux
+  utilities. Same reservation status.
+- `external/busybox` (tag `1_36_1`) — compact alt-implementations.
+  Same reservation status.
+
+To add a new external dependency: pin a specific tag, never `main`.
+A floating dependency on master is a procurement-security
+non-starter for the markets Yantra targets.
 
 ## Paper revision discipline
 

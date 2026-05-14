@@ -21,7 +21,9 @@ _(empty — add the next concrete design or implementation task here)_
 - Design notes: `planning/` (numbered for reading order)
 - Open architectural questions: `planning/15-open-questions.md`
 - Memory model open hard problem: `planning/17-memory-model.md`
+- Kernel + browser readiness audit: `planning/18-kernel-browser-readiness.md`
 - Chat history the design grew out of: `chats/`
 - Paper + AI peer review pipeline: `paper/` (see `paper/README.md`)
 - Latest review history: `paper/reviews/`
+- External dependencies (Sutra + Linux utility sources): `external/` (submodules)
 - Narrative history: `git log`
