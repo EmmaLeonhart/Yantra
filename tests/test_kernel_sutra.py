@@ -180,3 +180,174 @@ def test_sutra_service_missing_entry_point_raises(tmp_path: pathlib.Path) -> Non
             ),
             svc,
         )
+
+
+# ---- lazy axon evaluation: compiler-emitted constants drive routing -
+
+
+def test_sutra_service_exposes_axon_keys_from_compiled_module(tmp_path: pathlib.Path) -> None:
+    """The Sutra v0.3.3+ AXON_KEYS_BOUND/READ constants surface as service properties."""
+    # A .su that both binds and reads — exercise both halves of the static analysis.
+    src = tmp_path / "mixed.su"
+    src.write_text(
+        "function vector on_axon(vector input_axon) {\n"
+        "    Axon a;\n"
+        "    a.add(\"out_key\", input_axon);\n"
+        "    return axon_item(a, \"out_key\");\n"
+        "}\n",
+        encoding="utf-8",
+    )
+
+    init = Init(compute_pool=5)
+    svc = SutraService(source_path=src, output_role="R_out")
+    init.admit(
+        Manifest(
+            name="mixed", axon_width=AXON_WIDTH, compute_units=1,
+            read_roles=frozenset({"R_in"}),
+            write_roles=frozenset({"R_out"}),
+            source=str(src),
+        ),
+        svc,
+    )
+    assert svc.axon_keys_bound == frozenset({"out_key"})
+    assert svc.axon_keys_read == frozenset({"out_key"})
+
+
+def test_sutra_service_auto_populates_manifest_axon_keys(tmp_path: pathlib.Path) -> None:
+    """When manifest doesn't declare axon_keys, SutraService fills it from the .su."""
+    consumer = tmp_path / "consumer.su"
+    consumer.write_text(
+        "function vector on_axon(vector input_axon) {\n"
+        "    return axon_item(input_axon, \"animal_2\");\n"
+        "}\n",
+        encoding="utf-8",
+    )
+
+    init = Init(compute_pool=5)
+    svc = SutraService(source_path=consumer, output_role="R_out")
+    init.admit(
+        Manifest(
+            name="consumer", axon_width=AXON_WIDTH, compute_units=1,
+            read_roles=frozenset({"R_in"}),
+            write_roles=frozenset({"R_out"}),
+            source=str(consumer),
+            # axon_keys NOT declared — service should auto-populate.
+        ),
+        svc,
+    )
+    # The router's view of the receiver's axon_keys should now reflect
+    # what the .su source statically reads.
+    receiver_manifest = init._table["consumer"].manifest  # noqa: SLF001
+    assert receiver_manifest.axon_keys == frozenset({"animal_2"})
+
+
+def test_sutra_service_respects_explicit_manifest_axon_keys(tmp_path: pathlib.Path) -> None:
+    """If the manifest DID declare axon_keys, don't overwrite — explicit wins."""
+    src = tmp_path / "consumer.su"
+    src.write_text(
+        "function vector on_axon(vector input_axon) {\n"
+        "    return axon_item(input_axon, \"static_key\");\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    init = Init(compute_pool=5)
+    svc = SutraService(source_path=src, output_role="R_out")
+    init.admit(
+        Manifest(
+            name="explicit", axon_width=AXON_WIDTH, compute_units=1,
+            read_roles=frozenset({"R_in"}),
+            write_roles=frozenset({"R_out"}),
+            source=str(src),
+            axon_keys=frozenset({"override_key"}),  # explicit wins
+        ),
+        svc,
+    )
+    receiver_manifest = init._table["explicit"].manifest  # noqa: SLF001
+    assert receiver_manifest.axon_keys == frozenset({"override_key"})
+
+
+def test_sutra_service_emit_tags_axon_with_bound_keys(tmp_path: pathlib.Path) -> None:
+    """SutraService.tick() forwards AXON_KEYS_BOUND to router.send()'s keys field.
+
+    Uses a .su that just returns its input (no Axon construction inside
+    the body — that triggers an unrelated Sutra-runtime device-coherence
+    bug between the role rotation matrix and a freshly-allocated filler
+    tensor that's orthogonal to the wiring being tested here). The
+    binding-keys claim still holds because AXON_KEYS_BOUND is collected
+    by static analysis of the source, not by runtime execution.
+    """
+    # Producer .su that statically declares two bind keys but doesn't
+    # actually construct an Axon at runtime — keeps the body trivial
+    # so we don't trip Sutra's runtime device-coherence issue.
+    producer = tmp_path / "producer.su"
+    producer.write_text(
+        "function vector make_unused() {\n"
+        "    Axon a;\n"
+        "    a.add(\"key_one\", basis_vector(\"x\"));\n"
+        "    a.add(\"key_two\", basis_vector(\"y\"));\n"
+        "    return a;\n"
+        "}\n"
+        "function vector on_axon(vector input_axon) {\n"
+        "    return input_axon;\n"  # just pass through — no device hazard
+        "}\n",
+        encoding="utf-8",
+    )
+    init = Init(compute_pool=5)
+    prod_svc = SutraService(source_path=producer, output_role="R_out")
+    init.admit(
+        Manifest(
+            name="prod", axon_width=AXON_WIDTH, compute_units=1,
+            read_roles=frozenset({"R_in"}),
+            write_roles=frozenset({"R_out"}),
+            source=str(producer),
+        ),
+        prod_svc,
+    )
+    # Sanity: static analysis picked up both bind keys even though
+    # make_unused() never runs.
+    assert prod_svc.axon_keys_bound == frozenset({"key_one", "key_two"})
+
+    # Receiver that wants only "key_one" — producer's emission should
+    # still arrive (intersection non-empty), and its keys field
+    # should reflect what the producer's source statically binds.
+    receiver_consumer = tmp_path / "rcv.su"
+    receiver_consumer.write_text(
+        "function vector on_axon(vector input_axon) {\n"
+        "    return input_axon;\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    receiver = SutraService(source_path=receiver_consumer, output_role="R_done")
+    init.admit(
+        Manifest(
+            name="recv", axon_width=AXON_WIDTH, compute_units=1,
+            read_roles=frozenset({"R_out"}),
+            write_roles=frozenset({"R_done"}),
+            source=str(receiver_consumer),
+            axon_keys=frozenset({"key_one"}),
+        ),
+        receiver,
+    )
+
+    # Inject an axon on the producer's R_in. Use the runtime's device
+    # so the trivial pass-through doesn't device-mismatch.
+    runtime_device = prod_svc._compiled_module._DEVICE  # noqa: SLF001
+    init.router._inboxes["prod"].append(  # noqa: SLF001 — test
+        Axon(
+            role="R_in",
+            payload=torch.zeros(AXON_WIDTH, device=runtime_device),
+            from_proc="prod",
+        ),
+    )
+    prod_svc.tick()  # runs on_axon → emits via SutraService.emit()
+    inbox = init.router.receive("recv")
+    assert inbox is not None
+    # The emitted axon's keys field should be the producer's
+    # statically-collected bound keys.
+    assert inbox.keys == frozenset({"key_one", "key_two"})
+    # Intersection {"key_one"} is non-empty → no lazy-skip.
+    assert init.router.lazy_skipped_count() == 0
+
+
+# Need Axon at module scope for the previous test.
+from kernel.router import Axon  # noqa: E402
