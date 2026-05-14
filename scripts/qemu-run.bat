@@ -1,19 +1,19 @@
 @echo off
-REM Boot the Yantra bootloader image in QEMU.
+REM Boot the Yantra multiboot1 kernel in QEMU.
 REM See scripts/qemu-run.sh for the full doc.
 
 setlocal
 set "REPO_ROOT=%~dp0.."
-set "IMG=%REPO_ROOT%\bootloader\target\x86_64-unknown-none\release\bootimage-yantra-bootloader.bin"
+set "KERNEL=%REPO_ROOT%\bootloader\target\i686-yantra\release\yantra-bootloader"
 
-if not exist "%IMG%" (
-  echo ERROR: bootimage not found at %IMG%
+if not exist "%KERNEL%" (
+  echo ERROR: kernel not found at %KERNEL%
   echo Run scripts\qemu-build.bat first.
   exit /b 1
 )
 
-REM Look for qemu-system-x86_64.exe in PATH; if not, check common
-REM Windows install locations.
+REM Look for qemu-system-x86_64.exe in PATH; if not, check the
+REM standard Windows install location.
 where qemu-system-x86_64 >nul 2>nul
 if errorlevel 1 (
   if exist "C:\Program Files\qemu\qemu-system-x86_64.exe" (
@@ -27,5 +27,5 @@ if errorlevel 1 (
   set "QEMU=qemu-system-x86_64"
 )
 
-echo ^>^>^> Booting Yantra bootloader in QEMU. Ctrl+A then X to exit.
-"%QEMU%" -drive format=raw,file="%IMG%" -serial stdio -display none -no-reboot
+echo ^>^>^> Booting Yantra kernel in QEMU. Ctrl+A then X to exit.
+"%QEMU%" -kernel "%KERNEL%" -serial stdio -display none -no-reboot
