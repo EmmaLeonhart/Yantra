@@ -49,16 +49,20 @@ browser layer, TS→Sutra is not used: the kernel is native Sutra,
 userspace utilities are native Sutra rewrites, and there is no
 general-purpose "JS apps run on Yantra" promise.
 
-Status: the lowering engine
-(`external/Sutra/sdk/sutra-from-ts/sutra_from_ts/lower.py`) is
-~1474 lines of real code with 17 passing fixtures covering
-functions, classes, async/await, discriminated unions, etc. The
-CLI wrapper is unwired and the README still says "skeleton" — both
-out of date relative to the actual code. **Status as of this
-writing: lowering engine works; CLI is unwired; README is stale.
-Both extremes ("done" or "skeleton") are wrong.** Wiring up the
-CLI is a small task on the Sutra side that unblocks all browser
-layer work.
+Status: **shipped as Sutra v0.3.2** (released 2026-05-14). The CLI
+(`python -m sutra_from_ts input.ts`) reads `.ts` / `.js`, lowers
+through `lower.py` (~1500 lines covering functions, classes,
+async/await, discriminated unions, etc.), writes valid `.su`. 17
+fixtures pass through end-to-end; 4 new CLI smoke tests lock the
+wire-up. `pip install sutra-dev[ts]` pulls in the transpiler
+alongside the compiler — recommended install for browser/GUI dev
+is `pip install sutra-dev[runtime,ts]`.
+
+Coverage caveat: TS-completeness is not "done." 17 fixtures is a
+floor, not a ceiling — real-world bundles will hit constructs
+that need additional lowering rules. The transpiler is **shippable
+as a foundation for browser-layer work**, not a guarantee that any
+arbitrary npm package will compile.
 
 What it does well:
 
