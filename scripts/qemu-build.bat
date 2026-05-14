@@ -1,5 +1,5 @@
 @echo off
-REM Build the Yantra bootloader into a bootable disk image QEMU can boot.
+REM Build the Yantra multiboot1 kernel.
 REM See scripts/qemu-build.sh for the full doc.
 
 setlocal
@@ -12,18 +12,11 @@ if errorlevel 1 (
   exit /b 1
 )
 
-where bootimage >nul 2>nul
-if errorlevel 1 (
-  echo Installing bootimage build tool ^(one-time^)...
-  cargo install bootimage
-  if errorlevel 1 exit /b 1
-)
-
-echo ^>^>^> cargo bootimage --release...
-cargo bootimage --release
+echo ^>^>^> cargo -Zjson-target-spec build --release...
+cargo -Zjson-target-spec build --release
 if errorlevel 1 exit /b 1
 
-set "OUT=target\x86_64-unknown-none\release\bootimage-yantra-bootloader.bin"
+set "OUT=target\i686-yantra\release\yantra-bootloader"
 if exist "%OUT%" (
   echo ^>^>^> Built: %OUT%
   echo ^>^>^> Run with: scripts\qemu-run.bat

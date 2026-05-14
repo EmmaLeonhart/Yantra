@@ -1,85 +1,105 @@
-//! Yantra bare-metal bootloader v0.0.
+//! Yantra bare-metal kernel v0.0 — multiboot1, 32-bit, no third-party deps.
 //!
-//! Runs in QEMU as a freestanding x86_64 binary booted by the
-//! `bootloader` crate's BIOS/UEFI handoff. Prints
-//! "Yantra bootloader v0.0 — hello from bare metal" via two channels:
+//! Boots in QEMU via `qemu-system-x86_64 -kernel <this-binary>`. QEMU's
+//! `-kernel` flag accepts multiboot1-compatible ELF binaries directly:
+//! no disk image, no BIOS boot sector, no third-party bootloader crate.
+//! The kernel runs in 32-bit protected mode (multiboot1 hands off in
+//! that mode) and prints "Yantra bootloader v0.0 — hello from bare
+//! metal" via QEMU's COM1 serial port.
 //!
-//!   1. The VGA text-mode buffer at `0xb8000` — visible if booted with
-//!      QEMU's default display (gfx window).
-//!   2. QEMU's emulated COM1 serial port at I/O port `0x3F8` — captured
-//!      by `qemu-system-x86_64 -serial stdio`, which is the mode the
-//!      `scripts/qemu-run.{sh,bat}` wrappers use so output appears in
-//!      the host terminal.
+//! This replaces the v0.0.1 bootloader-v0.9-crate setup, which
+//! triple-faulted at boot under Rust 1.96 nightly. The hand-rolled
+//! multiboot1 path has no version-skew surface — multiboot1 is a
+//! fixed spec (1995), QEMU's loader has been stable since the early
+//! 2000s, and the only Rust feature we use beyond `no_std` is inline
+//! `asm!` (stable since Rust 1.59).
 //!
-//! After the print, the CPU halts in `cli; hlt`. Nothing else.
-//!
-//! What this binary is NOT (per `planning/19-boot-sequence.md` § Stage 3):
-//!
-//!   - It does NOT initialise the GPU. Discovering + initing the GPU
-//!     is real bootloader work for v0.1+.
-//!   - It does NOT load a Sutra-compiled kernel image into GPU memory.
-//!     That needs both GPU init (above) and a defined kernel-image
-//!     format. Both v0.1+.
-//!   - It does NOT hand off to a Rust orchestrator. The orchestrator
-//!     is its own runtime that runs after the bootloader; v0.1 work.
-//!
-//! What this binary IS: a demonstration that a Yantra-authored binary
-//! can boot under QEMU, talk to virtualized hardware (the COM1 UART
-//! and the VGA buffer), and run on bare metal with no OS underneath.
-//! Tier-3 milestone, smallest possible v0.
+//! What this binary does:
+//!   - Multiboot1 header at the start of the binary.
+//!   - `_start` entry (in `global_asm!`): sets ESP to a known stack
+//!     top, then jumps to Rust `kernel_main`.
+//!   - `kernel_main`: writes "Yantra bootloader v0.0 — hello from
+//!     bare metal" to COM1 (I/O port 0x3F8). QEMU's `-serial stdio`
+//!     forwards this to the host terminal.
+//!   - Halts in `cli; hlt` loop forever.
 
 #![no_std]
 #![no_main]
 
+use core::arch::{asm, global_asm};
 use core::panic::PanicInfo;
-use bootloader::{entry_point, BootInfo};
 
-entry_point!(kernel_main);
+// --- multiboot1 header ----------------------------------------------
 
-const HELLO: &[u8] = b"Yantra bootloader v0.0 - hello from bare metal";
+const MULTIBOOT_MAGIC: u32 = 0x1BADB002;
+const MULTIBOOT_FLAGS: u32 = 0;
+const MULTIBOOT_CHECKSUM: u32 = (-((MULTIBOOT_MAGIC + MULTIBOOT_FLAGS) as i32)) as u32;
 
-fn kernel_main(_boot_info: &'static BootInfo) -> ! {
-    write_vga(HELLO);
+#[link_section = ".multiboot"]
+#[used]
+static MULTIBOOT_HEADER: [u32; 3] = [
+    MULTIBOOT_MAGIC,
+    MULTIBOOT_FLAGS,
+    MULTIBOOT_CHECKSUM,
+];
+
+// --- entry: set up stack, call into Rust ----------------------------
+//
+// global_asm! defines the actual `_start` entry point so we control
+// the very first instructions. Multiboot1 hands off in 32-bit
+// protected mode but doesn't guarantee a usable stack, so the very
+// first thing we do is point ESP at our own stack buffer. Then we
+// call into `kernel_main` which is regular Rust.
+//
+// AT&T-style asm because that's what global_asm! defaults to on
+// x86 with the LLVM backend; the `.intel_syntax noprefix` directive
+// switches to Intel syntax for readability.
+
+global_asm!(
+    r#"
+    .section .text
+    .global _start
+    .intel_syntax noprefix
+_start:
+    /* Multiboot puts magic in EAX, info ptr in EBX. We don't use
+     * them in v0.0, but preserve them in case a future revision
+     * does — push to stack after setting ESP. */
+    lea esp, [stack_top]
+    push ebx                /* multiboot info pointer */
+    push eax                /* multiboot magic */
+    call kernel_main
+    /* kernel_main is `-> !` so we never return; loop just in case. */
+1:  cli
+    hlt
+    jmp 1b
+
+    .section .bss
+    .align 16
+stack_bottom:
+    .skip 16384             /* 16 KB stack — plenty for v0.0 */
+stack_top:
+    "#
+);
+
+// --- Rust kernel ----------------------------------------------------
+
+const HELLO: &[u8] = b"Yantra bootloader v0.0 - hello from bare metal\n";
+const SERIAL_COM1: u16 = 0x3F8;
+
+#[no_mangle]
+pub extern "C" fn kernel_main(_multiboot_magic: u32, _multiboot_info: u32) -> ! {
     write_serial(HELLO);
-    write_serial(b"\n");
     halt_loop();
 }
 
-/// Write `bytes` to the VGA text-mode buffer at 0xb8000.
-///
-/// VGA text-mode each cell is two bytes: `[char, attribute]`. We use
-/// attribute `0x0F` (white on black). 80 columns × 25 rows; we write
-/// at the start of row 0.
-fn write_vga(bytes: &[u8]) {
-    let vga_buffer = 0xb8000 as *mut u8;
-    for (i, &byte) in bytes.iter().enumerate() {
-        // Bound the write to a single row of 80 cells (160 bytes).
-        if i >= 80 {
-            break;
-        }
-        unsafe {
-            *vga_buffer.add(i * 2) = byte;
-            *vga_buffer.add(i * 2 + 1) = 0x0F; // white on black
-        }
-    }
-}
-
-/// Write `bytes` to QEMU's emulated COM1 serial port at 0x3F8.
-///
-/// QEMU presents the UART as ready by default — no init needed. On
-/// real hardware we'd configure the UART (set baud rate, line
-/// control, FIFO) before writing; v0.0 leans on QEMU's defaults.
 fn write_serial(bytes: &[u8]) {
-    for &byte in bytes {
-        unsafe {
-            outb(0x3F8, byte);
-        }
+    for &b in bytes {
+        unsafe { outb(SERIAL_COM1, b) };
     }
 }
 
-/// `out dx, al` — single-byte output to an I/O port.
 unsafe fn outb(port: u16, val: u8) {
-    core::arch::asm!(
+    asm!(
         "out dx, al",
         in("dx") port,
         in("al") val,
@@ -87,21 +107,16 @@ unsafe fn outb(port: u16, val: u8) {
     );
 }
 
-/// Halt the CPU. `cli` masks interrupts (we have no IDT installed),
-/// `hlt` waits for an interrupt (which won't come), repeat forever.
 fn halt_loop() -> ! {
     loop {
         unsafe {
-            core::arch::asm!("cli; hlt", options(nostack, preserves_flags));
+            asm!("cli; hlt", options(nostack, preserves_flags));
         }
     }
 }
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
-    // Try to surface the panic via serial — even a single byte is
-    // useful for "did we get here?" debugging. Skip VGA because we
-    // may have crashed mid-write to it.
-    write_serial(b"\n[Yantra bootloader PANIC]\n");
+    write_serial(b"\n[Yantra PANIC]\n");
     halt_loop();
 }
