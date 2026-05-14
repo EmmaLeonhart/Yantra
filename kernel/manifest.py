@@ -44,6 +44,14 @@ class Manifest:
     read_roles: frozenset[str]
     write_roles: frozenset[str]
     source: str  # relative to the manifest file's directory
+    # Lazy axon evaluation (per planning/20-lazy-axon-evaluation.md):
+    # which axon-internal keys this process actually reads. The router
+    # uses this to skip delivery of axons whose keys don't intersect.
+    # Empty (default) means "no key declarations" — eager fallback,
+    # the receiver gets every axon on its read_roles regardless of
+    # what's bound inside. For a real connectome this should be
+    # populated; for v0.0 smoke tests the empty fallback is fine.
+    axon_keys: frozenset[str] = dataclasses.field(default_factory=frozenset)
 
     def resolved_source(self, manifest_path: pathlib.Path) -> pathlib.Path:
         """Return the absolute source path implied by this manifest.
@@ -97,6 +105,17 @@ def load_manifest(path: str | pathlib.Path) -> Manifest:
     if not isinstance(doc["source"], str) or not doc["source"]:
         raise ManifestError(f"manifest {p}: source must be a non-empty string")
 
+    # axon_keys is optional (default to empty frozenset = eager
+    # fallback). When present, must be a list of strings.
+    axon_keys_raw = doc.get("axon_keys", [])
+    if not isinstance(axon_keys_raw, list) or not all(
+        isinstance(k, str) for k in axon_keys_raw
+    ):
+        raise ManifestError(
+            f"manifest {p}: axon_keys must be a list of strings (omit or [] for "
+            f"eager-fallback delivery)"
+        )
+
     return Manifest(
         name=doc["name"],
         axon_width=doc["axon_width"],
@@ -104,4 +123,5 @@ def load_manifest(path: str | pathlib.Path) -> Manifest:
         read_roles=frozenset(doc["read_roles"]),
         write_roles=frozenset(doc["write_roles"]),
         source=doc["source"],
+        axon_keys=frozenset(axon_keys_raw),
     )

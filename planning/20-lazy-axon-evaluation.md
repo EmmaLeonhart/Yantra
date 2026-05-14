@@ -78,27 +78,75 @@ slicing / index ops on the same underlying tensor, with no
 physical data movement at all. The lazy model + GPU shared
 memory is most of what makes the connectome viable.
 
+## Lazy is fundamentally compile-time wiring
+
+The user driving this work pointed out (correctly) that lazy
+evaluation is essentially a compile-time problem. The Sutra
+compiler statically knows what keys each program binds (the
+producer's `add()` / `bind()` calls in the .su source) and what
+keys each program reads (the consumer's `axon_item()` calls).
+From those two static sets per program, **the cross-program
+connectome wiring is computable as a static table** — for each
+(sender role, receiver name) edge, exactly which keys flow.
+
+The kernel router's job at runtime is to **execute** that
+wiring, not to compute it. There is no clever runtime intersection
+analysis happening in the production design; there's a precomputed
+delivery table, populated at admission time from manifest data
+the compiler emitted.
+
+What the Yantra-side kernel implements is the runtime expression
+of that static wiring:
+
+  - `Manifest.axon_keys` — the keys-this-receiver-reads set.
+    In production, the Sutra compiler emits this from static
+    analysis. For v0.0, it's hand-written in the manifest TOML.
+  - `Axon.keys` — the keys-bound-in-this-payload set. In
+    production, the compiler emits this from analysis of the
+    producer's bind chain. For v0.0, the calling service passes
+    it explicitly to `service.emit(role, payload, keys=...)`.
+  - `AxonRouter.send()` — at send time, intersects the axon's
+    keys with each receiver's `axon_keys`. Empty intersection
+    ⇒ skip. Non-empty ⇒ deliver. Empty on either side ⇒
+    eager-fallback (deliver).
+
 ## Yantra-side status
 
-**Not implemented.** `kernel/router.py` does eager full-payload
-routing today: an `Axon` carries an opaque `payload: Any`
-(typically a torch tensor of shape `(axon_width,)`), and `send()`
-appends that payload to every receiver's inbox without any
-projection. The `SutraService.tick()` invokes the receiver's
-`on_axon(payload)` on the full payload.
+**Implemented as of 2026-05-14.** `kernel/router.py` now does the
+kernel slice of lazy evaluation as described above. Tested in
+`tests/test_kernel.py`:
 
-This is **fine for the v0.0 smoke test** — the test sends one
-axon to one receiver and verifies routing works. It is **not the
-model the production connectome runs on**. When the multi-process
-Sutra runtime upstream lands and Yantra starts running real
-multi-program connectomes, this router has to be reworked to do
-projection per receiver per role.
+  - `test_lazy_skip_when_keys_dont_intersect` — receiver
+    declaring keys it doesn't share with the axon is skipped;
+    `lazy_skipped_count()` increments; black-hole NOT triggered.
+  - `test_lazy_delivers_when_keys_intersect` — non-empty
+    intersection delivers as expected.
+  - `test_lazy_eager_fallback_when_receiver_unkeyed` — receivers
+    with empty `axon_keys` get every axon (eager fallback path
+    for v0.0 stub receivers and debugger / log processes).
+  - `test_lazy_eager_fallback_when_axon_unkeyed` — axons
+    emitted without declared keys go to every receiver
+    (eager fallback for stub producers and debugger-emitted
+    axons that don't go through static wiring).
+  - `test_lazy_partial_fanout_one_skips_one_delivers` — two
+    receivers on same role, only the keyed-matching one gets
+    the axon.
+  - `test_lazy_capability_check_still_fires_first` — capability
+    check happens before lazy filtering; can't bypass capability
+    by playing key games.
+  - `test_lazy_keys_optional_in_manifest_toml` /
+    `test_lazy_keys_in_manifest_toml` /
+    `test_lazy_bad_manifest_axon_keys_raises` — manifest TOML
+    schema for `axon_keys` (optional list of strings).
 
-The honest reading of the kernel/ directory is therefore: the
-admission-control and capability-check shape is right; the
-routing primitive is intentionally simplified to "send full
-payload" because lazy projection is gated on Sutra-side spec
-work that's still in flight.
+**What remains upstream-Sutra-dependent: per-receiver
+projection** — slicing the payload tensor to materialize only the
+dimensions the receiver references. This needs Sutra-side support
+to expose the per-key projection primitive. The kernel here only
+decides deliver-or-skip the full payload; it doesn't slice within
+the payload. When the Sutra compiler grows this primitive,
+`SutraService.tick()` would call it instead of handing the full
+payload to `on_axon()`.
 
 ## Cross-references
 

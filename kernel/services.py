@@ -55,10 +55,25 @@ class Service:
     def name(self) -> str:
         return self._manifest.name
 
-    def emit(self, role: str, payload: Any) -> int:
-        """Send an axon; capability check happens in the router."""
+    def emit(
+        self, role: str, payload: Any,
+        *, keys: frozenset[str] | set[str] = frozenset(),
+    ) -> int:
+        """Send an axon; capability check + lazy-skip happen in the router.
+
+        `keys` is the set of axon-internal keys actually bound in
+        `payload`. Pass it (the Sutra compiler emits this set in
+        production; for v0.0 the calling service passes it
+        explicitly) to enable the router's lazy-skip filter against
+        receivers' `axon_keys` declarations. Empty (default) =
+        eager-fallback: the router delivers to every receiver on
+        the role regardless.
+        """
         return self._router.send(
-            Axon(role=role, payload=payload, from_proc=self.name)
+            Axon(
+                role=role, payload=payload, from_proc=self.name,
+                keys=frozenset(keys),
+            )
         )
 
     def tick(self) -> int:  # pragma: no cover — overridden

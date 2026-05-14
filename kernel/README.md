@@ -17,15 +17,18 @@
 >    exists, against bare hardware. It is **necessarily Rust or C**.
 >    Python cannot be a bootloader; the boot path runs before any
 >    interpreter is loaded.
-> 2. Not a model of the production axon router. `router.py` does
->    **eager full-payload routing** — every axon a sender emits
->    gets copied in full to every admitted receiver. This is fine
->    for the v0.0 1-axon-1-receiver smoke test; it does **not**
->    scale to a real connectome and is **not** what the production
->    Rust router does. Production needs **lazy axon evaluation**
->    per `planning/20-lazy-axon-evaluation.md`. Without it,
->    bandwidth scales O(N²·D) and the connectome collapses under
->    its own weight.
+> 2. Partial model of the production axon router. `router.py` now
+>    implements the **kernel slice of lazy axon evaluation**:
+>    receivers declare which `axon_keys` they read in their
+>    manifest, producers attach `keys=...` when they emit, and the
+>    router skips delivery to any receiver whose interest set
+>    doesn't intersect the axon's key set. Audit counter
+>    `lazy_skipped_count()` tracks how often this fires. See
+>    `planning/20-lazy-axon-evaluation.md`. **What's still
+>    upstream-Sutra-dependent**: per-receiver projection (slicing
+>    the payload tensor to materialize only the dimensions the
+>    receiver references). The kernel here only decides
+>    deliver-or-skip the full payload, not slice within it.
 > 3. Not a model of multi-process GPU concurrency. `tick()`
 >    iterates services sequentially on CPU. Real Yantra runs all
 >    admitted programs simultaneously on the GPU at every tick.
