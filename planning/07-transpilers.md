@@ -17,14 +17,18 @@ Two transpilers are in scope:
    kernel-adjacent pieces. *Not* userspace utilities, *not* the
    Yantra kernel itself.
 
-Explicitly **dropped** (decision 2026-05-14):
+Explicitly **deferred — eventually, but not soon** (decision 2026-05-14):
 
 - **WASM → Sutra.** Earlier plans called for best-effort WASM as a
-  fall-out of the C transpiler. That is no longer the plan. WASM's
-  linear-memory and threading model is alien to Sutra's substrate
-  and the edge-case work would be a sink. Yantra's GUI stack is
-  JS/TS, not WASM. Web bundles that ship only as WASM either
-  re-ship as JS or don't run on Yantra.
+  fall-out of the C transpiler. WASM is *eventually* in scope but
+  **not now and not for a long time** — it is not a v0 target, not a
+  v0.1 target, not on any near-term roadmap. WASM's linear-memory
+  and threading model is alien to Sutra's substrate; the edge-case
+  engineering would be a sink relative to its near-term payoff. The
+  v0 GUI stack is JS/TS-only; web bundles that ship only as WASM
+  either re-ship as JS or don't run on Yantra v0. When WASM does
+  land it will be a deliberate later-phase project, not a free
+  fall-out.
 
 What is **written natively in Sutra** (no transpiler involved):
 
@@ -168,25 +172,31 @@ Practically, this means we curate which Linux components we transpile,
 and we do small adjustments to the C source first to make it more
 buffer-oriented and less heap-oriented.
 
-## WASM → Sutra — DROPPED
+## WASM → Sutra — deferred (eventually, but not soon)
 
-Earlier drafts of this document committed to a WASM transpile
-target as a free fall-out of the C transpiler. That commitment was
-withdrawn 2026-05-14. The reasoning:
+Earlier drafts committed to a WASM transpile target as a free
+fall-out of the C transpiler. That commitment was rescoped
+2026-05-14: WASM is **eventually** in scope but **not now and not
+for a long time**.
+
+The reasoning for the deferral:
 
 - WASM's linear-memory + threading model is alien to Sutra's
   fixed-width-state substrate. The edge-case engineering to map
   WASM semantics onto Sutra would dominate the integration cost
-  and produce code that is correct, slow, and brittle.
-- The expected payoff (web apps that ship only as WASM bundles
-  Just Work) does not match what the GUI stack actually needs
+  in the near term and produce code that is correct, slow, and
+  brittle.
+- The expected near-term payoff (web apps that ship only as WASM
+  bundles Just Work) does not match what v0 GUI work needs
   (idiomatic TypeScript components transpiled at page load — the
-  WASM-bundle case is an edge that does not justify its weight).
-- No-WASM is a *deliberate* scope shrink, not a v0 limitation we
-  plan to lift. The browser ships JS/TS-only.
+  WASM-bundle case is an edge that does not justify its weight at
+  v0).
+- WASM is not a v0 target, not a v0.1 target, and not on any
+  near-term roadmap. When it does land it will be a deliberate
+  later-phase project, not a free fall-out of the C transpiler.
 
-This section is preserved in the doc as a decision record so that
-future work doesn't independently re-derive the WASM target.
+This section is preserved as the decision record so future work
+doesn't independently re-derive the WASM target before its time.
 
 ## What we do *not* transpile
 

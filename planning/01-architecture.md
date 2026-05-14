@@ -194,9 +194,10 @@ GUI/browser is the third milestone, after the utilities work.
 Everything is a browser. HTML5 + CSS + idiomatic TypeScript +
 WebGL/Three.js. TS is AOT-transpiled to Sutra at page load. No
 `eval`, no service workers pushing code, no continuous
-server-emitted JS, **no WASM** (decision 2026-05-14, see
-`06-gui-stack.md` and `07-transpilers.md`). See `06-gui-stack.md`
-for the full GUI commitment.
+server-emitted JS. **WASM eventually in scope but not for a long
+time** (not v0, not v0.1, not on any near-term roadmap; decision
+2026-05-14, see `06-gui-stack.md` and `07-transpilers.md`). See
+`06-gui-stack.md` for the full GUI commitment.
 
 ## What is *not* in the architecture
 

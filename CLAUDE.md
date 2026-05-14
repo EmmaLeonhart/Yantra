@@ -94,9 +94,10 @@ adjacent projects.
 - **C→Sutra transpiler is priority but deferred.** Scope when
   built: bootloader, specific Linux drivers worth bringing across.
   *Not* userspace utilities, *not* the Yantra kernel itself.
-  **WASM target dropped** (decision 2026-05-14 — see
-  `planning/07-transpilers.md` § "WASM → Sutra — DROPPED" and
-  `planning/06-gui-stack.md`).
+  **WASM target deferred — eventually in scope but not now and not
+  for a long time** (decision 2026-05-14; not a v0 target, not a
+  v0.1 target, not on any near-term roadmap). See
+  `planning/07-transpilers.md` and `planning/06-gui-stack.md`.
 - **TS→Sutra transpiler is browser/GUI-scoped only.** Outside the
   browser layer, TS→Sutra is not used. The lowering engine works
   (1474-line `lower.py`, 17 passing fixtures); the CLI wrapper is

@@ -110,10 +110,12 @@ kernel loader can support it. Manifest goes in `apps/manifests/`.
 cursor, login screen, file manager) is a browser-rendered HTML
 page. Single GUI framework, no exceptions.
 
-**Stack: HTML5 + CSS + idiomatic TypeScript + WebGL/Three.js. NO
-WebAssembly** (decision 2026-05-14, see `planning/06-gui-stack.md`
-and `planning/07-transpilers.md`). TS components are pre-transpiled
-to Sutra ahead of time, not at runtime.
+**Stack: HTML5 + CSS + idiomatic TypeScript + WebGL/Three.js.
+WASM is eventually in scope but not for a long time** — not v0,
+not v0.1, not on any near-term roadmap (decision 2026-05-14, see
+`planning/06-gui-stack.md` and `planning/07-transpilers.md`). TS
+components are pre-transpiled to Sutra ahead of time, not at
+runtime.
 
 Three parallel tracks once we get to milestone three:
 
