@@ -1,0 +1,10 @@
+# Pin to a nightly Rust toolchain — bootloader v0.9 + build-std
+# require nightly because they use unstable Rust features
+# (eh_personality, alloc_error_handler, the unstable build-std cargo
+# feature itself). Stable Rust users will get a clear "needs nightly"
+# error from cargo when they try to build under bootloader/.
+
+[toolchain]
+channel = "nightly-2026-04-01"
+components = ["rust-src", "llvm-tools-preview"]
+profile = "minimal"

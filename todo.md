@@ -17,13 +17,15 @@ Connectome Manager (manifest + router + init + two example services
 + 19 passing tests). The Python is a behavioural harness; the
 production form is Rust. Hardening list:
 
-- **Bootloader (Rust).** The first Yantra-authored code that runs
-  at boot. Bare-metal, no interpreter, against hardware. Job:
-  discover the GPU, load the compiled Sutra kernel image into GPU
-  memory, hand control to the orchestrator. Doesn't exist today.
-  See `planning/19-boot-sequence.md` § "Stage 3" for the full
-  responsibility list. Prerequisite for any "Yantra boots as a
-  real OS" demonstration.
+- **Bootloader (Rust) — v0.0 shipped 2026-05-14.** The first
+  Yantra-authored code that runs at boot. Bare-metal, no
+  interpreter, against hardware. Lives at `bootloader/`. v0.0
+  prints "hello from bare metal" via VGA + serial in QEMU,
+  then halts. **v0.1+ work**: discover the GPU, load the compiled
+  Sutra kernel image into GPU memory, hand control to the
+  orchestrator. See `planning/19-boot-sequence.md` § "Stage 3"
+  for the full responsibility list and `bootloader/README.md`
+  for what's NOT in v0.0.
 - **Rust port of the Connectome Manager (orchestrator).** The
   production form on the CPU side, runs after boot. "As small as
   possible" with strong static guarantees; the Python prototype

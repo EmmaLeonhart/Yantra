@@ -34,6 +34,8 @@ storage-tier decision. The CPU-side orchestrator is **Rust**.
 2. **Command-line userspace utilities** (cat, ls, grep, …) — written natively in Sutra. Initial system access is SSH/serial only; no GUI. ([todo.md § 2](todo.md))
 3. **Browser / GUI** — every UI component is a browser-rendered HTML page; HTML5 + CSS + idiomatic TS + WebGL/Three.js. WASM eventually but not for a long time. ([planning/06-gui-stack.md](planning/06-gui-stack.md), [todo.md § 3](todo.md))
 
+**Bare-metal QEMU bootloader (v0.0)** at [`bootloader/`](bootloader/) — first Yantra-authored binary that runs on virtualized bare metal. Build with `scripts/qemu-build.{sh,bat}`, boot with `scripts/qemu-run.{sh,bat}`. See [`bootloader/README.md`](bootloader/README.md).
+
 The intended customer is not a consumer desktop user. It is defense,
 aerospace, industrial control, medical devices, autonomous systems —
 anywhere "predictable latency under load" and "the certifier can read the

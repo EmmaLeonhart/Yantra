@@ -1,0 +1,24 @@
+[package]
+name = "yantra-bootloader"
+version = "0.0.1"
+edition = "2021"
+description = "Yantra bare-metal bootloader v0.0 — boots in QEMU; prints hello via VGA + serial."
+license = "Apache-2.0"
+publish = false
+
+[dependencies]
+# bootloader v0.9.x is the well-trodden Phil Opp path: handles
+# multiboot, the 32→64 long-mode transition, sets up paging.
+# Yantra-side code starts at the `entry_point!` macro target.
+bootloader = "0.9.29"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+
+[package.metadata.bootimage]
+# QEMU args used by `bootimage runner` if invoked. Override via
+# scripts/qemu-run.{sh,bat} which we ship for one-line boot.
+run-args = ["-serial", "stdio", "-display", "none", "-no-reboot"]
