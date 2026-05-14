@@ -269,26 +269,19 @@ def test_sutra_service_respects_explicit_manifest_axon_keys(tmp_path: pathlib.Pa
 def test_sutra_service_emit_tags_axon_with_bound_keys(tmp_path: pathlib.Path) -> None:
     """SutraService.tick() forwards AXON_KEYS_BOUND to router.send()'s keys field.
 
-    Uses a .su that just returns its input (no Axon construction inside
-    the body — that triggers an unrelated Sutra-runtime device-coherence
-    bug between the role rotation matrix and a freshly-allocated filler
-    tensor that's orthogonal to the wiring being tested here). The
-    binding-keys claim still holds because AXON_KEYS_BOUND is collected
-    by static analysis of the source, not by runtime execution.
+    With Sutra v0.3.4's device-coherence fix in axon_add/bind, the
+    .su body can now construct a real Axon from a CPU input tensor
+    without crashing. That's the natural shape of a producer
+    service: take an input, bind some keys onto it, emit. This
+    test exercises that natural shape end-to-end.
     """
-    # Producer .su that statically declares two bind keys but doesn't
-    # actually construct an Axon at runtime — keeps the body trivial
-    # so we don't trip Sutra's runtime device-coherence issue.
     producer = tmp_path / "producer.su"
     producer.write_text(
-        "function vector make_unused() {\n"
-        "    Axon a;\n"
-        "    a.add(\"key_one\", basis_vector(\"x\"));\n"
-        "    a.add(\"key_two\", basis_vector(\"y\"));\n"
-        "    return a;\n"
-        "}\n"
         "function vector on_axon(vector input_axon) {\n"
-        "    return input_axon;\n"  # just pass through — no device hazard
+        "    Axon a;\n"
+        "    a.add(\"key_one\", input_axon);\n"
+        "    a.add(\"key_two\", input_axon);\n"
+        "    return a;\n"
         "}\n",
         encoding="utf-8",
     )
@@ -303,8 +296,7 @@ def test_sutra_service_emit_tags_axon_with_bound_keys(tmp_path: pathlib.Path) ->
         ),
         prod_svc,
     )
-    # Sanity: static analysis picked up both bind keys even though
-    # make_unused() never runs.
+    # Sanity: static analysis picked up both bind keys.
     assert prod_svc.axon_keys_bound == frozenset({"key_one", "key_two"})
 
     # Receiver that wants only "key_one" — producer's emission should
@@ -329,17 +321,19 @@ def test_sutra_service_emit_tags_axon_with_bound_keys(tmp_path: pathlib.Path) ->
         receiver,
     )
 
-    # Inject an axon on the producer's R_in. Use the runtime's device
-    # so the trivial pass-through doesn't device-mismatch.
-    runtime_device = prod_svc._compiled_module._DEVICE  # noqa: SLF001
+    # Inject an axon on the producer's R_in. CPU tensor — Sutra
+    # v0.3.4's device-coherence fix in axon_add/bind handles the
+    # CPU→runtime-device coercion now, so we don't need to
+    # pre-pin the device on the test side.
+    vsa_dim = prod_svc._compiled_module._VSA.dim  # noqa: SLF001
     init.router._inboxes["prod"].append(  # noqa: SLF001 — test
         Axon(
             role="R_in",
-            payload=torch.zeros(AXON_WIDTH, device=runtime_device),
+            payload=torch.zeros(vsa_dim),  # CPU — Sutra coerces
             from_proc="prod",
         ),
     )
-    prod_svc.tick()  # runs on_axon → emits via SutraService.emit()
+    prod_svc.tick()  # runs on_axon (real Axon construction!) → emits
     inbox = init.router.receive("recv")
     assert inbox is not None
     # The emitted axon's keys field should be the producer's
