@@ -12,7 +12,12 @@ See `CLAUDE.md` § "Workflow Rules" for how this file, planning mode, and the ta
 
 ## Active
 
-_(empty — add the next concrete design or implementation task here)_
+### Upstream Sutra work — continuation
+
+Item 1 (axon-keys static analysis) shipped in Sutra v0.3.3 + bumped Yantra submodule. Items 2 (per-receiver projection) and 3 (multi-process Sutra runtime) still pending.
+
+- **#2 Per-receiver projection primitive** — Sutra-side function that takes (payload_axon, requested_keys) and returns an axon containing only the requested keys' bound dimensions. Lets the kernel router slice the payload to what each receiver needs, not just decide whether to deliver the full payload.
+- **#3 Multi-process Sutra runtime** — per-process GPU memory arenas, simultaneous execution of N admitted programs at each tick. The biggest piece; user has flagged it as the biggest blocker on Yantra's "no degradation under load" claim.
 
 ---
 

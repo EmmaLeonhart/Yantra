@@ -90,7 +90,15 @@ class Init:
             self._router.register(manifest)
             service.bind(manifest=manifest, router=self._router)
             self._compute_pool_free -= manifest.compute_units
-            ap = AdmittedProcess(manifest=manifest, service=service)
+            # bind() may have updated the router's manifest entry
+            # (e.g. SutraService auto-populates axon_keys from the
+            # compiled module's AXON_KEYS_READ if the manifest didn't
+            # declare them). Re-read so the AdmittedProcess in our
+            # table reflects the final form, not the pre-bind copy.
+            final_manifest = self._router._processes.get(  # noqa: SLF001
+                manifest.name, manifest,
+            )
+            ap = AdmittedProcess(manifest=final_manifest, service=service)
             self._table[manifest.name] = ap
             return ap
 
