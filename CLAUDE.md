@@ -53,27 +53,63 @@ adjacent projects.
 
 ## Build/policy clarifications (kernel + transpilers)
 
-- **The kernel is native Sutra. It is NOT C-transpiled.** The whole
-  point of the verification surface in `paper/paper.md` § 4 is that
-  the trusted base reduces cleanly to tensor normal form; running
-  the kernel through a C→Sutra path would defeat that. Future agents
-  considering "let's transpile X kernel piece from C" should re-read
-  `planning/07-transpilers.md` first.
-- **C→Sutra transpiler is priority but deferred.** Scope when built:
-  bootloader, specific Linux drivers worth bringing across, WASM.
-  *Not* userspace utilities, *not* the kernel.
-- **TS→Sutra transpiler is browser/GUI-scoped.** Outside the
-  browser layer, TS→Sutra is not used. The lowering engine works;
-  the CLI is unwired (the README is stale). Wiring up the CLI is
-  the smallest task that unblocks the most browser work.
-- **Userspace utilities (cat, ls, grep, awk, sed, sort, etc.) will
-  be written natively in Sutra, not transpiled from C.** The Linux
-  source trees under `external/` are behavioural reference, not
-  transpile inputs. This work is deferred — captured in `todo.md`
-  alongside the other longer-horizon items. The primary blockers
-  are (a) the Sutra-side string and IO vocabulary maturing further,
-  and (b) the kernel `.su` loader landing so utilities can run as
-  real Sutra services rather than Python stubs.
+### Build sequence (set 2026-05-14)
+
+1. **Connectome Manager (kernel)** — see below. Python prototype
+   under `kernel/` exists; production form is Rust.
+2. **Command-line userspace utilities** — simple Linux-shaped file
+   utilities (cat, ls, grep…) written natively in Sutra. Initial
+   system access is **command-line only via SSH/serial** from a
+   host computer. **No GUI in this phase.**
+3. **Browser / GUI** — only after (1) and (2) ship. Single GUI
+   framework (HTML5 + CSS + idiomatic TS + WebGL/Three.js, **no
+   WASM**); every UI component (start menu, mouse cursor, login
+   screen, file manager) is a browser-rendered HTML page.
+
+### The kernel is a Connectome Manager (not a traditional kernel)
+
+- The kernel's job is **deciding what is connected to what**, not
+  scheduling or memory allocation in the traditional sense. The
+  three storage tiers are **disc** (programs at rest), **RAM**
+  (programs loaded but not running — semantically closer to disc
+  than to traditional RAM), and **GPU** (programs in the live
+  connectome). The kernel moves programs between tiers; it does
+  not schedule or context-switch.
+- **Kernel implementation: Rust on the CPU side.** Vision is "as
+  small as possible" with strong static guarantees. The
+  `kernel/` directory in this repo holds a Python *prototype* of
+  the Connectome Manager — behavioural harness for the Rust
+  port. Treat the Python as load-bearing for tests, not for
+  runtime. See `planning/01-architecture.md` § "CPU side: small,
+  Rust, orchestrator."
+- **Kernel is NOT C-transpiled.** The verification surface in
+  `paper/paper.md` § 4 depends on the trusted base reducing
+  cleanly to tensor normal form; running the kernel through a
+  C→Sutra path would defeat that. Sutra services run on the GPU;
+  the Rust orchestrator runs on the CPU; neither is a C-transpile
+  target.
+
+### Transpilers
+
+- **C→Sutra transpiler is priority but deferred.** Scope when
+  built: bootloader, specific Linux drivers worth bringing across.
+  *Not* userspace utilities, *not* the Yantra kernel itself.
+  **WASM target dropped** (decision 2026-05-14 — see
+  `planning/07-transpilers.md` § "WASM → Sutra — DROPPED" and
+  `planning/06-gui-stack.md`).
+- **TS→Sutra transpiler is browser/GUI-scoped only.** Outside the
+  browser layer, TS→Sutra is not used. The lowering engine works
+  (1474-line `lower.py`, 17 passing fixtures); the CLI wrapper is
+  unwired (the README is stale). Wiring up the CLI is a small
+  upstream Sutra task that unblocks browser work.
+
+### Userspace utilities (cat, ls, grep, awk, sed, sort, etc.)
+
+Written **natively in Sutra**, not transpiled from C. The Linux
+source trees under `external/` are behavioural reference, not
+transpile inputs. Deferred until the Sutra-side string + IO + FS
+vocabulary matures and the kernel `.su` loader lands. Q-list is in
+`todo.md` § 2.
 
 ## Project context for paper/agent work
 

@@ -1,10 +1,22 @@
-# `kernel/` — multi-process runtime nucleus (v0.0)
+# `kernel/` — Connectome Manager prototype (Python; v0.0)
 
-The smallest thing that demonstrates Yantra's process model
-end-to-end. Per `planning/01-architecture.md`, the kernel is a CPU-side
-init/resource-manager + axon router that admits Sutra services as
-processes, gives each one a fixed budget at admission time, and
-routes axons between them with capability checks.
+> **What this is.** A **Python prototype** of the Connectome Manager
+> described in `planning/01-architecture.md` § "The kernel is a
+> Connectome Manager." The smallest thing that demonstrates Yantra's
+> process model end-to-end: an init/resource-manager + axon router
+> that admits Sutra services as processes, gives each one a fixed
+> budget at admission time, and routes axons between them with
+> capability checks.
+>
+> **What this is not.** The production Connectome Manager. The
+> production form is **Rust** on the CPU side (see
+> `planning/01-architecture.md` § "CPU side: small, Rust,
+> orchestrator"). This Python implementation is a behavioural
+> harness — it exists so the architectural shape can be exercised
+> and tested before the Rust port is written, and so future
+> implementers have a reference for "what does the API look like in
+> practice." Treat the Python here as load-bearing for *tests*,
+> *not* for runtime.
 
 ## What runs today
 

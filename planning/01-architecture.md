@@ -25,19 +25,100 @@
 |  - GPU memory arenas, fixed allocations per process       |
 |  - Soft-halt RNN cells driving tail-recursive loops       |
 +----------------------------------------------------------+
-|  Resource manager + init (small CPU program)              |
+|  Connectome Manager (Rust on the CPU side)                |
 |  - Boots the system, hands control to the GPU             |
-|  - Decides who gets evicted to RAM cold-store             |
-|  - Wakes RAM-resident processes back into GPU on demand   |
+|  - Loads programs disc→RAM→GPU; offloads GPU→RAM→disc     |
+|  - Decides where each program lives at any moment         |
+|  - Does NOT schedule — the GPU runs everything that fits  |
 +----------------------------------------------------------+
 |  CPU + RAM + storage (conventional)                       |
 |  - CPU is small/underpowered, only orchestrates the GPU   |
-|  - RAM is cold-store for suspended processes              |
+|  - RAM holds programs that are loaded but not running     |
+|    (semantically closer to disc than to traditional RAM)  |
 |  - Storage is ext4/btrfs/zfs — interpretable on any OS    |
 +----------------------------------------------------------+
 |  Hardware: GPU today, analog substrate later              |
 +----------------------------------------------------------+
 ```
+
+## The kernel is a Connectome Manager
+
+The phrase "kernel" carries traditional baggage — process scheduler,
+memory allocator, syscall dispatcher, interrupt handler. In Yantra
+the kernel is something else: a **Connectome Manager**.
+
+There are no traditional memory slots that the CPU code allocates.
+The processes are just connected to each other — their axons
+(rotation-bound vectors) form a big neural network, with each
+process being roughly a neuron and each axon channel being roughly
+a synapse. The kernel's job is not to allocate, schedule, or
+context-switch; it is to **decide what is connected to what right
+now**.
+
+That decision has three storage tiers:
+
+- **Disc** — programs at rest. The conventional filesystem on the
+  underlying storage device. A program here is not running, and
+  loading it costs storage→RAM bandwidth.
+- **RAM** — programs that are loaded but not running. **In Yantra,
+  RAM is semantically closer to disc than to traditional RAM.** It
+  is the warm cache between disc and GPU, not the working set of an
+  active computation. A program in RAM has been brought close to
+  the GPU but is not in the connectome.
+- **GPU** — the connectome itself. Programs running here are wired
+  into the axon graph; their compute is the computation. The GPU
+  runs everything that fits, simultaneously.
+
+The Connectome Manager moves programs between these tiers:
+
+- disc → RAM (warm a program for likely use)
+- RAM → GPU (admit a program into the live connectome)
+- GPU → RAM (offload a program from the connectome without
+  evicting from memory entirely)
+- RAM → disc (cool a program down to storage)
+
+It does not schedule, does not allocate per-instruction memory,
+does not handle traditional context switches. The GPU runs every
+admitted program at every tick; the only thing that varies over
+time is which programs are admitted vs cold-stored.
+
+This is why Yantra avoids most of the memory-access pathology of
+von Neumann machines. There are no shared address spaces, no cache
+coherency between cores, no page tables, no TLB shootdowns. The
+crosstalk problem (and the bundle-depth budget that bounds it)
+replaces them — different concerns, but not the same concerns. See
+`planning/17-memory-model.md` for what is open here.
+
+## CPU side: small, Rust, orchestrator
+
+The CPU side of Yantra exists to orchestrate the GPU. Its work is:
+
+- Run the bootloader.
+- Load the compiled kernel image onto the GPU.
+- Run the Connectome Manager itself.
+- Mediate the disc/RAM/GPU storage tier moves.
+- Wrap MMIO peripherals as axon channels (paper §3.5).
+
+**Implementation language: Rust.** Justified by:
+
+- Small. The vision is "as small as possible," and Rust gives a
+  small surface with strong static guarantees that survive into
+  the binary. Yantra targets critical systems where the
+  certifiability of the trusted base is a procurement criterion.
+- The CPU side is the one place memory-safety matters in the
+  conventional sense — the connectome on the GPU does not have
+  pointers or dynamic allocation in the traditional sense, but the
+  Rust orchestrator does, because it is talking to actual
+  byte-shaped hardware.
+- Compatible with the eventual C-transpile path for the bootloader
+  (the bootloader can stay in C/Rust and be transpiled to Sutra
+  later if the verification surface argument demands it).
+
+The Yantra-side `kernel/` directory in this repository currently
+holds a **Python prototype** of the Connectome Manager, sufficient
+for behavioural smoke tests (see `kernel/README.md`). The Rust
+implementation is the production target; the Python prototype is
+reference and harness.
 
 ## Three guiding inversions
 
@@ -79,20 +160,43 @@ A standard data model and protocol for passing axons between processes.
 Axon = a structured embedding produced by rotation binding over a fixed
 codebook of role-fillers. See `02-axon-model.md`.
 
-### 3. Init + resource manager
+### 3. Connectome Manager (Rust on the CPU side)
 
-A small CPU program that:
+A small Rust program that:
 
 - Loads the bootloader, then the kernel onto the GPU.
-- Maintains the table of processes (active in GPU vs cold-stored in RAM).
-- Handles evictions and resumes.
-- Does *not* schedule — the GPU runs everything that fits, simultaneously.
+- Maintains the table of programs in the three storage tiers
+  (disc / RAM / GPU) and decides which moves to make.
+- Mediates disc↔RAM↔GPU transfers.
+- Wraps MMIO peripherals as axon channels (`paper/paper.md` § 3.5).
+- Does *not* schedule — the GPU runs everything that fits,
+  simultaneously.
 
-### 4. GUI
+The v0.0 of this is the Python prototype under `kernel/` in this
+repository (see `kernel/README.md`). The production form is Rust,
+because (a) "as small as possible" wants a small surface with
+strong static guarantees that survive into the binary, and (b)
+the CPU side is the one place memory-safety in the conventional
+sense matters — the Rust orchestrator talks to actual byte-shaped
+hardware.
 
-Everything is a browser. HTML5 + CSS + a constrained subset of JS/TS + WebGL.
-JS/TS transpiles to Sutra ahead of time. No `eval`, no service workers
-pushing code, no continuous server-emitted JS. See `06-gui-stack.md`.
+### 4. Userspace utilities — file access first, command-line only
+
+Sequencing: once the Connectome Manager works, the next milestone
+is **command-line file access** — simple Linux-shaped utilities
+written natively in Sutra (cat, ls, etc.; see `todo.md` § 2 for
+the Q-list). The initial system has **no graphical user interface
+at all**; access is via SSH or serial from a host computer. The
+GUI/browser is the third milestone, after the utilities work.
+
+### 5. GUI — eventually
+
+Everything is a browser. HTML5 + CSS + idiomatic TypeScript +
+WebGL/Three.js. TS is AOT-transpiled to Sutra at page load. No
+`eval`, no service workers pushing code, no continuous
+server-emitted JS, **no WASM** (decision 2026-05-14, see
+`06-gui-stack.md` and `07-transpilers.md`). See `06-gui-stack.md`
+for the full GUI commitment.
 
 ## What is *not* in the architecture
 

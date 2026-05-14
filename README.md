@@ -22,6 +22,18 @@ Three things that fall out of that:
 - **AI-native by construction.** Every process already takes an axon and
   returns an axon, so local AI integrates without a translation layer.
 
+The kernel is a **Connectome Manager**: it decides what runs on the GPU vs
+sits in RAM (loaded but not running, semantically closer to disc than to
+traditional RAM) vs lives on disc. It does not schedule and does not
+allocate per-instruction memory in the traditional sense — its job is the
+storage-tier decision. The CPU-side orchestrator is **Rust**.
+
+## Build sequence
+
+1. **Connectome Manager (kernel).** Python prototype in `kernel/`; production form is Rust. ([planning/01-architecture.md](planning/01-architecture.md))
+2. **Command-line userspace utilities** (cat, ls, grep, …) — written natively in Sutra. Initial system access is SSH/serial only; no GUI. ([todo.md § 2](todo.md))
+3. **Browser / GUI** — every UI component is a browser-rendered HTML page; HTML5 + CSS + idiomatic TS + WebGL/Three.js, no WASM. ([planning/06-gui-stack.md](planning/06-gui-stack.md), [todo.md § 3](todo.md))
+
 The intended customer is not a consumer desktop user. It is defense,
 aerospace, industrial control, medical devices, autonomous systems —
 anywhere "predictable latency under load" and "the certifier can read the
@@ -29,11 +41,16 @@ code" beat "it runs my favourite app."
 
 ## Status
 
-This repo currently holds **planning documents**, not an implementation.
-The implementation lives in adjacent projects (the Sutra compiler and
-runtime, transpilers, alignment / connectome research). Yantra is being
-designed here so that when the implementation starts, there is a coherent
-target.
+This repo holds **planning documents** plus a **Python prototype of the
+Connectome Manager** under `kernel/` (19 passing tests; behavioural
+harness for the eventual Rust port). The Sutra compiler/runtime live in
+the `external/Sutra` submodule (pinned at v0.3.1). The TS→Sutra
+transpiler's lowering engine works upstream; its CLI wrapper is
+unwired.
+
+Yantra is being designed (and now early-prototyped) here so that when
+the production Rust orchestrator + Sutra-side multi-process runtime
+lands, there is a coherent target.
 
 ## Where to start reading
 

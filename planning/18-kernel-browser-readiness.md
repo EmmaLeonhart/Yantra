@@ -4,11 +4,27 @@
 >
 > **What this document is not.** A roadmap commitment. The "should we start" calls at the end are recommendations; the user picks.
 
+## Build sequence
+
+User clarification 2026-05-14: the build order is
+
+1. **Connectome Manager (kernel)** — ship the runtime that decides
+   what runs on GPU vs sits in RAM vs on disc. Python prototype
+   under `kernel/` exists and is tested; production form is Rust.
+2. **Command-line userspace utilities** — simple Linux-shaped file
+   utilities (cat, ls, grep, etc.), accessed by SSH or serial from
+   a host. **No GUI in this phase.**
+3. **Browser / GUI** — only after (1) and (2). Every GUI component
+   (start menu, mouse, login) is a browser-rendered HTML page;
+   single framework; HTML5 + CSS + TS + WebGL/Three.js, no WASM.
+
+Each section below is read in this sequencing context.
+
 ## TL;DR
 
-- **Kernel — nucleus shipped.** The v0.0 multi-process runtime under `kernel/` is real and tested: manifest parsing, admission control against a fixed pool, axon router with capability check, two example services (echo + sink), and a flagship round-trip test that admits both services, sends three payloads through, and verifies all the capability checks fire. 19 tests pass. What's stubbed and known-stubbed: real GPU memory carve-outs (currently bookkeeping), GPU-tick-parallel scheduling (currently sequential CPU ticks), `.su` service loading (currently `NotImplementedError` with the wiring plan in the docstring). The architectural shape works end-to-end; the v0.1 work is hardening the stubs.
-- **Browser** — we *can* start writing the Sutra-side renderer (display server, layout engine, input router) now. The "everything is a browser" GUI claim further depends on the TS→Sutra transpiler, which is **mostly real** (a 1474-line `lower.py` with 17 passing fixtures) but its CLI is not wired up and the README still says "skeleton." Workable today; not yet a one-line `ts2su file.ts` command.
-- **Native userspace utilities (cat, ls, grep, awk, etc.)** — *policy clarified:* these will be **written natively in Sutra**, not C-transpiled. The `external/{coreutils,util-linux,busybox}` submodules are kept as behavioural reference (a Sutra-written `sort` should match GNU `sort`'s observable behaviour), not as transpile inputs. The C transpiler stays in scope strictly for kernel-adjacent C (bootloader, specific drivers). Userspace utility work is deferred until the kernel + browser are further along — captured in `todo.md`.
+- **Kernel (Connectome Manager) — Python prototype shipped, Rust port pending.** The v0.0 runtime under `kernel/` is real and tested in Python: manifest parsing, admission control against a fixed pool, axon router with capability check, two example services (echo + sink), and a flagship round-trip test that admits both services, sends three payloads through, and verifies all the capability checks fire. 19 tests pass. **The Python is a behavioural harness; the production form is Rust** per `planning/01-architecture.md` § "CPU side: small, Rust, orchestrator." What's stubbed and known-stubbed: real GPU memory carve-outs (currently bookkeeping), GPU-tick-parallel scheduling (currently sequential CPU ticks), `.su` service loading (currently `NotImplementedError`), the disc/RAM/GPU storage-tier moves the Connectome Manager actually does. The architectural shape works end-to-end; the v0.1 work is the Rust port + the storage-tier moves.
+- **Native userspace utilities (cat, ls, grep, awk, etc.) — second milestone, deferred.** Written natively in Sutra, not C-transpiled. `external/{coreutils,util-linux,busybox}` are behavioural reference, not transpile inputs. Blocked on Sutra's string + IO + FS vocabulary maturing and on the kernel `.su` loader landing.
+- **Browser — third milestone, deferred.** "Every GUI component is a browser." HTML5 + CSS + idiomatic TS + WebGL/Three.js. **No WASM** (dropped 2026-05-14). The TS→Sutra lowering engine is real (1474-line `lower.py`, 17 passing fixtures); the CLI wrapper is unwired (small upstream task in Sutra). The Sutra-native renderer doesn't depend on the TS transpiler and could in principle start now, but is sequenced third per the user's plan.
 
 ## What Sutra v0.3.1 actually ships
 
