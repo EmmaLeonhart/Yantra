@@ -26,6 +26,7 @@ embedding tables.
 
 from __future__ import annotations
 
+import dataclasses
 import os
 import pathlib
 import sys
@@ -93,6 +94,19 @@ class SutraService(Service):
     the axon-shaped vectors Sutra programs operate on natively. The
     router carries them through as the `payload` field of `Axon`.
 
+    **Lazy axon evaluation: the compiled module's `AXON_KEYS_BOUND`
+    and `AXON_KEYS_READ` constants** (emitted by Sutra v0.3.3+'s
+    static-analysis pass) drive the kernel router's lazy delivery:
+
+      - On `bind()`, if the receiver's manifest has empty
+        `axon_keys`, the service auto-populates it from the compiled
+        module's `AXON_KEYS_READ` so the router can skip-deliver
+        based on what the .su source actually reads — no need to
+        hand-write `axon_keys` in the manifest TOML.
+      - On `tick()` emission, the service tags outgoing axons with
+        the compiled module's `AXON_KEYS_BOUND` so receivers'
+        intersection check has data to work with.
+
     Compilation happens in `bind()`, not in `__init__()`, so the
     service can read the manifest's `axon_width` for the
     `runtime_dim` parameter. First compile of a fresh `.su` source
@@ -114,6 +128,21 @@ class SutraService(Service):
         self._llm_model = llm_model
         self._compiled_module: types.ModuleType | None = None
         self._on_axon: Callable[[Any], Any] | None = None
+        # Populated from compiled-module constants in bind(). Used
+        # for lazy axon evaluation (router-side skip-uninterested-
+        # receivers + out-emission key tagging).
+        self._axon_keys_bound: frozenset[str] = frozenset()
+        self._axon_keys_read: frozenset[str] = frozenset()
+
+    @property
+    def axon_keys_bound(self) -> frozenset[str]:
+        """Keys this service binds (from the compiled module's static analysis)."""
+        return self._axon_keys_bound
+
+    @property
+    def axon_keys_read(self) -> frozenset[str]:
+        """Keys this service reads (from the compiled module's static analysis)."""
+        return self._axon_keys_read
 
     def bind(self, *, manifest: Manifest, router: AxonRouter) -> None:
         super().bind(manifest=manifest, router=router)
@@ -129,6 +158,37 @@ class SutraService(Service):
                 f"{[n for n in dir(self._compiled_module) if not n.startswith('_')]}"
             )
         self._on_axon = getattr(self._compiled_module, self._entry_point)
+        # Pull the static-analysis results out of the compiled
+        # module. Always present in Sutra v0.3.3+; getattr with
+        # frozenset() default keeps us safe against an older
+        # compiled module slipping in via cache.
+        self._axon_keys_bound = frozenset(
+            getattr(self._compiled_module, "AXON_KEYS_BOUND", frozenset())
+        )
+        self._axon_keys_read = frozenset(
+            getattr(self._compiled_module, "AXON_KEYS_READ", frozenset())
+        )
+        # If the manifest didn't hand-declare axon_keys, auto-populate
+        # from what the compiled .su actually reads. The router only
+        # checks the receiver-side (axon_keys), not the sender-side
+        # (it gets that via Axon.keys at send-time), so this hooks
+        # the static-analysis result into the router's lazy-skip
+        # path without any router changes. Manifests that DID
+        # declare axon_keys are respected as-is — explicit override.
+        if not manifest.axon_keys and self._axon_keys_read:
+            # Manifests are frozen dataclasses; rebuild with the new
+            # axon_keys value, then re-register the route entry so
+            # the router knows about the now-non-empty interest set.
+            new_manifest = dataclasses.replace(
+                manifest, axon_keys=self._axon_keys_read,
+            )
+            # Swap the manifest in the router's process table. Done
+            # in-place — the router reads receiver.axon_keys at
+            # send-time so updating the dict entry is enough.
+            router._processes[manifest.name] = new_manifest  # noqa: SLF001
+            # Update self._manifest too so the property surfaces the
+            # right values.
+            self._manifest = new_manifest
 
     def tick(self) -> int:
         if self._on_axon is None:
@@ -139,7 +199,12 @@ class SutraService(Service):
         n = 0
         for inbound in self._router.drain(self.name):
             outbound = self._on_axon(inbound.payload)
-            self.emit(self._output_role, outbound)
+            # Tag outgoing axons with the producer's bound-keys set
+            # so receivers' lazy-skip intersection check has data
+            # to work with. emit() forwards these to the router.
+            self.emit(
+                self._output_role, outbound, keys=self._axon_keys_bound,
+            )
             n += 1
         return n
 
