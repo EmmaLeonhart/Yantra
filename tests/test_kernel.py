@@ -482,3 +482,87 @@ def test_lazy_bad_manifest_axon_keys_raises(tmp_path: pathlib.Path) -> None:
     )
     with pytest.raises(ManifestError, match="axon_keys must be a list of strings"):
         load_manifest(p)
+
+
+# ---- per-receiver projection ----------------------------------------
+
+
+def test_projector_slims_payload_when_intersection_is_strict_subset() -> None:
+    """When sender has projector + receiver wants subset, router projects."""
+    # Stand-in projector returns a tagged tuple so we can verify what
+    # arguments it received without needing real Sutra.
+    init = Init(compute_pool=5)
+    sender = _admit(init, name="s", reads=set(), writes={"R_x"})
+    _admit(
+        init, name="r", reads={"R_x"}, writes=set(),
+        axon_keys={"k1"},  # wants only k1
+    )
+
+    captured: list[tuple] = []
+    def projector(payload, requested_keys):
+        captured.append((payload, requested_keys))
+        return f"PROJECTED:{sorted(requested_keys)}"
+
+    init.router.register_projector("s", projector)
+    delivered = sender.emit("R_x", "FULL_PAYLOAD", keys={"k1", "k2", "k3"})
+    assert delivered == 1
+    # Projector got called with the full payload + the intersection.
+    assert captured == [("FULL_PAYLOAD", frozenset({"k1"}))]
+    # And the router's projection counter ticked.
+    assert init.router.lazy_projected_count() == 1
+    # The receiver's inbox holds the projected payload, not the original.
+    inbox = init.router.receive("r")
+    assert inbox is not None
+    assert inbox.payload == "PROJECTED:['k1']"
+    assert inbox.keys == frozenset({"k1"})
+
+
+def test_projector_skipped_when_receiver_wants_all_keys() -> None:
+    """When intersection == full keys, no projection — pass through."""
+    init = Init(compute_pool=5)
+    sender = _admit(init, name="s", reads=set(), writes={"R_x"})
+    _admit(
+        init, name="r", reads={"R_x"}, writes=set(),
+        axon_keys={"k1", "k2"},  # wants both
+    )
+
+    def projector(payload, requested_keys):
+        raise AssertionError("projector should not be called when receiver wants everything")
+
+    init.router.register_projector("s", projector)
+    sender.emit("R_x", "FULL", keys={"k1", "k2"})
+    assert init.router.lazy_projected_count() == 0
+    inbox = init.router.receive("r")
+    assert inbox.payload == "FULL"  # untouched
+
+
+def test_no_projector_falls_back_to_full_delivery() -> None:
+    """Senders without a registered projector get pass-through behaviour."""
+    init = Init(compute_pool=5)
+    sender = _admit(init, name="s", reads=set(), writes={"R_x"})
+    _admit(
+        init, name="r", reads={"R_x"}, writes=set(),
+        axon_keys={"k1"},  # wants subset
+    )
+    # NO register_projector call.
+    sender.emit("R_x", "FULL", keys={"k1", "k2", "k3"})
+    inbox = init.router.receive("r")
+    assert inbox.payload == "FULL"  # full delivered, no projection
+    assert inbox.keys == frozenset({"k1", "k2", "k3"})  # original keys
+    assert init.router.lazy_projected_count() == 0
+
+
+def test_register_projector_for_unadmitted_raises() -> None:
+    init = Init(compute_pool=5)
+    with pytest.raises(NotAdmittedError):
+        init.router.register_projector("ghost", lambda p, k: p)
+
+
+def test_deregister_drops_projector() -> None:
+    """When a sender deregisters, its projector goes too."""
+    init = Init(compute_pool=5)
+    _admit(init, name="s", reads=set(), writes={"R_x"})
+    init.router.register_projector("s", lambda p, k: "X")
+    init.deregister("s")
+    # Internal projectors dict should have dropped the entry.
+    assert "s" not in init.router._projectors  # noqa: SLF001 — test

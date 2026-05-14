@@ -139,14 +139,27 @@ kernel slice of lazy evaluation as described above. Tested in
     `test_lazy_bad_manifest_axon_keys_raises` — manifest TOML
     schema for `axon_keys` (optional list of strings).
 
-**What remains upstream-Sutra-dependent: per-receiver
-projection** — slicing the payload tensor to materialize only the
-dimensions the receiver references. This needs Sutra-side support
-to expose the per-key projection primitive. The kernel here only
-decides deliver-or-skip the full payload; it doesn't slice within
-the payload. When the Sutra compiler grows this primitive,
-`SutraService.tick()` would call it instead of handing the full
-payload to `on_axon()`.
+**Per-receiver projection — also implemented as of 2026-05-14.**
+Sutra v0.3.5 added `_TorchVSA.axon_project(axon, requested_keys)`,
+a runtime method that returns a slimmed axon containing only the
+listed keys' bound contributions. Yantra's kernel router uses it
+via `AxonRouter.register_projector(name, fn)` — `SutraService.bind()`
+registers the compiled module's `axon_project` with the router,
+and `AxonRouter.send()` calls the projector per receiver to
+deliver a slimmed payload when the receiver's `axon_keys` is a
+strict subset of the axon's `keys`. Audit counters
+`lazy_skipped_count()` and `lazy_projected_count()` distinguish
+the skip-entirely case from the slim-then-deliver case.
+
+**What's left upstream**: per-key sub-vector slicing at the
+*tensor* level. Today's `axon_project` rebuilds a slimmed axon by
+extract-and-rebind (composed of bind/unbind/permute over the
+existing primitives) — same on-the-wire shape, just with a
+zeroed-out region for un-projected keys. A future Sutra-side
+optimization could expose the actual sub-vector indices per role
+and let the router copy only those bytes. That's a real win on
+multi-GPU connectomes; for single-GPU shared memory it's the
+same cost.
 
 ## Cross-references
 

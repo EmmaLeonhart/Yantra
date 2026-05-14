@@ -12,13 +12,11 @@ See `CLAUDE.md` § "Workflow Rules" for how this file, planning mode, and the ta
 
 ## Active
 
-### 2. Per-receiver projection primitive (Sutra-side)
-
-A Sutra primitive that takes (payload_axon, requested_keys) and returns an axon containing only the requested keys' bound dimensions. Lets the kernel router slice the payload to what each receiver needs, instead of just deciding deliver-or-skip the full payload. Wire through `SutraService.tick()` on the Yantra side.
-
 ### 3. Multi-process Sutra runtime
 
-Per-process GPU memory arenas; simultaneous execution of N admitted programs at each tick (instead of Yantra's current sequential `Init.tick()` stand-in). Biggest blocker on Yantra's "no degradation under load" property.
+The big one. Per-process GPU memory arenas; simultaneous execution of N admitted programs at each tick (instead of Yantra's current sequential `Init.tick()` stand-in). Biggest blocker on Yantra's "no degradation under load" property.
+
+The user has flagged this as the biggest single piece of work in the upstream-Sutra queue. Not necessarily a single-session task — if it doesn't fit, ship as much as I can in coherent pieces and continue.
 
 ---
 

@@ -336,11 +336,17 @@ def test_sutra_service_emit_tags_axon_with_bound_keys(tmp_path: pathlib.Path) ->
     prod_svc.tick()  # runs on_axon (real Axon construction!) → emits
     inbox = init.router.receive("recv")
     assert inbox is not None
-    # The emitted axon's keys field should be the producer's
-    # statically-collected bound keys.
-    assert inbox.keys == frozenset({"key_one", "key_two"})
-    # Intersection {"key_one"} is non-empty → no lazy-skip.
+    # With Sutra v0.3.5 + the kernel router's per-receiver
+    # projection wired up, the receiver gets the SLIMMED axon —
+    # only the intersection of the producer's bound keys
+    # ({key_one, key_two}) and the receiver's interest set
+    # ({key_one}). The delivered axon's keys field reflects the
+    # intersection.
+    assert inbox.keys == frozenset({"key_one"})
+    # No lazy-skip (intersection is non-empty), but the projection
+    # path DID fire because the receiver wanted a strict subset.
     assert init.router.lazy_skipped_count() == 0
+    assert init.router.lazy_projected_count() == 1
 
 
 # Need Axon at module scope for the previous test.

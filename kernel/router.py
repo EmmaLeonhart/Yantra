@@ -56,9 +56,16 @@ from __future__ import annotations
 import dataclasses
 import threading
 from collections import defaultdict, deque
-from typing import Any, Iterator
+from typing import Any, Callable, Iterator
 
 from kernel.manifest import Manifest
+
+
+# A projector takes (full_payload, requested_keys) and returns a
+# slimmed payload. Sutra-side: this is `_VSA.axon_project` from
+# Sutra v0.3.5+. Python services can omit it (the router falls
+# back to delivering the full payload).
+ProjectorFn = Callable[[Any, frozenset[str]], Any]
 
 
 class CapabilityError(PermissionError):
@@ -125,6 +132,22 @@ class AxonRouter:
         # everywhere); if it's high, the lazy machinery is doing its
         # job. See planning/20-lazy-axon-evaluation.md.
         self._lazy_skipped_count: int = 0
+        # Per-receiver projection: senders may register a projector
+        # function that knows how to slim a payload to a key subset
+        # (e.g. SutraService delegates to its compiled module's
+        # _VSA.axon_project, available since Sutra v0.3.5). When a
+        # sender's projector is registered AND a receiver declares
+        # an axon_keys interest set, the router projects the payload
+        # to the intersection before delivery.
+        # Projectors are keyed by sender process name.
+        self._projectors: dict[str, ProjectorFn] = {}
+        # Counts how many times the router actually projected a
+        # payload (a sender had a projector registered AND the
+        # receiver had non-empty axon_keys AND the intersection was
+        # smaller than the full axon keys). Distinct from
+        # lazy_skipped_count, which counts skip-the-receiver-entirely
+        # decisions.
+        self._lazy_projected_count: int = 0
 
     # --- admission lifecycle (called by init) ---
 
@@ -153,6 +176,26 @@ class AxonRouter:
                     self._routes.pop(role, None)
             del self._processes[name]
             del self._inboxes[name]
+            # Drop the projector if any was registered.
+            self._projectors.pop(name, None)
+
+    def register_projector(self, sender_name: str, fn: ProjectorFn) -> None:
+        """Register a per-sender payload-projection function.
+
+        Called by services that can slim a payload to a key subset
+        (SutraService delegates to its compiled module's
+        `_VSA.axon_project`). When this is registered, the router
+        calls `fn(payload, requested_keys)` per receiver before
+        delivery, where `requested_keys = axon.keys & receiver.axon_keys`.
+
+        Senders without a projector get pass-through behaviour: the
+        full axon is delivered. Useful for PythonService stubs and
+        early-bringup before all programs have axon_keys wiring.
+        """
+        with self._lock:
+            if sender_name not in self._processes:
+                raise NotAdmittedError(sender_name)
+            self._projectors[sender_name] = fn
 
     # --- send / receive (called by services) ---
 
@@ -209,11 +252,30 @@ class AxonRouter:
                 # we deliver. This is the kernel slice of lazy
                 # evaluation; see class docstring + planning/
                 # 20-lazy-axon-evaluation.md for the framing.
-                if axon.keys and receiver.axon_keys and not (
-                    axon.keys & receiver.axon_keys
-                ):
-                    self._lazy_skipped_count += 1
-                    continue
+                if axon.keys and receiver.axon_keys:
+                    intersection = axon.keys & receiver.axon_keys
+                    if not intersection:
+                        self._lazy_skipped_count += 1
+                        continue
+                    # Per-receiver projection: if the sender has a
+                    # projector registered AND the receiver wants
+                    # a strict subset of what the axon carries,
+                    # slim the payload to just the intersection.
+                    # Senders without a projector (PythonService
+                    # stubs) fall through to delivering the full
+                    # payload — correct, just not bandwidth-optimal.
+                    projector = self._projectors.get(axon.from_proc)
+                    if projector is not None and intersection != axon.keys:
+                        slim_payload = projector(axon.payload, intersection)
+                        delivered_axon = dataclasses.replace(
+                            axon,
+                            payload=slim_payload,
+                            keys=intersection,
+                        )
+                        self._lazy_projected_count += 1
+                        self._inboxes[r].append(delivered_axon)
+                        delivered += 1
+                        continue
                 self._inboxes[r].append(axon)
                 delivered += 1
             return delivered
@@ -251,6 +313,13 @@ class AxonRouter:
         lazy key-intersection filtering."""
         with self._lock:
             return self._lazy_skipped_count
+
+    def lazy_projected_count(self) -> int:
+        """How many (axon, receiver) pairs the router slimmed via
+        per-receiver projection (sender's projector called to
+        narrow the payload to the receiver's interest set)."""
+        with self._lock:
+            return self._lazy_projected_count
 
     def inbox_depth(self, name: str) -> int:
         with self._lock:

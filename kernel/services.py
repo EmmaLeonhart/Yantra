@@ -168,6 +168,21 @@ class SutraService(Service):
         self._axon_keys_read = frozenset(
             getattr(self._compiled_module, "AXON_KEYS_READ", frozenset())
         )
+        # Register the per-receiver projection function with the
+        # router. Sutra v0.3.5+ ships _VSA.axon_project. With this
+        # registered, the router can slim payloads to per-receiver
+        # interest sets at delivery time. Older compiled modules
+        # that lack axon_project fall through to no projection —
+        # router delivers the full payload, which is correct but
+        # bandwidth-non-optimal.
+        if hasattr(self._compiled_module._VSA, "axon_project"):
+            vsa = self._compiled_module._VSA
+
+            def _project(payload, requested_keys):
+                # Frozenset → list for the runtime API.
+                return vsa.axon_project(payload, list(requested_keys))
+
+            router.register_projector(manifest.name, _project)
         # If the manifest didn't hand-declare axon_keys, auto-populate
         # from what the compiled .su actually reads. The router only
         # checks the receiver-side (axon_keys), not the sender-side
