@@ -20,6 +20,7 @@ _(empty — add the next concrete design or implementation task here)_
 
 - Longer-horizon items: `todo.md`
 - Kernel runtime nucleus: `kernel/` (see `kernel/README.md`)
+- First userspace utility: `apps/echo/` (see `apps/README.md`)
 - Design notes: `planning/` (numbered for reading order)
 - Open architectural questions: `planning/15-open-questions.md`
 - Memory model open hard problem: `planning/17-memory-model.md`
