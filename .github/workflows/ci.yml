@@ -1,8 +1,12 @@
 name: CI
 
-# Minimal test lane. Picks up any pytest tests under tests/ and runs
-# them. Kept lightweight on purpose — the paper-submit scripts are the
-# only Python in this repo today, and they have no heavy dependencies.
+# Two jobs:
+#   - test:   the fast lane. Sets up Python 3.13 + CPU torch + the
+#             Sutra submodule and runs pytest. Mirrors what most
+#             contributors do locally.
+#   - docker: builds the dev container Dockerfile and runs the same
+#             pytest inside it. Catches Dockerfile drift early —
+#             without this job, the Dockerfile rots silently.
 
 on:
   push:
@@ -40,3 +44,31 @@ jobs:
           else
             echo "No tests/ directory yet — skipping"
           fi
+
+  docker:
+    name: Build dev container + run tests inside it
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Init Sutra submodule (so SutraService tests find it inside the container)
+        run: git submodule update --init external/Sutra
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build dev container image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: yantra-dev:ci
+          # Cache the layers between CI runs so the slow torch wheel
+          # download doesn't happen every push.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Run pytest inside the dev container
+        run: |
+          docker run --rm \
+            -v "$PWD:/workspace" \
+            -w /workspace \
+            yantra-dev:ci \
+            pytest tests/ -v

@@ -41,16 +41,50 @@ code" beat "it runs my favourite app."
 
 ## Status
 
-This repo holds **planning documents** plus a **Python prototype of the
-Connectome Manager** under `kernel/` (19 passing tests; behavioural
-harness for the eventual Rust port). The Sutra compiler/runtime live in
-the `external/Sutra` submodule (pinned at v0.3.1). The TS→Sutra
-transpiler's lowering engine works upstream; its CLI wrapper is
-unwired.
+This repo holds **planning documents** plus a v0.0 **Connectome
+Manager** under `kernel/` — Python orchestration layer + real Sutra
+compute (44 passing tests, including 6 that compile and execute real
+`.su` programs through the kernel router). The Sutra compiler/runtime
+live in the `external/Sutra` submodule (pinned at v0.3.2; ships the
+working TS→Sutra transpiler CLI). The orchestration layer is in
+Python in this repo as the near-term implementation; the production
+target on the CPU side is Rust.
 
 Yantra is being designed (and now early-prototyped) here so that when
-the production Rust orchestrator + Sutra-side multi-process runtime
-lands, there is a coherent target.
+the upstream Sutra-side multi-process runtime + the production Rust
+orchestrator land, there is a coherent target.
+
+## Dev environment
+
+Three modes, pick one:
+
+**1. Host Python** — the path the existing CI runs on.
+
+```bash
+# Python 3.13 + git submodule init for Sutra
+pip install pytest
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+git submodule update --init external/Sutra
+pytest tests/ -v          # 44 tests, including 6 real-Sutra integration
+```
+
+**2. Docker dev container** — reproducible across machines, no host deps beyond Docker. First run builds the image (~5–10 min, dominated by torch CPU wheel); subsequent runs reuse layers.
+
+```bash
+# Linux/macOS
+./scripts/dev-shell.sh                 # interactive bash inside the container
+./scripts/dev-shell.sh pytest          # one-shot test run
+
+# Windows PowerShell
+scripts\dev-shell.bat                  # interactive
+scripts\dev-shell.bat pytest           # one-shot
+```
+
+The container bind-mounts the repo at `/workspace` so edits flow back to the host. `Dockerfile` at the repo root for the curious; CI builds it on every push so it doesn't rot silently.
+
+**3. VS Code Dev Container** — open the folder in VS Code and click "Reopen in Container" when prompted. Uses the same Dockerfile via `.devcontainer/devcontainer.json`; pre-installs the Python + pytest extensions so the test pane lights up automatically.
+
+This is tier 1 of the three "VM tiers" planned for Yantra. Tier 2 (cloud GPU VM, e.g. RunPod) waits on upstream Sutra GPU work being something to test against. Tier 3 (QEMU full-system emulator) waits on a Rust kernel image worth booting. See [planning/18-kernel-browser-readiness.md](planning/18-kernel-browser-readiness.md).
 
 ## Where to start reading
 
