@@ -13,18 +13,24 @@ Three transpilers are in scope:
 
 ## JS / TS → Sutra
 
-**This is on Yantra's critical path, not a nice-to-have.** Yantra
-commits to "everything is a browser" for the GUI layer. That choice
-only works if real JS/TS bundles compile to Sutra without a human
-rewrite — otherwise the browser becomes an empty room and the
-"looks like ChromeOS to your users" pitch (`12-target-markets.md`)
-collapses. The TS→Sutra transpiler is one of two Sutra-side
-dependencies Yantra rides on (the other being the Sutra compiler
-itself; see `CLAUDE.md` § "Project context for paper/agent work").
+**Scope: browser/GUI specifically.** TS→Sutra is on the critical
+path *for the browser layer* — Yantra commits to "everything is a
+browser" for the GUI, and that choice only works if real JS/TS
+bundles compile to Sutra without a human rewrite. Outside the
+browser layer, TS→Sutra is not used: the kernel is native Sutra,
+userspace utilities are native Sutra rewrites, and there is no
+general-purpose "JS apps run on Yantra" promise.
 
-It already exists and is running. The "what works" / "what is hard"
-sections below are descriptions of the *current* state of that
-transpiler, not aspirations.
+Status: the lowering engine
+(`external/Sutra/sdk/sutra-from-ts/sutra_from_ts/lower.py`) is
+~1474 lines of real code with 17 passing fixtures covering
+functions, classes, async/await, discriminated unions, etc. The
+CLI wrapper is unwired and the README still says "skeleton" — both
+out of date relative to the actual code. **Status as of this
+writing: lowering engine works; CLI is unwired; README is stale.
+Both extremes ("done" or "skeleton") are wrong.** Wiring up the
+CLI is a small task on the Sutra side that unblocks all browser
+layer work.
 
 What it does well:
 
@@ -82,26 +88,42 @@ Anything beyond this still works if it does, but is not promised.
 
 ## C → Sutra
 
-The C transpiler exists, mostly to bring across pieces of Linux and
-similar codebases. It is not idiomatic — C's pointer-and-mutation
-worldview clashes with Sutra's value-and-relationship worldview — but it
-works for well-scoped translations.
+**Status: priority but deferred.** The C transpiler is genuinely a
+skeleton today (`external/Sutra/sdk/sutra-from-c/` is ~57 lines of
+CLI scaffolding with no lowering pass). It will be built; it is not
+v0.0 work.
 
-What we use it for:
+**Scope when it lands.** Strictly kernel-adjacent C — bootloader,
+specific drivers we want to bring across from Linux for well-tested
+behaviour, possibly WASM via the C-like IR path. **Userspace is NOT
+a target for C-transpile.** The Linux userspace utility sources
+under `external/{coreutils,util-linux,busybox}/` are reference
+material — useful for "what does GNU `sort` actually do at the
+edge" — not transpile inputs. Yantra userspace utilities will be
+written natively in Sutra (see `apps/`-shaped work in `todo.md`).
 
-- Bringing across kernel-adjacent code from Linux that is too well-tested
-  to rewrite from scratch (block-device handling, common filesystem
-  drivers, networking primitives).
-- Bootstrapping the firmware-side bootloader (the small C program that
-  loads the GPU image).
-- Compiling WASM, which is in many ways a cleaner C: typed, no
-  garbage collection in the base spec, designed to be lowered.
+**The kernel itself is NOT C-transpiled.** Yantra's kernel
+(`kernel/` in this repo) is native Sutra. C-transpiling would
+defeat the verification surface argument in `paper/paper.md` § 4 —
+the whole point is that the trusted base reduces to tensor normal
+form, which C-transpiled code does not cleanly do.
 
-What we don't use it for:
+What the C transpiler IS for, when built:
 
-- Userspace applications. Use JS/TS.
-- Anything performance-sensitive on the hot path. The translated code is
-  correct, not fast, and the abstractions don't always fuse nicely.
+- Bootstrapping the firmware-side bootloader (small, finite, the
+  one place we want a known-good C origin).
+- Bringing across specific Linux drivers where the code is
+  well-tested and idiomatic re-writing is wasteful (block-device
+  handling, common filesystem drivers, networking primitives).
+- WASM via the same backend (a cleaner C-shaped IR).
+
+What it is NOT for:
+
+- The kernel — written natively in Sutra.
+- Userspace applications and utilities — native Sutra rewrites.
+- Browser GUI — that is the TS→Sutra transpiler's job.
+- Anything performance-sensitive on the hot path. Translated code
+  is correct, not fast.
 
 ### The memory model gap
 
