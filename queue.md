@@ -12,25 +12,32 @@ See `CLAUDE.md` § "Workflow Rules" for how this file, planning mode, and the ta
 
 ## Active
 
-### Dev container (Docker) — the first VM tier
+### Documentation honesty pass — boot sequence, Python-trap, lazy axons
 
-Build the smallest reproducible dev environment per the three-tier plan in the previous session: tier 1 (Docker dev container) is the immediate win, tier 2 (cloud GPU VM) waits on upstream Sutra GPU work, tier 3 (QEMU full-system) waits on a Rust kernel image to boot.
+The user is right that I've been papering over the difficulty in places. Substantive doc updates land:
 
-What ships:
+1. **`planning/19-boot-sequence.md` (new)** — Explicit BIOS → bootloader → Rust orchestrator → Sutra image on GPU → connectome flow. Names the bootloader as Rust-or-C *because Python is interpreted and the boot path runs before any interpreter exists*, not because Rust is fashionable. Documents what each stage does and what state the system is in at each transition.
 
-1. `Dockerfile` at repo root — Python 3.13-slim base + build tools + pre-installed pytest + CPU torch + tree-sitter (the heavy deps, cached as image layers). Source NOT baked in — the container expects the repo bind-mounted at `/workspace` so edits flow back to the host.
-2. `.dockerignore` — exclude bloat (`.git`, `chats/`, the big Linux util submodules, pytest cache, `__pycache__`).
-3. `.devcontainer/devcontainer.json` — VS Code Remote-Containers config so opening the project in VS Code offers "reopen in container."
-4. `scripts/dev-shell.sh` + `scripts/dev-shell.bat` — one-line wrappers for non-VS-Code users (`./scripts/dev-shell.sh` drops you into the container with the repo mounted).
-5. README updates — "Dev environment" section explaining the three modes (host Python, Docker container, VS Code devcontainer).
-6. CI extension — add a job that builds the Docker image and runs pytest inside it. Verifies the Dockerfile actually works on every push.
+2. **`planning/20-lazy-axon-evaluation.md` (new)** — Lazy axon evaluation as a hard requirement, not an optional optimization. Includes the combinatorial-explosion reasoning (every program receiving every other program's full output is N²·D where D is bundle width, vs O(K) where K is the keys actually read), and the spec reference to `external/Sutra/planning/sutra-spec/axons.md` § "Lazy evaluation across boundaries." Explicit gap call-out: `kernel/router.py` does eager full-payload copying today, which is fine for the v0.0 smoke test but does not scale.
 
-What does NOT ship in this round:
+3. **`planning/01-architecture.md`** — Connectome Manager section gets a "boot flow" subsection pointing at the new doc; CPU side section sharpens "Rust because compiled native is required at the boot path" rather than the previous softer framing. Layer cake updated to show the bootloader explicitly as a separate tier below the Rust orchestrator.
 
-- GPU passthrough (would need NVIDIA Container Toolkit; CPU torch is fine for the kernel tests we have today).
-- Cloud GPU VM provisioning (tier 2).
-- QEMU image (tier 3).
-- A pre-built image on Docker Hub / ghcr.io (we'd publish later if/when others want to pull without building).
+4. **`planning/17-memory-model.md`** — Add a section explicitly framing how memory ties to the boot sequence: at boot time RAM holds only the bootloader; after the bootloader runs, RAM holds the program images and the GPU holds the live connectome. The disc/RAM/GPU tier semantics get their boot-time grounding.
+
+5. **`kernel/README.md`** — Honesty pass:
+   - "What is real today" gets a hard line: the router does eager full-payload routing. Lazy axon evaluation is a known gap, *not* implemented.
+   - "What this is not" gets sharper: the Python is a behavioural harness for the *post-boot orchestration logic*, not a smaller version of the bootloader. The bootloader is a different artifact entirely (Rust, not present in this repo today).
+   - Cross-link to `planning/19-boot-sequence.md` for the full flow.
+
+6. **`CLAUDE.md`** — Two new rules:
+   - **Python is dev tooling, not runtime.** No Python in the boot path. No Python features in `kernel/` that wouldn't port cleanly to Rust. No "convenient" Python idioms (decorators, dynamic type juggling, monkey-patching, `__getattr__` magic).
+   - **Don't paper over difficulty.** When something is hard or unbuilt, say so plainly. "We'll figure it out" or "the Python prototype demonstrates the shape" without explicitly naming what's missing is dishonest. Specific things that are hard and that should be named when they come up: the bootloader, the Rust orchestrator, lazy axon evaluation, the multi-threaded Sutra runtime, disc/RAM/GPU storage-tier moves.
+
+7. **`planning/18-kernel-browser-readiness.md`** — Re-audit the readiness section against the new docs. The Connectome Manager TL;DR should explicitly mention lazy axons as gap.
+
+8. **`todo.md`** — Add the bootloader, the lazy axon evaluation work, and the Rust orchestrator as named items in the kernel-section forward list.
+
+After: commit + push. No code changes in this round; this is the documentation honesty pass before any more code lands.
 
 ---
 

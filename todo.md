@@ -17,11 +17,27 @@ Connectome Manager (manifest + router + init + two example services
 + 19 passing tests). The Python is a behavioural harness; the
 production form is Rust. Hardening list:
 
-- **Rust port of the Connectome Manager.** The production form on
-  the CPU side. "As small as possible" with strong static
-  guarantees; the Python prototype is the API reference. Single
-  largest piece of work in this list, and the one that turns
-  `kernel/` from "behavioural harness" into "runtime."
+- **Bootloader (Rust).** The first Yantra-authored code that runs
+  at boot. Bare-metal, no interpreter, against hardware. Job:
+  discover the GPU, load the compiled Sutra kernel image into GPU
+  memory, hand control to the orchestrator. Doesn't exist today.
+  See `planning/19-boot-sequence.md` § "Stage 3" for the full
+  responsibility list. Prerequisite for any "Yantra boots as a
+  real OS" demonstration.
+- **Rust port of the Connectome Manager (orchestrator).** The
+  production form on the CPU side, runs after boot. "As small as
+  possible" with strong static guarantees; the Python prototype
+  is the API reference. Single largest piece of post-bootloader
+  work in this list, and the one that turns `kernel/` from
+  "behavioural harness" into "runtime."
+- **Lazy axon evaluation in the production router.** The Yantra
+  v0.0 in `kernel/router.py` ships the kernel-level slice (skip
+  uninterested receivers when the axon's keys don't intersect the
+  receiver's `axon_keys` declaration). The full per-receiver
+  projection — slicing the axon vector to materialize only the
+  dimensions the receiver references — needs Sutra-side support
+  to expose the per-key projection primitive. See
+  `planning/20-lazy-axon-evaluation.md`.
 - **Storage-tier moves: disc ↔ RAM ↔ GPU.** The Python prototype
   only implements admit/deregister against an in-memory pool. The
   Connectome Manager's actual job is shuffling programs between

@@ -1,23 +1,39 @@
-# `kernel/` — Connectome Manager (v0.0)
+# `kernel/` — Connectome Manager Python prototype (v0.0)
 
-> **Sutra is doing the computation.** Each service is a real
-> Sutra-compiled `.su` program whose `on_axon(vector) -> vector`
-> function runs on real torch tensors that the router carries
-> through as axon payloads. This is verified by
-> `tests/test_kernel_sutra.py` — 6 tests that compile + run echo.su
-> and sink.su through the live Sutra v0.3.1 compiler and route a
-> real `torch.randn(768)` tensor producer → echo (Sutra) → sink
-> (Sutra) end-to-end.
+> **What this is.** A **behavioural reference** for what the Rust
+> orchestrator in `planning/19-boot-sequence.md` § "Stage 4" does
+> once boot is complete: admission control, axon routing,
+> capability checks, the tick loop. Sutra is doing the actual
+> computation — each service is a real Sutra-compiled `.su` program
+> whose `on_axon(vector) -> vector` runs on real torch tensors —
+> but the orchestration layer is Python in this repo as a
+> short-term implementation choice. The Rust port reimplements the
+> same shape; this Python pins the API.
 >
-> **The orchestration layer is in Python in this repo.** The
-> CPU-side init/resource-manager + axon router that decides who's
-> admitted, who's connected to whom, and what gets ticked. **It
-> does not do the compute**; it schedules and connects the things
-> that do. The production form on the CPU side is **Rust** (per
-> `planning/01-architecture.md` § "CPU side: small, Rust,
-> orchestrator"); the Python here pins the API shape and gives
-> the Rust port a target test suite. The Python is also fine
-> long-term as a development VM for non-critical-path work.
+> **What this is NOT.**
+>
+> 1. Not the bootloader. The bootloader runs at stage 3 of
+>    `planning/19-boot-sequence.md`, before any interpreter
+>    exists, against bare hardware. It is **necessarily Rust or C**.
+>    Python cannot be a bootloader; the boot path runs before any
+>    interpreter is loaded.
+> 2. Not a model of the production axon router. `router.py` does
+>    **eager full-payload routing** — every axon a sender emits
+>    gets copied in full to every admitted receiver. This is fine
+>    for the v0.0 1-axon-1-receiver smoke test; it does **not**
+>    scale to a real connectome and is **not** what the production
+>    Rust router does. Production needs **lazy axon evaluation**
+>    per `planning/20-lazy-axon-evaluation.md`. Without it,
+>    bandwidth scales O(N²·D) and the connectome collapses under
+>    its own weight.
+> 3. Not a model of multi-process GPU concurrency. `tick()`
+>    iterates services sequentially on CPU. Real Yantra runs all
+>    admitted programs simultaneously on the GPU at every tick.
+>    Single-program-per-tick is a CPU-side stand-in.
+> 4. Not a model of the storage-tier moves the Connectome Manager
+>    actually does. The disc ↔ RAM ↔ GPU shuffling that is the
+>    Connectome Manager's primary job is not implemented; v0.0
+>    only does in-memory admit/deregister.
 
 ## What runs today
 
