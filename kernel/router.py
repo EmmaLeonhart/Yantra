@@ -1,22 +1,54 @@
 """Axon router — the kernel's IPC primitive.
 
-An `Axon` here is a simple value-object: a payload tensor plus the
-role it was bound under. The real Sutra-side axon (rotation-bound
-fixed-width vector) compiles to a torch tensor of shape
-`(axon_width,)`; the router does not re-bind, it just delivers.
-The capability check happens at delivery time, not at write time —
-so a process can compose an axon for a role it can't write, and the
-router refuses to deliver it. (This matches the threat-model story
-in `paper/paper.md` § 3.3.1: capability check happens before bundle
-composition at the receiver, rotation operators are themselves the
-gate.)
+**Lazy evaluation is fundamentally compile-time wiring.** The Sutra
+compiler statically knows what keys each program binds (the
+producer's `add()`/`bind()` calls) and what keys each program
+reads (the consumer's `axon_item()` calls). From those two static
+sets per program, the cross-program connectome is computable as a
+static wiring table: for each (sender role, receiver name) edge,
+exactly which keys flow. The router's job at runtime is to
+**execute** that wiring, not to compute it.
 
-In v0.0 the payload is a Python object (typically a `torch.Tensor`)
-that crosses thread boundaries by reference. This is *not* the
-production model — the production model passes axons by value via
-device-side serialisation — but it is sufficient to demonstrate
-process-to-process communication and the capability-check semantics
-the architecture commits to.
+In this kernel:
+
+  - The receiver's `Manifest.axon_keys` carries the keys-it-reads
+    set (in production: emitted by the Sutra compiler from static
+    analysis; for v0.0: hand-written in the manifest TOML).
+  - The producer attaches the keys-bound set to each emitted
+    `Axon` (in production: also compiler-emitted from static
+    analysis of the producer's bind chain; for v0.0: passed
+    explicitly to `Axon(keys=...)`).
+  - The router at admit time builds the per-role receiver list
+    once. At send time it filters that list by
+    `axon.keys & receiver.axon_keys` — empty intersection ⇒ skip.
+
+This means the connectome doesn't pay O(N²·D) bandwidth in the
+worst case; it pays O(E·K) where E is the number of (sender,
+receiver) edges that actually share a key and K is the typical
+key count. See `planning/20-lazy-axon-evaluation.md` for the
+combinatorial reasoning.
+
+**What this kernel does NOT do (still upstream-Sutra-dependent):**
+per-receiver projection — slicing the payload tensor to
+materialize only the dimensions the receiver references. That
+needs Sutra-side support to expose the per-key projection
+primitive. The kernel here only decides whether to deliver the
+full payload or skip the receiver entirely.
+
+Capability check still fires on every send: the sender must
+possess the role in its `write_roles`; the receiver must possess
+the role in its `read_roles`. The capability check happens
+before the lazy-skip check. (Matches the threat-model story in
+`paper/paper.md` § 3.3.1.)
+
+**Eager fallback.** If a receiver's manifest declares no
+`axon_keys` at all (default = empty frozenset), the receiver
+opts into eager delivery: every axon on its read-roles arrives
+regardless of key content. Useful for v0.0 stub receivers,
+debugger / log / introspection processes that genuinely want
+every axon, and for early-bringup before the static wiring table
+is populated. Productions services should declare their
+`axon_keys` so the router can skip-deliver.
 """
 
 from __future__ import annotations
@@ -41,14 +73,27 @@ class NotAdmittedError(LookupError):
 class Axon:
     """A single in-flight message between processes.
 
-    `role`        — the role-name the payload was bundled under
-    `payload`     — the tensor (or tensor-like value) the role carries
-    `from_proc`   — the name of the sending process (for capability +
-                    audit)
+    `role`        — the routing-role under which this axon flows
+    `payload`     — the tensor (or tensor-like value) bundling the
+                    bound key-slots
+    `from_proc`   — the name of the sending process (for capability
+                    + audit)
+    `keys`        — the axon-internal keys actually bound in
+                    `payload`. Used by the router for lazy-skip
+                    delivery: a receiver whose `axon_keys` declared
+                    in its manifest don't intersect this set is
+                    skipped. In production, the Sutra compiler emits
+                    this set from static analysis of the producer's
+                    bind chain; for v0.0 the sender passes it
+                    explicitly. Empty frozenset = "no key
+                    declarations" — the router treats this as
+                    eager-fallback (deliver to every receiver on the
+                    role regardless of key intersection).
     """
     role: str
     payload: Any
     from_proc: str
+    keys: frozenset[str] = dataclasses.field(default_factory=frozenset)
 
 
 class AxonRouter:
@@ -73,6 +118,13 @@ class AxonRouter:
         self._inboxes: dict[str, deque[Axon]] = {}
         self._routes: dict[str, list[str]] = defaultdict(list)
         self._dropped_audit: list[Axon] = []
+        # Lazy-skip audit: counts how many (axon, receiver) pairs the
+        # router skipped because keys didn't intersect. Useful for
+        # observability — if this is 0 in a connectome with declared
+        # axon_keys, the wiring is sub-optimal (every axon goes
+        # everywhere); if it's high, the lazy machinery is doing its
+        # job. See planning/20-lazy-axon-evaluation.md.
+        self._lazy_skipped_count: int = 0
 
     # --- admission lifecycle (called by init) ---
 
@@ -107,9 +159,23 @@ class AxonRouter:
     def send(self, axon: Axon) -> int:
         """Deliver `axon` from `axon.from_proc`. Returns receiver count.
 
-        Capability check on send: the sender must possess `axon.role`
-        in its write_roles. Returns the number of receivers the axon
-        was delivered to (0 is allowed; see class docstring).
+        Three filtering stages, in order:
+
+        1. **Capability check on send.** The sender must possess
+           `axon.role` in its `write_roles`. Violations raise
+           `CapabilityError` (programming bug, surfaced loudly).
+        2. **Route lookup.** If no admitted receiver reads
+           `axon.role`, the axon is logged + dropped (black-hole;
+           normal during startup or when a logger isn't admitted).
+        3. **Lazy-skip per receiver.** For each receiver wired to
+           the role, if the receiver declares `axon_keys` AND the
+           axon declares `keys` AND the two sets don't intersect,
+           skip delivery to that receiver. The
+           `lazy_skipped_count` audit increments. Either side
+           empty = eager fallback (deliver).
+
+        Returns the number of receivers actually delivered to
+        (after lazy-skip filtering). 0 is allowed.
         """
         with self._lock:
             sender = self._processes.get(axon.from_proc)
@@ -125,6 +191,7 @@ class AxonRouter:
                 # Black-hole: log + drop. Not an error — see class docstring.
                 self._dropped_audit.append(axon)
                 return 0
+            delivered = 0
             for r in receivers:
                 # Capability check on receive — defence in depth: even
                 # if the route table is wrong, a process never gets an
@@ -136,8 +203,20 @@ class AxonRouter:
                         f"{r!r} reads {axon.role!r} but its read_roles "
                         f"are {sorted(receiver.read_roles)}"
                     )
+                # Lazy-skip: only when both sides have declared
+                # their key sets AND the intersection is empty. If
+                # either side is empty (the eager-fallback case),
+                # we deliver. This is the kernel slice of lazy
+                # evaluation; see class docstring + planning/
+                # 20-lazy-axon-evaluation.md for the framing.
+                if axon.keys and receiver.axon_keys and not (
+                    axon.keys & receiver.axon_keys
+                ):
+                    self._lazy_skipped_count += 1
+                    continue
                 self._inboxes[r].append(axon)
-            return len(receivers)
+                delivered += 1
+            return delivered
 
     def receive(self, name: str) -> Axon | None:
         """Pop the next axon for `name`, or None if the inbox is empty."""
@@ -166,6 +245,12 @@ class AxonRouter:
     def dropped_count(self) -> int:
         with self._lock:
             return len(self._dropped_audit)
+
+    def lazy_skipped_count(self) -> int:
+        """How many (axon, receiver) pairs the router skipped via
+        lazy key-intersection filtering."""
+        with self._lock:
+            return self._lazy_skipped_count
 
     def inbox_depth(self, name: str) -> int:
         with self._lock:
