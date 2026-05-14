@@ -91,34 +91,54 @@ replaces them — different concerns, but not the same concerns. See
 
 ## CPU side: small, Rust, orchestrator
 
-The CPU side of Yantra exists to orchestrate the GPU. Its work is:
+The CPU side of Yantra exists to orchestrate the GPU. Its work
+spans two distinct binaries:
 
-- Run the bootloader.
-- Load the compiled kernel image onto the GPU.
-- Run the Connectome Manager itself.
-- Mediate the disc/RAM/GPU storage tier moves.
-- Wrap MMIO peripherals as axon channels (paper §3.5).
+1. **The bootloader.** Runs at stage 3 of `19-boot-sequence.md`,
+   in RAM, against bare hardware. Discovers the GPU, loads the
+   compiled Sutra kernel image into GPU memory, hands control to
+   the orchestrator. Tiny.
+2. **The Rust orchestrator (Connectome Manager).** Runs after
+   boot, on the CPU, for the lifetime of the system. Decides what
+   programs live on disc / in RAM / on GPU. Wires the axon
+   router. Mediates MMIO peripherals as axon channels (paper
+   §3.5).
 
-**Implementation language: Rust.** Justified by:
+**Implementation language: Rust** for both. The reasons differ
+slightly per binary:
 
-- Small. The vision is "as small as possible," and Rust gives a
-  small surface with strong static guarantees that survive into
-  the binary. Yantra targets critical systems where the
-  certifiability of the trusted base is a procurement criterion.
-- The CPU side is the one place memory-safety matters in the
-  conventional sense — the connectome on the GPU does not have
-  pointers or dynamic allocation in the traditional sense, but the
-  Rust orchestrator does, because it is talking to actual
-  byte-shaped hardware.
-- Compatible with the eventual C-transpile path for the bootloader
-  (the bootloader can stay in C/Rust and be transpiled to Sutra
-  later if the verification surface argument demands it).
+- **Bootloader needs Rust (or C).** Not because Rust is
+  fashionable but because the boot path runs **before any
+  interpreter exists**. The CPU starts executing firmware
+  (BIOS/UEFI), which loads the bootloader's compiled bytes into
+  RAM, which then run natively against bare hardware. There is
+  no Python interpreter at this stage; there is no kernel; there
+  is no malloc; there are no syscalls. A Python "bootloader" is
+  a category error. We pick Rust over C for the rest of the
+  reasons below; either compiled-native language would work.
+- **Orchestrator could be other languages, picking Rust for
+  consistency.** Once the OS is up there's a runtime in scope and
+  in principle the orchestrator could be C, C++, or even a
+  bytecode-VM-based language. We pick Rust because (a) memory
+  safety of the CPU-side code matters — the orchestrator talks
+  to actual byte-shaped hardware and bugs there are unsafe in the
+  conventional C sense, (b) keeping bootloader and orchestrator
+  in the same language reduces the trusted-base surface the
+  certification audience has to reason about, (c) the user
+  driving this project knows Rust, and (d) AI-generated Rust
+  code is more reliable than AI-generated C/C++ for this kind
+  of low-level work.
 
-The Yantra-side `kernel/` directory in this repository currently
-holds a **Python prototype** of the Connectome Manager, sufficient
-for behavioural smoke tests (see `kernel/README.md`). The Rust
-implementation is the production target; the Python prototype is
-reference and harness.
+The Yantra-side `kernel/` directory in this repository holds a
+**Python prototype** of the orchestrator's API shape — admission
+control, axon routing, capability checks. **It is not a smaller
+version of the bootloader** — the bootloader is a different
+binary at a different boot stage that Python cannot participate
+in at all. The Rust orchestrator port reimplements the same shape
+the Python prototype demonstrates; the bootloader is its own
+separate Rust target. See `kernel/README.md` for what the Python
+prototype actually covers and what is honestly out of scope, and
+`19-boot-sequence.md` for the full stage-by-stage flow.
 
 ## Three guiding inversions
 
