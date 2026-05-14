@@ -143,8 +143,8 @@ boundary wrapping. This is the running-OS state.
 | Stage | Yantra-side status |
 |---|---|
 | 1 — Power on | N/A (vendor firmware) |
-| 2 — BIOS/UEFI loads bootloader | **v0.0 shipped (2026-05-14).** `bootloader/` is a Rust crate that builds via `cargo bootimage` into a bootable disk image QEMU's BIOS handoff loads. |
-| 3 — Bootloader runs | **v0.0 shipped (2026-05-14).** `bootloader/src/main.rs` boots in QEMU, prints "Yantra bootloader v0.0 — hello from bare metal" via VGA + COM1 serial, then halts. Does NOT yet do GPU init or kernel image load (v0.1 work). |
+| 2 — BIOS/UEFI loads bootloader | **v0.0 shipped + verified booting in QEMU 11.0.50 (2026-05-14).** `bootloader/` is a Rust crate that builds a multiboot1 ELF binary via `cargo build --release`. QEMU's `-kernel` flag boots multiboot1 ELFs directly — no disk image, no BIOS sector. |
+| 3 — Bootloader runs | **v0.0 shipped + verified (2026-05-14).** `bootloader/src/main.rs` boots in QEMU and prints "Yantra bootloader v0.0 - hello from bare metal" via COM1 serial (forwarded to host stdout via `-serial stdio`), then halts. Does NOT yet do GPU init, long-mode transition, or kernel image load (v0.1 work). |
 | 4 — Rust orchestrator running | Python prototype only (`kernel/` in this repo). Rust port is the TODO. |
 | 5 — Connectome live on GPU | Per-program Sutra compute works (`kernel/services.py` `SutraService`). Multi-process simultaneous execution on a single GPU is now partially shipped via Sutra v0.4.0 `MultiProcessRuntime` (one Python process, N programs sharing one `_VSA`); per-process GPU memory arena carve-outs still upstream. |
 
