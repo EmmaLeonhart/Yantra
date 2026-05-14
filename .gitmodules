@@ -1,0 +1,12 @@
+[submodule "external/Sutra"]
+	path = external/Sutra
+	url = https://github.com/EmmaLeonhart/Sutra
+[submodule "external/coreutils"]
+	path = external/coreutils
+	url = https://github.com/coreutils/coreutils
+[submodule "external/util-linux"]
+	path = external/util-linux
+	url = https://github.com/util-linux/util-linux
+[submodule "external/busybox"]
+	path = external/busybox
+	url = https://github.com/mirror/busybox
