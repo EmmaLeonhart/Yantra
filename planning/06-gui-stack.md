@@ -1,5 +1,23 @@
 # GUI stack: everything is a browser
 
+## Sequencing — GUI is third
+
+This document describes the *eventual* GUI. The build sequence is:
+
+1. **Connectome manager** (kernel) — the v0.0 nucleus is in
+   `kernel/`; the production version is the Rust orchestrator on
+   the CPU side that loads programs onto the GPU and offloads them
+   to RAM/disk.
+2. **Simple Linux-shaped utilities** — file access, edit, list,
+   etc. Initial system is **command-line only**, accessed by SSH
+   or serial from a host computer. No graphics whatsoever in this
+   phase.
+3. **Browser** — only after (1) and (2) are working does the GUI
+   stack described in this document get built.
+
+Future agents reading this doc should not interpret it as work
+that is or should be in flight. The GUI is the third milestone.
+
 ## The shape of the bet
 
 The entire Yantra userspace UI is rendered through what is, in
@@ -31,13 +49,22 @@ Committed:
 - HTML5 ✓
 - CSS ✓
 - AOT-compiled JS/TS → Sutra ✓
-- WebGL → tensor substrate (Yantra's GPU/analog hardware does WebGL's
-  job natively rather than via a discrete GPU pipeline) ✓
+- WebGL / Three.js → tensor substrate (Yantra's GPU/analog hardware
+  does WebGL's job natively rather than via a discrete GPU pipeline) ✓
 - Semantic web stack (RDF, SPARQL, JSON-LD) — first-class, unusual but
   fits Sutra's symbolic flavor ✓
 - WebSockets for data ✓
-- Best-effort WASM via the C transpiler (mostly clean because WASM is
-  already a tidy IR) ✓
+
+Explicitly **dropped** (decision 2026-05-14):
+
+- **WebAssembly.** Earlier plans listed best-effort WASM via the C
+  transpiler. That is no longer the plan. WASM was an "absolute
+  nightmare" worth of edge cases and threading and memory-model
+  complexity for a substrate that does not naturally model linear
+  memory at all. Yantra's GUI stack is HTML5 + CSS + JavaScript +
+  WebGL/Three.js, period. Web apps that ship as WASM bundles either
+  re-ship as JS/TS or do not run on Yantra. This is a v0
+  scope-shrink, not a v0 limitation we plan to lift later.
 
 Explicitly **not** supported:
 

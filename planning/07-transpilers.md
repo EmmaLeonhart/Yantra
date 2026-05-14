@@ -1,15 +1,39 @@
 # Transpilers
 
-Yantra leans on transpilation hard. The language story is not "rewrite
-the world in Sutra"; it is "compile what already exists into Sutra well
-enough that you don't have to rewrite the world."
+Yantra leans on transpilation for the parts where it is genuinely
+useful and writes natively for everything else. The language story
+is **not** "transpile the world into Sutra"; it is "transpile where
+existing code is the well-tested asset, write natively where it is
+not."
 
-Three transpilers are in scope:
+Two transpilers are in scope:
 
-1. **JS / TS → Sutra** — userspace, GUI, applications.
-2. **C → Sutra** — kernel bootstrap pieces, drivers we adapt from Linux.
-3. **WASM → Sutra** — best-effort, falls out of the C transpiler since
-   WASM is a cleaner IR than raw C.
+1. **JS / TS → Sutra** — **GUI/browser layer only.** The user-facing
+   stack is HTML5 + CSS + JavaScript + WebGL/Three.js; component
+   logic ships as idiomatic TypeScript and is AOT-transpiled at
+   page load. Outside the browser layer this transpiler is not used.
+2. **C → Sutra** — priority but deferred. Scope when built:
+   bootloader, specific Linux drivers worth bringing across,
+   kernel-adjacent pieces. *Not* userspace utilities, *not* the
+   Yantra kernel itself.
+
+Explicitly **dropped** (decision 2026-05-14):
+
+- **WASM → Sutra.** Earlier plans called for best-effort WASM as a
+  fall-out of the C transpiler. That is no longer the plan. WASM's
+  linear-memory and threading model is alien to Sutra's substrate
+  and the edge-case work would be a sink. Yantra's GUI stack is
+  JS/TS, not WASM. Web bundles that ship only as WASM either
+  re-ship as JS or don't run on Yantra.
+
+What is **written natively in Sutra** (no transpiler involved):
+
+- **The Yantra kernel** — the connectome manager that decides what
+  runs on the GPU vs sits in RAM cold-store vs on disk. The CPU-side
+  orchestrator wrapper around it is **Rust** (see `01-architecture.md`).
+- **Userspace utilities** (cat, ls, grep, awk, sed, etc.) — see
+  `todo.md` § 2 for the Q-list. The Linux source under `external/`
+  is behavioural reference, not transpile input.
 
 ## JS / TS → Sutra
 
@@ -144,23 +168,25 @@ Practically, this means we curate which Linux components we transpile,
 and we do small adjustments to the C source first to make it more
 buffer-oriented and less heap-oriented.
 
-## WASM → Sutra
+## WASM → Sutra — DROPPED
 
-WASM falls out of the C transpiler mostly for free. WASM is:
+Earlier drafts of this document committed to a WASM transpile
+target as a free fall-out of the C transpiler. That commitment was
+withdrawn 2026-05-14. The reasoning:
 
-- Already a low-level IR.
-- Strongly typed.
-- No garbage collection in the base spec.
-- Designed to be compiled to, not interpreted.
+- WASM's linear-memory + threading model is alien to Sutra's
+  fixed-width-state substrate. The edge-case engineering to map
+  WASM semantics onto Sutra would dominate the integration cost
+  and produce code that is correct, slow, and brittle.
+- The expected payoff (web apps that ship only as WASM bundles
+  Just Work) does not match what the GUI stack actually needs
+  (idiomatic TypeScript components transpiled at page load — the
+  WASM-bundle case is an edge that does not justify its weight).
+- No-WASM is a *deliberate* scope shrink, not a v0 limitation we
+  plan to lift. The browser ships JS/TS-only.
 
-So `WASM → Sutra` is really `WASM → C-like IR → Sutra` and the second
-half is the existing C path. The result is a usable WASM runtime good
-enough for things like Figma to load, even if performance and edge-case
-fidelity are not what they would be on V8.
-
-Treating WASM as a first-class compilation target means the Yantra
-browser can run a wide swathe of "real" web apps (anything that ships a
-WASM bundle) without us writing app-specific transpilers for each one.
+This section is preserved in the doc as a decision record so that
+future work doesn't independently re-derive the WASM target.
 
 ## What we do *not* transpile
 
