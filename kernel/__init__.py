@@ -1,17 +1,28 @@
-"""Yantra kernel — Connectome Manager prototype (Python).
+"""Yantra kernel — Connectome Manager (v0.0).
 
-This package is the v0.0 PYTHON PROTOTYPE of the Yantra Connectome
-Manager. The production target is **Rust** on the CPU side; the
-Python implementation here is a behavioural harness that exercises
-the architectural shape (admission control, axon routing,
-capability checks) before the Rust port is written.
+The kernel admits Sutra services as processes, gives each one a
+fixed budget at admission time, and routes axons between them with
+capability checks. **Sutra is doing the actual computation**: each
+service is a `SutraService` whose `.su` source is compiled by the
+Sutra v0.3.1 compiler and executed on real torch tensors carried
+through the router as axon payloads. The Python here is the
+**orchestration layer** — the CPU-side init/resource-manager and
+the in-process axon router. It does not do the compute; it
+schedules and connects the things that do.
+
+The orchestration layer is in **Python** in this repo as a
+near-term implementation. The eventual production form on the
+CPU side is **Rust** (per `planning/01-architecture.md` §
+"CPU side: small, Rust, orchestrator"); the Python implementation
+here pins the API shape and gives the Rust port a target test
+suite (currently 19 unit tests + 6 real-Sutra integration tests,
+all passing).
 
 See `planning/01-architecture.md` § "The kernel is a Connectome
-Manager" and § "CPU side: small, Rust, orchestrator" for the full
-framing. The kernel is the init/resource-manager + axon router
-that admits Sutra services as processes, gives each one a fixed
-budget at admission time, and routes axons between them with
-capability checks.
+Manager" for the architectural framing. See `kernel/README.md` for
+what the v0.0 covers and what is honestly out of scope until
+upstream Sutra-side work (per-process GPU memory arenas, evict-
+to-RAM, GPU-tick-parallel scheduling) lands.
 
 What is real here:
 
@@ -58,20 +69,20 @@ from kernel.init import (
     Init,
     PoolExhaustedError,
 )
-from kernel.services import EchoService, PythonService, SinkService
+from kernel.services import PythonService, Service, SutraService
 
 __all__ = [
     "AdmissionError",
     "Axon",
     "AxonRouter",
     "CapabilityError",
-    "EchoService",
     "Init",
     "Manifest",
     "ManifestError",
     "NotAdmittedError",
     "PoolExhaustedError",
     "PythonService",
-    "SinkService",
+    "Service",
+    "SutraService",
     "load_manifest",
 ]
