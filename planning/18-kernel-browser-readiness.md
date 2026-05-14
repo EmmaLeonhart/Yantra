@@ -6,9 +6,9 @@
 
 ## TL;DR
 
-- **Kernel** — we *can* start writing it now. The Sutra language, compiler, and runtime are real; multi-program axon passing is demonstrated; the kernel does not depend on any C transpilation. The hard parts are hard regardless of when we start, but there is no language-side blocker.
+- **Kernel — nucleus shipped.** The v0.0 multi-process runtime under `kernel/` is real and tested: manifest parsing, admission control against a fixed pool, axon router with capability check, two example services (echo + sink), and a flagship round-trip test that admits both services, sends three payloads through, and verifies all the capability checks fire. 19 tests pass. What's stubbed and known-stubbed: real GPU memory carve-outs (currently bookkeeping), GPU-tick-parallel scheduling (currently sequential CPU ticks), `.su` service loading (currently `NotImplementedError` with the wiring plan in the docstring). The architectural shape works end-to-end; the v0.1 work is hardening the stubs.
 - **Browser** — we *can* start writing the Sutra-side renderer (display server, layout engine, input router) now. The "everything is a browser" GUI claim further depends on the TS→Sutra transpiler, which is **mostly real** (a 1474-line `lower.py` with 17 passing fixtures) but its CLI is not wired up and the README still says "skeleton." Workable today; not yet a one-line `ts2su file.ts` command.
-- **Importing Linux userspace** (coreutils, util-linux, busybox) — gated on the C→Sutra transpiler, which is **genuinely a skeleton today** (~57 lines of CLI scaffolding, no `lower.py`). The source is in place under `external/`; the tool to consume it is not.
+- **Native userspace utilities (cat, ls, grep, awk, etc.)** — *policy clarified:* these will be **written natively in Sutra**, not C-transpiled. The `external/{coreutils,util-linux,busybox}` submodules are kept as behavioural reference (a Sutra-written `sort` should match GNU `sort`'s observable behaviour), not as transpile inputs. The C transpiler stays in scope strictly for kernel-adjacent C (bootloader, specific drivers). Userspace utility work is deferred until the kernel + browser are further along — captured in `todo.md`.
 
 ## What Sutra v0.3.1 actually ships
 
@@ -50,30 +50,26 @@ Three submodules, pinned at their latest stable tags as of 2026-05-13:
 
 ## Kernel — what we have, what we need
 
-### What we have
+### What we have (v0.0, shipped)
 
-- A working language (Sutra v0.3.1) with axon-passing across processes (the v0.3.0 multi-program demonstration is the kernel's IPC nucleus).
-- A compile-to-CUDA path so the kernel runs on real GPUs, not only the PyTorch reference.
+- **`kernel/` runtime nucleus.** Manifest parser, axon router with capability check, init resource manager with admission control, two example services (echo + sink), and 19 passing tests including a flagship round-trip. See `kernel/README.md` for the layout.
+- A working language (Sutra v0.3.1) with multi-program axon passing demonstrated as a separate primitive in `external/Sutra/examples/multi_program_axon/`.
+- A compile-to-CUDA path (Sutra ships `compile_to_cuda.py`) so the kernel runs on real GPUs eventually, not only the PyTorch reference.
 - Async / `Promise<T>` for event-driven scheduling primitives.
-- All sixteen+ planning docs that define the kernel's intended behaviour (process table, axon router, capability check, FS bridge, resource manager).
+- All seventeen planning docs defining the kernel's intended behaviour.
 
-### What we need to start writing
+### What's stubbed in v0.0 — the v0.1 work list
 
-In rough order:
-
-1. **The kernel program** — a Sutra `.su` source tree under (proposed) `kernel/` that implements the process table, axon router, and capability check. **Writable in pure Sutra today.** No external blockers.
-2. **A minimal CPU-side init shim** — small C or Python program that loads the compiled kernel image onto the GPU and bootstraps it. **Writable today** — we can use Python with PyTorch as the bootloader for a v0.1 prototype before worrying about a real bootloader.
-3. **A test harness** — a way to load N processes, route axons between them, and verify the capability checks fire. The v0.3.0 multi-program axon-passing demo is the seed of this.
-
-### What we still don't have
-
-- **The fixed-allocation primitives in the runtime.** The Sutra runtime today executes one program at a time on a GPU; the multi-program demo passes axons between *separately-invoked* runs. The multi-process-on-one-GPU-with-pre-allocated-arenas runtime that Yantra's "no degradation under load" property depends on is a substantial new piece of runtime work, not a kernel-side write.
-- **The MMIO / interrupt / hardware-boundary path** (paper §3.5). Not blocked on Sutra; blocked on having actual hardware to develop against and on writing the CPU-side wrapper-driver pattern.
-- **A worked memory model** (`planning/17-memory-model.md`). Doesn't block first-prototype writing but bites the moment a process needs more state than the synthetic-dimension block.
+1. **Real GPU memory arena allocation.** `compute_units` in the manifest is bookkeeping only; the runtime tracks budget but does not carve out actual device memory. Production-grade per-process arenas need Sutra-runtime cooperation.
+2. **GPU-tick-parallel scheduling.** v0.0 ticks services sequentially on CPU; production runs all admitted processes simultaneously on the GPU at each tick. The service abstraction is concurrency-agnostic, so this is a scheduler swap, not a service-side rewrite.
+3. **`.su` service loading.** `kernel.services.load_su_service()` raises `NotImplementedError`; v0.0 services are `PythonService` subclasses. Wiring needs the convention-of-what-`.su`-services-export from the Sutra side. Seed `.su` source files (`kernel/services/{echo,sink}.su`) document the intended shape.
+4. **Eviction to RAM cold-store** (per `planning/03-process-lifecycle.md`). Not implemented in v0.0; only admit/deregister.
+5. **MMIO / interrupt / hardware-boundary path** (paper §3.5). Blocked on having hardware to develop against.
+6. **A worked memory model** (`planning/17-memory-model.md`). Doesn't block first-prototype writing but bites at scale.
 
 ### Honest call
 
-**Start writing the kernel now.** The bottom-up demo path: kernel `.su` source → compile through `sutrac` → run the multi-program axon-passing harness with the kernel as one of the programs and a smoke-test "userspace" as another. This produces something runnable in days-to-weeks rather than waiting for the full runtime to land. Treat it as a v0.0 — many of the "predictable performance" claims will not be measurable until the multi-process runtime exists, but the *behavioural* shape of the kernel can be exercised today.
+The kernel nucleus is real and tested. v0.1 is the hardening list above. The single most important Sutra-side investment that unblocks v0.1 is the multi-process Sutra runtime — without per-process GPU arenas and tick-parallel execution, the "no degradation under load" property remains aspirational.
 
 ## Browser — what we have, what we need
 
