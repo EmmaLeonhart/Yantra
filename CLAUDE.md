@@ -165,6 +165,97 @@ vocabulary matures and the kernel `.su` loader lands. Q-list is in
   Read this before claiming the OS is or isn't writable; refresh it
   when the situation changes.
 
+## Cross-repo workflow (Yantra ↔ Sutra)
+
+**This is atypical, but it's the right shape for these two projects
+because they are tightly coupled.** Yantra and Sutra are not really
+independent codebases — Yantra is "the OS that uses Sutra"; Sutra is
+"the language Yantra is built in." A change to one frequently
+requires a change to the other in the same session.
+
+### Division of responsibility
+
+- **Yantra (this repo) — actual kernel orchestration, runtime
+  shape, OS-level concerns.** What goes in `kernel/`, the
+  Connectome Manager design, the eventual Rust orchestrator,
+  storage-tier moves, capability check architecture, the FS
+  bridge, the GUI/browser stack, the paper.
+- **Sutra (`external/Sutra` submodule) — connecting things
+  together at the language level, debugging the language,
+  language-side primitives Yantra needs.** What goes in
+  `sdk/sutra-compiler/`, `sdk/sutra-from-ts/`,
+  `sdk/sutra-from-c/`, the compiler, the lowering passes, the
+  axon spec, the multi-process runtime, the
+  serialise-process-state primitive, the runtime ABI Yantra
+  consumes.
+
+When working in this repo and a Sutra-side change is needed, do
+**not** treat that as someone else's problem. The submodule is a
+real git checkout you have push access to. Edit it, commit on
+Sutra master, push, tag a release, bump the submodule pointer
+here.
+
+### The mechanics
+
+```bash
+# 1. Move into the submodule, get on master.
+cd external/Sutra
+git checkout master
+git pull origin master --ff-only
+
+# 2. Edit Sutra-side files. (The Sutra repo has its own CLAUDE.md
+#    with its own workflow rules — read it first; in particular,
+#    Sutra requires plan-into-queue.md and commit + push immediately
+#    rather than batching local commits.)
+
+# 3. Commit + push on Sutra master.
+git add ...
+git commit -m "..."
+git push origin master
+
+# 4. (If the change is meaningful) tag a release.
+git tag -a vX.Y.Z -m "..."
+git push origin vX.Y.Z
+gh release create vX.Y.Z --repo EmmaLeonhart/Sutra ...
+
+# 5. Pin the submodule at the tag.
+git checkout vX.Y.Z
+
+# 6. Back in Yantra: bump the submodule pointer + commit + push.
+cd ../..
+git add external/Sutra
+git commit -m "Bump Sutra submodule to vX.Y.Z — <reason>"
+git push origin master
+```
+
+### When NOT to do this
+
+- Don't make a Sutra-side change just because Yantra-side code is
+  awkward. Sutra has its own audience (the language's users beyond
+  Yantra) and its own NeurIPS-paper code-durability constraint.
+  If a Yantra workaround is possible, prefer it.
+- Don't tag a Sutra release for a docs-only fix unless something
+  in Yantra needs to depend on a specific Sutra version that
+  carries the doc. A submodule pointer bump to master HEAD is
+  enough for non-release-shaped changes.
+- Don't edit anything under `external/Sutra/paper/neurips/` —
+  that's Sutra's frozen NeurIPS submission archive (per Sutra's
+  CLAUDE.md). If a Yantra change makes the Sutra paper claims look
+  shaky, surface that to the user, don't silently amend the frozen
+  copy.
+
+### Read the Sutra CLAUDE.md before editing the submodule
+
+`external/Sutra/CLAUDE.md` has rules that are stricter than
+Yantra's in places — notably, Sutra is biomedical-hardware-adjacent
+("PEOPLE CAN DIE IF YOU FAKE RESULTS") with hard rules about
+substrate purity (no Python shortcuts inside Sutra operations, no
+numpy on the runtime hot path, every operation runs on the
+substrate). When editing Sutra source, those rules bind. When
+editing Sutra docs / pyproject / CLI scaffolding, they don't, but
+the workflow rules (commit + push immediately, plan into Sutra's
+own queue.md, mirror to task tool) still apply.
+
 ## External dependencies (`external/`)
 
 Submodules pinned at known-good releases. Layout:
