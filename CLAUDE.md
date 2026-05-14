@@ -44,9 +44,36 @@ adjacent projects.
 - New architectural decisions go into the relevant `planning/NN-*.md`
   file, with a one-line update in `planning/15-open-questions.md` if
   something there moved from open to resolved (or vice versa).
-- Code does not live in this repo yet. When it does, expect the layout
-  to be: `kernel/`, `runtime/`, `transpilers/`, `apps/`, `docs/`. Until
-  then the structure is intentionally minimal.
+- Code lives under `kernel/` (the v0.0 multi-process runtime
+  nucleus, native Sutra + a Python init/resource-manager shim). See
+  `kernel/README.md` for what's real vs stubbed. Future code
+  layout: `kernel/`, `runtime/`, `apps/` (native-Sutra
+  userspace), `docs/`. The `external/` directory holds pinned
+  submodules of Sutra and reference Linux source trees.
+
+## Build/policy clarifications (kernel + transpilers)
+
+- **The kernel is native Sutra. It is NOT C-transpiled.** The whole
+  point of the verification surface in `paper/paper.md` § 4 is that
+  the trusted base reduces cleanly to tensor normal form; running
+  the kernel through a C→Sutra path would defeat that. Future agents
+  considering "let's transpile X kernel piece from C" should re-read
+  `planning/07-transpilers.md` first.
+- **C→Sutra transpiler is priority but deferred.** Scope when built:
+  bootloader, specific Linux drivers worth bringing across, WASM.
+  *Not* userspace utilities, *not* the kernel.
+- **TS→Sutra transpiler is browser/GUI-scoped.** Outside the
+  browser layer, TS→Sutra is not used. The lowering engine works;
+  the CLI is unwired (the README is stale). Wiring up the CLI is
+  the smallest task that unblocks the most browser work.
+- **Userspace utilities (cat, ls, grep, awk, sed, sort, etc.) will
+  be written natively in Sutra, not transpiled from C.** The Linux
+  source trees under `external/` are behavioural reference, not
+  transpile inputs. This work is deferred — captured in `todo.md`
+  alongside the other longer-horizon items. The primary blockers
+  are (a) the Sutra-side string and IO vocabulary maturing further,
+  and (b) the kernel `.su` loader landing so utilities can run as
+  real Sutra services rather than Python stubs.
 
 ## Project context for paper/agent work
 
