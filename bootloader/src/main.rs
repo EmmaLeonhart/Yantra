@@ -1,4 +1,5 @@
-//! Yantra bare-metal kernel v0.1 — multiboot1, 32-bit Rust, PCI scan, long-mode transition.
+//! Yantra bare-metal kernel v0.3 — multiboot1, 32-bit Rust, PCI scan,
+//! GPU framebuffer write, long-mode transition.
 //!
 //! Boots in QEMU via `qemu-system-x86_64 -kernel <this-binary>`. Path:
 //!
@@ -225,17 +226,51 @@ stack_top:
 
 // --- 32-bit Rust kernel ---------------------------------------------
 
-const HELLO: &[u8] = b"Yantra bootloader v0.1 - hello from bare metal\n";
+const HELLO: &[u8] = b"Yantra bootloader v0.4 - hello from bare metal\n";
+
+// --- Kernel image (placeholder) --------------------------------------
+//
+// What this is: a sentinel byte sequence that stands in for the
+// compiled Sutra kernel image. Real Sutra programs compile to
+// PyTorch modules — Python source that imports torch and executes
+// on a CUDA device. That cannot run on QEMU's emulated stdvga
+// (the device this v0.0 bootloader knows how to drive); it needs
+// real GPU passthrough (Linux host + spare GPU + VFIO config),
+// which is hardware we don't have here. So v0.4 demonstrates the
+// **handoff mechanism**: bootloader loads the image bytes into a
+// designated GPU-memory region, hands off to a stub orchestrator.
+// The orchestrator currently just prints "Orchestrator running"
+// because there is nothing on the GPU it can actually drive.
+//
+// When real GPU passthrough is available (or when we have a
+// genuine GPU compute target), the placeholder gets replaced by
+// `include_bytes!("../../kernel_image.bin")` or similar, and the
+// orchestrator gains real work to do.
+
+const KERNEL_IMAGE: &[u8] = b"YANTRA_KERNEL_IMAGE_PLACEHOLDER_v0.4_compiled_Sutra_goes_here";
+const KERNEL_IMAGE_BANNER: &[u8] = b"-- kernel image load --\n";
+const ORCHESTRATOR_BANNER: &[u8] = b"-- orchestrator handoff --\n";
 const PCI_BANNER: &[u8] = b"-- PCI scan --\n";
 const PCI_END: &[u8] = b"-- end PCI scan --\n";
+const GPU_BANNER: &[u8] = b"-- GPU init (framebuffer) --\n";
 const SERIAL_COM1: u16 = 0x3F8;
+
+// QEMU's default "stdvga" display device (vendor=0x1234 device=0x1111,
+// class=0x03 display). We look this up dynamically rather than
+// hard-coding the PCI bus/dev/func so the same code works if QEMU
+// is reconfigured.
+const QEMU_VGA_VENDOR: u16 = 0x1234;
+const QEMU_VGA_DEVICE: u16 = 0x1111;
 
 #[no_mangle]
 pub extern "C" fn kernel_main(_multiboot_magic: u32, _multiboot_info: u32) {
     write_serial(HELLO);
     write_serial(PCI_BANNER);
+
+    // While scanning, remember the GPU's location so we can read its
+    // BAR0 immediately after.
+    let mut gpu_location: Option<(u8, u8, u8)> = None;
     pci::scan(|d| {
-        // Format each device line: "  00:01.0 vendor=8086 device=7191 class=06 (bridge) subclass=00"
         write_serial(b"  ");
         write_hex_u8(d.bus);
         write_serial(b":");
@@ -253,9 +288,165 @@ pub extern "C" fn kernel_main(_multiboot_magic: u32, _multiboot_info: u32) {
         write_serial(b") subclass=");
         write_hex_u8(d.subclass);
         write_serial(b"\n");
+
+        if d.vendor_id == QEMU_VGA_VENDOR && d.device_id == QEMU_VGA_DEVICE {
+            gpu_location = Some((d.bus, d.dev, d.func));
+        }
     });
     write_serial(PCI_END);
-    // Fall through to enter_long_mode (the asm in global_asm!).
+
+    write_serial(GPU_BANNER);
+    let gpu_fb_addr = if let Some((bus, dev, func)) = gpu_location {
+        gpu_init(bus, dev, func)
+    } else {
+        write_serial(b"  GPU not found (QEMU stdvga 1234:1111 missing)\n");
+        0
+    };
+
+    write_serial(KERNEL_IMAGE_BANNER);
+    load_kernel_image(gpu_fb_addr);
+
+    write_serial(ORCHESTRATOR_BANNER);
+    orchestrator_stub();
+
+    // Fall through to enter_long_mode (asm tail).
+}
+
+/// "Load" the Sutra kernel image into the GPU memory region. In
+/// v0.4 this copies KERNEL_IMAGE bytes to the high end of the
+/// framebuffer (out of the visible-pixel area we wrote to in v0.3).
+/// In a real Yantra appliance this is where the bootloader would
+/// place a compiled Sutra .su image at a known GPU-memory address
+/// the orchestrator can find later.
+///
+/// Honest about what's NOT real here: KERNEL_IMAGE is a sentinel
+/// byte sequence, not an actual compiled Sutra program. Real
+/// Sutra programs are PyTorch modules requiring CUDA — they can't
+/// execute on QEMU's emulated stdvga. We demonstrate the
+/// *handoff mechanism* (bytes get copied to a known GPU-memory
+/// region the orchestrator can find), not Sutra execution.
+fn load_kernel_image(fb_base: u32) {
+    if fb_base == 0 {
+        write_serial(b"  no framebuffer; skipping image load\n");
+        return;
+    }
+    // Copy to a region well past our v0.3 gradient (640*100 pixels
+    // * 4 bytes = 256KB). Use byte offset 1 MiB into the
+    // framebuffer to be safely past the visible region for any
+    // reasonable resolution. The stdvga BAR0 region is 16 MiB so
+    // 1 MiB offset is well within it.
+    let image_dest = (fb_base as usize + 0x100000) as *mut u8;
+    let n = KERNEL_IMAGE.len();
+    for i in 0..n {
+        unsafe { image_dest.add(i).write_volatile(KERNEL_IMAGE[i]) };
+    }
+    write_serial(b"  copied ");
+    write_dec_u32(n as u32);
+    write_serial(b" bytes to GPU memory at 0x");
+    write_hex_u32(fb_base + 0x100000);
+    write_serial(b"\n");
+    // Read back the first 4 bytes to confirm the write took.
+    let first4: u32 = unsafe { core::ptr::read_volatile(image_dest as *const u32) };
+    write_serial(b"  first 4 bytes read back = 0x");
+    write_hex_u32(first4);
+    write_serial(b" (= 'Y','A','N','T' = 0x544E4159)\n");
+}
+
+/// Stub orchestrator. In the production design this is the Rust
+/// orchestrator (`planning/01-architecture.md` § "CPU side: small,
+/// Rust, orchestrator") that becomes the standing CPU-side
+/// companion to the GPU — manages disc/RAM/GPU storage-tier moves,
+/// wires the axon router, runs the GPU tick loop. None of that is
+/// possible on QEMU's emulated stdvga because real Sutra programs
+/// need CUDA. So v0.4's "orchestrator" just prints proof-of-life
+/// and falls through.
+///
+/// When real GPU passthrough is available, this function gets
+/// replaced by the actual orchestrator entry point (which would
+/// loop forever rather than fall through).
+fn orchestrator_stub() {
+    write_serial(b"  Orchestrator running. (stub - no GPU compute target on QEMU stdvga.)\n");
+    write_serial(b"  In a real Yantra appliance, this is where the Rust\n");
+    write_serial(b"  orchestrator's tick loop starts and the Sutra kernel\n");
+    write_serial(b"  begins executing on the GPU. Needs hardware we don't\n");
+    write_serial(b"  have under QEMU emulated stdvga; ship status: handoff\n");
+    write_serial(b"  mechanism demonstrated, runtime gated on real GPU\n");
+    write_serial(b"  passthrough or a Yantra-shaped GPU target.\n");
+}
+
+/// Read the GPU's BAR0 (linear framebuffer address) and write a
+/// recognizable pattern to it. Returns the framebuffer base
+/// address so the caller can use it for v0.4's kernel-image load.
+///
+/// For QEMU's stdvga in default mode (640x480, 32 bpp BGRA), BAR0
+/// points to the linear framebuffer. We write a horizontal gradient
+/// to the first 100 scanlines so the QEMU display window (if not
+/// `-display none`) shows a visible color band. With `-display none`
+/// the write still happens; this function prints back the BAR0
+/// address + first pixel value via serial so we can confirm the
+/// write took effect even headless.
+fn gpu_init(bus: u8, dev: u8, func: u8) -> u32 {
+    let bar0 = pci::bar_u32(bus, dev, func, 0);
+    let framebuffer_addr = (bar0 & !0xF) as u32;
+
+    write_serial(b"  GPU PCI=");
+    write_hex_u8(bus);
+    write_serial(b":");
+    write_hex_u8(dev);
+    write_serial(b".");
+    write_hex_u4(func);
+    write_serial(b" BAR0=0x");
+    write_hex_u32(bar0);
+    write_serial(b" framebuffer=0x");
+    write_hex_u32(framebuffer_addr);
+    write_serial(b"\n");
+
+    if framebuffer_addr == 0 {
+        write_serial(b"  BAR0 not configured; skipping framebuffer write\n");
+        return 0;
+    }
+
+    // Default QEMU stdvga is 640x480 32 bpp. Write a horizontal
+    // gradient: row 0 is dark, row 100 is bright. Each pixel is
+    // 4 bytes (BGRA, A unused).
+    const WIDTH: usize = 640;
+    const STRIPE_ROWS: usize = 100;
+    let fb = framebuffer_addr as *mut u32;
+    for y in 0..STRIPE_ROWS {
+        // Color: a Yantra-blue gradient (B=increasing, G=0, R=0).
+        let intensity = ((y * 255) / STRIPE_ROWS) as u32;
+        let pixel: u32 = 0xFF000000 | intensity; // A=0xFF, R=0, G=0, B=intensity
+        for x in 0..WIDTH {
+            unsafe {
+                fb.add(y * WIDTH + x).write_volatile(pixel);
+            }
+        }
+    }
+
+    write_serial(b"  wrote 100x640 pixel gradient to framebuffer\n");
+    write_serial(b"  first pixel = 0x");
+    let first = unsafe { fb.read_volatile() };
+    write_hex_u32(first);
+    write_serial(b" (should be 0xFF000000 = top-row black)\n");
+    framebuffer_addr
+}
+
+fn write_dec_u32(mut v: u32) {
+    if v == 0 {
+        unsafe { outb(SERIAL_COM1, b'0') };
+        return;
+    }
+    let mut buf = [0u8; 10];
+    let mut n = 0;
+    while v > 0 {
+        buf[n] = b'0' + (v % 10) as u8;
+        v /= 10;
+        n += 1;
+    }
+    while n > 0 {
+        n -= 1;
+        unsafe { outb(SERIAL_COM1, buf[n]) };
+    }
 }
 
 fn write_serial(bytes: &[u8]) {
@@ -287,6 +478,11 @@ fn write_hex_u8(v: u8) {
 fn write_hex_u16(v: u16) {
     write_hex_u8((v >> 8) as u8);
     write_hex_u8(v as u8);
+}
+
+fn write_hex_u32(v: u32) {
+    write_hex_u16((v >> 16) as u16);
+    write_hex_u16(v as u16);
 }
 
 fn halt_loop() -> ! {
