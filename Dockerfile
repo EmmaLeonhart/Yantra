@@ -50,6 +50,7 @@ WORKDIR /workspace
 # (see kernel/README.md "Honestly out of scope" section).
 RUN pip install --no-cache-dir \
         pytest \
+        numpy \
         tree-sitter \
         tree-sitter-typescript \
     && pip install --no-cache-dir \
