@@ -81,6 +81,7 @@ def _make_manifest(name: str = "p", **overrides) -> Manifest:
         "read_roles": frozenset({"R_in"}),
         "write_roles": frozenset({"R_out"}),
         "source": "p.su",
+        "axon_keys": frozenset(),
     }
     fields.update(overrides)
     return Manifest(**fields)
@@ -189,13 +190,19 @@ def test_init_rejects_zero_pool() -> None:
 # ---- router capability checks ----------------------------------------
 
 
-def _admit(init: Init, *, name: str, reads: set[str], writes: set[str], svc: PythonService | None = None) -> PythonService:
+def _admit(
+    init: Init, *,
+    name: str, reads: set[str], writes: set[str],
+    svc: PythonService | None = None,
+    axon_keys: set[str] | None = None,
+) -> PythonService:
     s = svc or PythonService(lambda s, ax: None)
     init.admit(
         _make_manifest(
             name=name,
             read_roles=frozenset(reads),
             write_roles=frozenset(writes),
+            axon_keys=frozenset(axon_keys or set()),
         ),
         s,
     )
@@ -324,3 +331,154 @@ def test_sink_stat_emit_is_black_hole_no_logger() -> None:
     # logger ⇒ dropped audit count goes up by 2.
     assert init.router.dropped_count() == 2
     assert sink.count == 4
+
+
+# ---- lazy axon evaluation -------------------------------------------
+
+
+def test_lazy_skip_when_keys_dont_intersect() -> None:
+    """Receiver declaring axon_keys it doesn't share with the axon is skipped."""
+    init = Init(compute_pool=5)
+    sender = _admit(init, name="s", reads=set(), writes={"R_x"})
+    # Receiver wants {"animal_2", "color_1"} but the axon will only
+    # carry {"user_1"} — no intersection ⇒ skip.
+    _admit(
+        init, name="r", reads={"R_x"}, writes=set(),
+        axon_keys={"animal_2", "color_1"},
+    )
+
+    delivered = sender.emit("R_x", "payload", keys={"user_1"})
+    assert delivered == 0, "axon's keys don't intersect r's axon_keys; skip"
+    assert init.router.lazy_skipped_count() == 1
+    assert init.router.inbox_depth("r") == 0
+    # Black-hole NOT triggered — there is a wired receiver, we just
+    # chose not to deliver to them.
+    assert init.router.dropped_count() == 0
+
+
+def test_lazy_delivers_when_keys_intersect() -> None:
+    """Receiver gets the axon when key intersection is non-empty."""
+    init = Init(compute_pool=5)
+    sender = _admit(init, name="s", reads=set(), writes={"R_x"})
+    _admit(
+        init, name="r", reads={"R_x"}, writes=set(),
+        axon_keys={"animal_2", "color_1"},
+    )
+
+    # Axon carries one of the two keys r asked for.
+    delivered = sender.emit("R_x", "payload", keys={"animal_2", "user_1"})
+    assert delivered == 1
+    assert init.router.lazy_skipped_count() == 0
+    assert init.router.inbox_depth("r") == 1
+
+
+def test_lazy_eager_fallback_when_receiver_unkeyed() -> None:
+    """Receiver with no axon_keys gets every axon — original behaviour."""
+    init = Init(compute_pool=5)
+    sender = _admit(init, name="s", reads=set(), writes={"R_x"})
+    # No axon_keys declared = eager fallback.
+    _admit(init, name="r", reads={"R_x"}, writes=set(), axon_keys=set())
+
+    delivered = sender.emit("R_x", "payload", keys={"some_key"})
+    assert delivered == 1, "unkeyed receivers get every axon (eager fallback)"
+    assert init.router.lazy_skipped_count() == 0
+
+
+def test_lazy_eager_fallback_when_axon_unkeyed() -> None:
+    """Axon with no declared keys gets delivered to every receiver."""
+    init = Init(compute_pool=5)
+    sender = _admit(init, name="s", reads=set(), writes={"R_x"})
+    _admit(
+        init, name="r", reads={"R_x"}, writes=set(),
+        axon_keys={"strict_key"},
+    )
+
+    # Sender doesn't declare keys ⇒ router can't make a lazy decision
+    # ⇒ falls back to eager. Useful for v0.0 stub producers and
+    # debugger-emitted axons that don't go through static wiring.
+    delivered = sender.emit("R_x", "payload")
+    assert delivered == 1
+    assert init.router.lazy_skipped_count() == 0
+
+
+def test_lazy_partial_fanout_one_skips_one_delivers() -> None:
+    """Two receivers on same role; only the keyed-matching one gets it."""
+    init = Init(compute_pool=5)
+    sender = _admit(init, name="s", reads=set(), writes={"R_x"})
+    _admit(
+        init, name="r_match", reads={"R_x"}, writes=set(),
+        axon_keys={"animal_2"},
+    )
+    _admit(
+        init, name="r_skip", reads={"R_x"}, writes=set(),
+        axon_keys={"unrelated_key"},
+    )
+
+    delivered = sender.emit("R_x", "payload", keys={"animal_2"})
+    assert delivered == 1
+    assert init.router.inbox_depth("r_match") == 1
+    assert init.router.inbox_depth("r_skip") == 0
+    assert init.router.lazy_skipped_count() == 1
+
+
+def test_lazy_capability_check_still_fires_first() -> None:
+    """A sender without write capability fails even if keys would intersect."""
+    init = Init(compute_pool=5)
+    sender = _admit(init, name="s", reads=set(), writes={"R_only"})
+    _admit(
+        init, name="r", reads={"R_x"}, writes=set(),
+        axon_keys={"k"},
+    )
+
+    with pytest.raises(CapabilityError, match="cannot write role 'R_x'"):
+        sender.emit("R_x", "payload", keys={"k"})
+
+
+def test_lazy_keys_optional_in_manifest_toml(tmp_path: pathlib.Path) -> None:
+    """Manifest TOML without axon_keys parses cleanly (defaults to empty)."""
+    p = tmp_path / "p.toml"
+    p.write_text(
+        'name = "p"\n'
+        'axon_width = 768\n'
+        'compute_units = 1\n'
+        'read_roles = ["R_in"]\n'
+        'write_roles = ["R_out"]\n'
+        'source = "p.su"\n',
+        encoding="utf-8",
+    )
+    m = load_manifest(p)
+    assert m.axon_keys == frozenset()
+
+
+def test_lazy_keys_in_manifest_toml(tmp_path: pathlib.Path) -> None:
+    """When axon_keys IS in the manifest TOML, it parses to a frozenset."""
+    p = tmp_path / "p.toml"
+    p.write_text(
+        'name = "p"\n'
+        'axon_width = 768\n'
+        'compute_units = 1\n'
+        'read_roles = ["R_in"]\n'
+        'write_roles = ["R_out"]\n'
+        'source = "p.su"\n'
+        'axon_keys = ["animal_2", "color_1", "user_1"]\n',
+        encoding="utf-8",
+    )
+    m = load_manifest(p)
+    assert m.axon_keys == frozenset({"animal_2", "color_1", "user_1"})
+
+
+def test_lazy_bad_manifest_axon_keys_raises(tmp_path: pathlib.Path) -> None:
+    """axon_keys that isn't a list of strings is a clear error."""
+    p = tmp_path / "p.toml"
+    p.write_text(
+        'name = "p"\n'
+        'axon_width = 768\n'
+        'compute_units = 1\n'
+        'read_roles = ["R_in"]\n'
+        'write_roles = ["R_out"]\n'
+        'source = "p.su"\n'
+        'axon_keys = "not-a-list"\n',
+        encoding="utf-8",
+    )
+    with pytest.raises(ManifestError, match="axon_keys must be a list of strings"):
+        load_manifest(p)
