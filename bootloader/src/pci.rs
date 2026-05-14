@@ -107,6 +107,26 @@ pub fn scan<F: FnMut(PciDevice)>(mut f: F) {
     }
 }
 
+/// Read BAR (Base Address Register) at index 0..=5 for a specific
+/// PCI device. Returns the 32-bit BAR value. For a memory-mapped
+/// BAR, low bit is 0 and `& !0xF` is the base address. For an I/O
+/// BAR, low bit is 1.
+///
+/// BARs are at config-space offsets 0x10, 0x14, 0x18, 0x1C, 0x20,
+/// 0x24 for indices 0..5 respectively.
+pub fn bar_u32(bus: u8, dev: u8, func: u8, index: u8) -> u32 {
+    let offset = 0x10 + (index & 0x05) * 4;
+    config_read_u32(bus, dev, func, offset)
+}
+
+/// Make `config_read_u32` callable from outside this module — the
+/// bootloader sometimes needs to peek at config space directly
+/// (e.g., to read a BAR with sub-dword precision the helpers
+/// above don't expose).
+pub fn config_read(bus: u8, dev: u8, func: u8, reg: u8) -> u32 {
+    config_read_u32(bus, dev, func, reg)
+}
+
 /// Human-readable name for a PCI class code (best effort, common
 /// classes only). Returns "?" for unknown.
 pub fn class_name(class_code: u8) -> &'static str {
