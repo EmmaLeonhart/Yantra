@@ -351,3 +351,153 @@ def test_sutra_service_emit_tags_axon_with_bound_keys(tmp_path: pathlib.Path) ->
 
 # Need Axon at module scope for the previous test.
 from kernel.router import Axon  # noqa: E402
+
+
+# ---- Sutra v0.4.0 shared MultiProcessRuntime --------------------
+
+
+def test_make_shared_sutra_services_share_one_vsa(tmp_path: pathlib.Path) -> None:
+    """Two services constructed via the factory share one _VSA instance."""
+    from kernel import make_shared_sutra_services
+
+    src_a = tmp_path / "a.su"
+    src_a.write_text(
+        "function vector on_axon(vector input_axon) { return input_axon; }\n",
+        encoding="utf-8",
+    )
+    src_b = tmp_path / "b.su"
+    src_b.write_text(
+        "function vector on_axon(vector input_axon) { return input_axon; }\n",
+        encoding="utf-8",
+    )
+
+    runtime, services = make_shared_sutra_services([
+        {"name": "a", "source_path": src_a, "output_role": "R_a"},
+        {"name": "b", "source_path": src_b, "output_role": "R_b"},
+    ])
+
+    init = Init(compute_pool=10)
+    init.admit(
+        Manifest(
+            name="a", axon_width=AXON_WIDTH, compute_units=1,
+            read_roles=frozenset({"R_in_a"}),
+            write_roles=frozenset({"R_a"}),
+            source=str(src_a),
+        ),
+        services[0],
+    )
+    init.admit(
+        Manifest(
+            name="b", axon_width=AXON_WIDTH, compute_units=1,
+            read_roles=frozenset({"R_in_b"}),
+            write_roles=frozenset({"R_b"}),
+            source=str(src_b),
+        ),
+        services[1],
+    )
+    # Both services' compiled-module _VSA references point at the
+    # same Python object — the runtime's shared _VSA.
+    vsa_a = services[0]._compiled_module._VSA  # noqa: SLF001
+    vsa_b = services[1]._compiled_module._VSA  # noqa: SLF001
+    assert vsa_a is vsa_b
+    assert vsa_a is runtime.vsa()
+
+
+def test_shared_runtime_axon_passing_through_router(tmp_path: pathlib.Path) -> None:
+    """Two shared-runtime services exchange axons through the kernel router."""
+    from kernel import make_shared_sutra_services
+
+    producer_src = tmp_path / "p.su"
+    producer_src.write_text(
+        "function vector on_axon(vector input_axon) {\n"
+        "    Axon a;\n"
+        "    a.add(\"shared\", input_axon);\n"
+        "    return a;\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    consumer_src = tmp_path / "c.su"
+    consumer_src.write_text(
+        "function vector on_axon(vector input_axon) {\n"
+        "    return axon_item(input_axon, \"shared\");\n"
+        "}\n",
+        encoding="utf-8",
+    )
+
+    runtime, (prod, cons) = make_shared_sutra_services([
+        {"name": "prod", "source_path": producer_src, "output_role": "R_out"},
+        {"name": "cons", "source_path": consumer_src, "output_role": "R_done"},
+    ])
+
+    init = Init(compute_pool=10)
+    init.admit(
+        Manifest(
+            name="prod", axon_width=AXON_WIDTH, compute_units=1,
+            read_roles=frozenset({"R_in"}),
+            write_roles=frozenset({"R_out"}),
+            source=str(producer_src),
+        ),
+        prod,
+    )
+    init.admit(
+        Manifest(
+            name="cons", axon_width=AXON_WIDTH, compute_units=1,
+            read_roles=frozenset({"R_out"}),
+            write_roles=frozenset({"R_done"}),
+            source=str(consumer_src),
+        ),
+        cons,
+    )
+    # Static analysis surfaced through the shared runtime.
+    assert prod.axon_keys_bound == frozenset({"shared"})
+    assert cons.axon_keys_read == frozenset({"shared"})
+
+    # Inject + tick. CPU input — Sutra v0.3.4 device coercion handles it.
+    vsa_dim = runtime.vsa().dim
+    init.router._inboxes["prod"].append(  # noqa: SLF001
+        Axon(role="R_in", payload=torch.zeros(vsa_dim), from_proc="prod"),
+    )
+    counts = init.tick()
+    assert counts["prod"] == 1
+    assert counts["cons"] == 1  # received from prod's emit, processed
+
+
+def test_sutraservice_runtime_requires_program_name() -> None:
+    """SutraService(runtime=...) without runtime_program_name is a clear error."""
+    with pytest.raises(ValueError, match="runtime_program_name"):
+        SutraService(
+            source_path="dummy.su",
+            output_role="R_x",
+            runtime=object(),  # any non-None value triggers the check
+        )
+
+
+def test_sutraservice_runtime_with_unknown_program_raises(tmp_path: pathlib.Path) -> None:
+    """SutraService(runtime=..., runtime_program_name=NAME) where NAME isn't in the runtime."""
+    from kernel import make_shared_sutra_services
+
+    src = tmp_path / "x.su"
+    src.write_text(
+        "function vector on_axon(vector input_axon) { return input_axon; }\n",
+        encoding="utf-8",
+    )
+    runtime, _ = make_shared_sutra_services([
+        {"name": "real", "source_path": src, "output_role": "R_real"},
+    ])
+    # Wire a SutraService claiming to be admitted under a name the
+    # runtime doesn't know — bind() should raise.
+    bad = SutraService(
+        source_path=src, output_role="R_x",
+        runtime=runtime, runtime_program_name="ghost",
+    )
+    init = Init(compute_pool=5)
+    with pytest.raises(KeyError, match="not admitted to the runtime"):
+        init.admit(
+            Manifest(
+                name="bad", axon_width=AXON_WIDTH, compute_units=1,
+                read_roles=frozenset(),
+                write_roles=frozenset({"R_x"}),
+                source=str(src),
+            ),
+            bad,
+        )
