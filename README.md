@@ -2,6 +2,8 @@
 
 A neuro-symbolic, GPU-native operating system written in Sutra.
 
+🌐 **Website: <https://yantra.emmaleonhart.com>**
+
 ## What it is
 
 Yantra is the operating system you get when you take "the symbol *is* the
