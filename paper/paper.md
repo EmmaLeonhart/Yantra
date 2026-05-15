@@ -298,4 +298,4 @@ Full reference list is captured inline in the planning corpus under `planning/16
 - Pike, Presotto, Dorward, Flandrena, Thompson, Trickey, Winterbottom, *Plan 9 from Bell Labs* (Bell Labs CS Tech Report, 1995).
 - Wirth, *The Programming Language Oberon* (1988); Reiser & Wirth, *Programming in Oberon* (1992).
 - DO-178C, *Software Considerations in Airborne Systems and Equipment Certification*, RTCA (2011).
-- The Sutra paper (companion submission), describing the language, compiler, and the rotation-binding measurements Yantra's axon model depends on.
+- The Sutra paper (companion submission), describing the language, compiler, and the rotation-binding measurements Yantra's axon model depends on. Project website: <https://sutralang.dev>.
