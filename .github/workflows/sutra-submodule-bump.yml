@@ -1,0 +1,87 @@
+name: Sutra submodule daily bump
+
+# Yantra is "the OS that uses Sutra"; the two are tightly coupled and
+# Sutra changes (often driven from inside Yantra sessions) land on
+# Sutra master continuously. This job keeps Yantra's pinned
+# external/Sutra pointer tracking Sutra master HEAD so a substrate fix
+# (e.g. the 2026-05-15 transcendental substrate-leak fix) reaches
+# Yantra without a human remembering to bump the submodule.
+#
+# This is the master-HEAD-bump shape the cross-repo workflow in
+# CLAUDE.md authorizes for runtime/docs Sutra changes. It deliberately
+# does NOT pin a tag — release-tag pinning (the procurement-security
+# posture for external deps) is a separate, manual decision made when
+# Yantra needs to depend on a specific Sutra version. If you want that
+# stricter posture, disable this workflow and bump by tag instead.
+
+on:
+  schedule:
+    # 06:17 UTC daily. Odd minute so it doesn't pile up with the
+    # top-of-hour scheduler congestion on GitHub's side.
+    - cron: '17 6 * * *'
+  workflow_dispatch: {}
+
+# The default GITHUB_TOKEN needs write access to push the bump commit
+# back to master. If master is branch-protected against the
+# Actions bot, this push will fail loudly — that's intentional
+# (silent failure would let the pointer rot).
+permissions:
+  contents: write
+
+concurrency:
+  group: sutra-submodule-bump
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Yantra (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          # Keep the token so the later `git push` is authenticated.
+          persist-credentials: true
+          fetch-depth: 0
+
+      - name: Fast-forward external/Sutra to Sutra master HEAD
+        id: bump
+        run: |
+          set -euo pipefail
+          old_sha="$(git -C external/Sutra rev-parse HEAD)"
+          git -C external/Sutra fetch origin master --depth=1
+          new_sha="$(git -C external/Sutra rev-parse origin/master)"
+          echo "old=$old_sha" >> "$GITHUB_OUTPUT"
+          echo "new=$new_sha" >> "$GITHUB_OUTPUT"
+          if [ "$old_sha" = "$new_sha" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Sutra master unchanged ($new_sha) — nothing to bump."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git -C external/Sutra checkout --detach "$new_sha"
+            echo "Sutra master moved: $old_sha -> $new_sha"
+          fi
+
+      - name: Commit + push the pointer bump
+        if: steps.bump.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add external/Sutra
+          # Guard against a no-op (e.g. the submodule was already at the
+          # new SHA for an unrelated reason) so we never make an empty
+          # commit.
+          if git diff --cached --quiet; then
+            echo "No pointer change staged — skipping commit."
+            exit 0
+          fi
+          short_old="$(echo '${{ steps.bump.outputs.old }}' | cut -c1-8)"
+          short_new="$(echo '${{ steps.bump.outputs.new }}' | cut -c1-8)"
+          git commit -m "Bump Sutra submodule ${short_old} -> ${short_new} (daily auto-bump)
+
+          Automated by .github/workflows/sutra-submodule-bump.yml —
+          tracks Sutra master HEAD per the cross-repo workflow. Review
+          the Sutra log between these SHAs if a Yantra build regresses."
+          git push origin HEAD:master
