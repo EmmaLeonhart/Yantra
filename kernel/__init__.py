@@ -4,7 +4,7 @@ The kernel admits Sutra services as processes, gives each one a
 fixed budget at admission time, and routes axons between them with
 capability checks. **Sutra is doing the actual computation**: each
 service is a `SutraService` whose `.su` source is compiled by the
-Sutra v0.3.1 compiler and executed on real torch tensors carried
+Sutra v0.4.0 compiler and executed on real torch tensors carried
 through the router as axon payloads. The Python here is the
 **orchestration layer** — the CPU-side init/resource-manager and
 the in-process axon router. It does not do the compute; it

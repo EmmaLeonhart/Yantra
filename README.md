@@ -47,8 +47,11 @@ This repo holds **planning documents** plus a v0.0 **Connectome
 Manager** under `kernel/` — Python orchestration layer + real Sutra
 compute (44 passing tests, including 6 that compile and execute real
 `.su` programs through the kernel router). The Sutra compiler/runtime
-live in the `external/Sutra` submodule (pinned at v0.3.2; ships the
-working TS→Sutra transpiler CLI). The orchestration layer is in
+live in the `external/Sutra` submodule (pinned at v0.4.0; ships the
+working TS→Sutra transpiler CLI, axon-keys static analysis,
+per-receiver projection primitive, and `MultiProcessRuntime` —
+N programs sharing one `_VSA`). Sutra's website: <https://sutralang.dev>.
+The orchestration layer is in
 Python in this repo as the near-term implementation; the production
 target on the CPU side is Rust.
 
