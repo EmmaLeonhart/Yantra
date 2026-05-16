@@ -12,7 +12,32 @@ See `CLAUDE.md` § "Workflow Rules" for how this file, planning mode, and the ta
 
 ## Active
 
-_(empty — add the next concrete design or implementation task here)_
+### Correct the false ".su service loading is unimplemented" docs
+
+Measured 2026-05-16: `kernel.services.load_su_service()` is
+defined **nowhere** (no python def; absent on `kernel` and
+`kernel.services` — verified via import). Yet `todo.md` (§1 bullet
+"`.su` service loading") and `planning/18` (v0.1 work-list item 3
++ cross-ref) describe it as "currently `NotImplementedError`,
+needs an upstream Sutra decision, v0.0 services are PythonService
+subclasses." That is false: `.su` services load and run via
+`SutraService(source_path=...)` — compiles the `.su`, runs
+`on_axon(vector)->vector`, with `AXON_KEYS_BOUND/READ` static
+analysis — and this is exercised by many passing
+`tests/test_kernel_sutra.py` tests (the export convention the docs
+say "needs a Sutra-side decision" exists and is documented in
+`SutraService`'s docstring). Inverse-overclaim, but still
+false-doc harm (a working, tested feature described as a blocked
+stub via a fictitious API name).
+
+Fix: correct the `todo.md` bullet and `planning/18` item 3 +
+cross-ref to state reality (`.su` loading works via
+`SutraService`; convention shipped + tested; no `load_su_service`
+function exists — drop the fictitious name). Do NOT add an unused
+`load_su_service` wrapper just because the old docs named it
+(`SutraService(source_path=…, output_role=…)` already IS the
+one-liner; speculative surface is the thing the project warns
+against). Docs-only; commit+push.
 
 ### BLOCKER (Sutra-side design decision) — axon_project is a no-op for embedding fillers
 
