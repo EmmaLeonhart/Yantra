@@ -13,10 +13,13 @@ Covers the architecture's load-bearing claims at the v0.0 scope:
   - Black-hole sends (no receiver for a role) are dropped, not
     raised — startup-order tolerance.
 
-These tests do NOT exercise the .su loader (stubbed) or real GPU
-arena allocation (bookkeeping only). When v0.1 makes those real,
-add a test class that runs the same scenarios against
-SutraService-backed processes.
+These are the pure-Python router/kernel unit tests. The real
+Sutra-compiled `.su` service path is NOT stubbed — it works via
+`SutraService(source_path=…)` and is exercised separately in
+`tests/test_kernel_sutra.py` (admits real echo/sink `.su`
+services, routes axons end-to-end). Real per-process GPU arena
+allocation is still bookkeeping-only (that part remains v0.1
+work).
 """
 
 from __future__ import annotations

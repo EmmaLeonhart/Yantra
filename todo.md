@@ -60,11 +60,23 @@ production form is Rust. Hardening list:
   simultaneously on the GPU at each tick. Drop-in once the Sutra
   multi-process runtime lands upstream; the service abstraction is
   concurrency-agnostic.
-- **`.su` service loading** (`kernel.services.load_su_service()`
-  is currently `NotImplementedError`). Needs the Sutra-side
-  convention for "what does a service-shaped `.su` program
-  export?" — sketched in the docstring; needs an upstream Sutra
-  decision before we wire it through here.
+- **`.su` service loading — WORKS (corrected 2026-05-16).** This
+  bullet previously claimed `kernel.services.load_su_service()`
+  "is currently `NotImplementedError`" and needs "an upstream
+  Sutra decision." Both false: `load_su_service` is defined
+  nowhere (measured — absent on `kernel` and `kernel.services`),
+  and `.su` services load + run via `SutraService(source_path=…,
+  output_role=…)` — it compiles the `.su`, invokes
+  `on_axon(vector)->vector`, and consumes the compiled module's
+  `AXON_KEYS_BOUND`/`AXON_KEYS_READ` static analysis. That export
+  convention is the "Sutra-side decision" the old text waited on;
+  it shipped and is exercised by many passing
+  `tests/test_kernel_sutra.py` tests (incl. real echo/sink `.su`
+  services). No `load_su_service` wrapper is needed —
+  `SutraService(...)` already is the one-liner. What genuinely
+  remains here is the *Rust* orchestrator's own `.su` loader (the
+  Python `SutraService` is the API reference), not a missing
+  Python stub.
 - **Rotation-operator-based capability check.** v0.0 trusts the
   sender's name (admission grants identity; capability is checked
   by name). Production's threat model (`paper/paper.md` § 3.3.1)
