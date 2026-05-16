@@ -12,34 +12,32 @@ See `CLAUDE.md` § "Workflow Rules" for how this file, planning mode, and the ta
 
 ## Active
 
-### Lazy axon eval: wire per-receiver projection into the router (promoted from todo.md)
+### End-to-end semantic test for per-receiver axon projection
 
-`kernel/router.py` ships the v0.0 kernel-level slice (skip a
-receiver entirely when `axon.keys ∩ receiver.axon_keys = ∅`) but
-NOT per-receiver projection (slim the payload to only the keys the
-receiver reads). The router docstring names the blocker: "needs
-Sutra-side support to expose the per-key projection primitive."
-That blocker is now LIFTED — Sutra ships `axon_project(axon,
-requested_keys)` (codegen_pytorch.py; `test_axon_project.py`
-green). Per `planning/20-lazy-axon-evaluation.md` this is a hard
-scaling requirement (eager = O(N²·D)).
+Investigation 2026-05-15 found the per-receiver projection chain
+is ALREADY implemented and wired (router `register_projector` +
+projection branch; `SutraService` registers a
+`_VSA.axon_project`-backed projector; Sutra ships `axon_project`).
+The stale "not done / needs Sutra support" claims in router.py,
+todo.md, and 20-lazy-axon-evaluation.md were corrected (they were
+the same false-doc class as the substrate-purity audit). Tested:
+router branch (stand-in projector) + axon_keys plumbing. The ONE
+remaining gap is honest end-to-end proof.
 
-Plan:
-1. Read router.py fully + 20-lazy-axon-evaluation.md + how the
-   kernel reaches the Sutra runtime (SutraService) — find the
-   integration seam for calling `_VSA.axon_project`.
-2. Wire a real projector: for a receiver with non-empty
-   `axon_keys`, deliver `axon_project(payload, receiver.axon_keys)`
-   instead of the full payload. Keep eager fallback (empty
-   `axon_keys` ⇒ full payload) and the capability check ordering.
-3. Test: extend the kernel test suite — a receiver with declared
-   keys gets a slimmed payload that still decodes its keys
-   correctly and excludes others; the skip-path and eager-fallback
-   still hold. Keep all existing kernel tests green.
-4. If the SutraService seam isn't cleanly reachable from the
-   Python router without a larger refactor, do NOT force it —
-   document the precise integration blocker here + in the kernel
-   README and leave it for the next cycle (honest, not faked).
+Concrete next step (do not claim projection "works end-to-end"
+until this passes):
+1. Add a producer .su that bundles a multi-key axon (≥3 keys,
+   embedded fillers) and admit it as a SutraService; admit a
+   consumer SutraService/manifest declaring a STRICT-SUBSET
+   `axon_keys` (e.g. one key).
+2. Send through the router; assert: (a) `lazy_projected_count`
+   incremented, (b) delivered `axon.keys == intersection`, (c) the
+   consumer recovers its requested key from the PROJECTED payload
+   with high cos to the true filler (≈ the multi_program_axon
+   +0.40 bar), (d) a non-requested key does NOT decode.
+3. Keep all existing kernel tests green. Slow (Sutra+CUDA
+   compile) — budget for it. If a real defect surfaces, document
+   it as a precise blocker; do NOT tune or fake a pass.
 
 ---
 

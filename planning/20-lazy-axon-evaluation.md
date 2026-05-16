@@ -161,6 +161,38 @@ and let the router copy only those bytes. That's a real win on
 multi-GPU connectomes; for single-GPU shared memory it's the
 same cost.
 
+## Status (2026-05-15)
+
+The body of this doc above was written 2026-05-14 describing the
+router as **eager-only**. That is **no longer accurate** and the
+text is kept only for the why-it-matters reasoning. Current truth:
+
+- **Kernel-level slice — done.** `AxonRouter.send()` skips a
+  receiver entirely when `axon.keys ∩ receiver.axon_keys = ∅`
+  (`lazy_skipped_count` audit).
+- **Per-receiver payload projection — done and wired.**
+  `AxonRouter.register_projector(sender, fn)` +
+  `SutraService` (kernel/services.py) registering a projector that
+  calls the compiled module's `_VSA.axon_project(payload, keys)` +
+  the projection branch in `send()` that slims the payload to
+  `axon.keys & receiver.axon_keys` (`lazy_projected_count`
+  audit). Sutra ships `axon_project` (`test_axon_project.py`
+  green). PythonService stubs without a projector fall back to
+  full-payload delivery (correct, not bandwidth-optimal).
+- **Tested:** router projection branch with a stand-in projector
+  (`tests/test_kernel.py::test_projector_slims_payload_*`);
+  `SutraService`→`axon_keys` static-analysis plumbing
+  (`tests/test_kernel_sutra.py`).
+- **NOT yet tested (the only remaining gap):** the full
+  end-to-end semantic path — a real `_VSA.axon_project` slimming a
+  real multi-key axon such that the consumer still
+  `axon_item`-decodes its requested key correctly (high cos to the
+  true filler, like the multi_program_axon +0.40) and **cannot**
+  recover a non-requested key. This is the next concrete step
+  (queue.md). Until that test exists, "projection works
+  end-to-end" is plumbed-and-plausible, not proven — stated
+  honestly rather than claimed.
+
 ## Cross-references
 
 - `external/Sutra/planning/sutra-spec/axons.md` § "Lazy evaluation
@@ -169,8 +201,10 @@ same cost.
   the connectome framing this requirement falls out of.
 - `19-boot-sequence.md` — where the orchestrator's axon-router
   responsibility lives in the boot/runtime flow.
-- `kernel/router.py` — current eager implementation; gap noted in
-  `kernel/README.md`.
-- `kernel/services.py` — `SutraService` calls the .su program's
-  `on_axon(vector)` on the full payload, not on a projected
-  slice.
+- `kernel/router.py` — kernel slice + per-receiver projection both
+  implemented (see § Status above; top-of-file docstring corrected
+  2026-05-15).
+- `kernel/services.py` — `SutraService` registers a
+  `_VSA.axon_project`-backed projector with the router; the
+  per-receiver projected slice is what crosses to the consumer
+  once the end-to-end test confirms semantic correctness.
