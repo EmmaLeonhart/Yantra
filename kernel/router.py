@@ -47,12 +47,23 @@ correct, just not bandwidth-optimal.
 branch is unit-tested with a stand-in projector
 (`tests/test_kernel.py::test_projector_slims_payload_*`), and the
 `SutraService`→`axon_keys` plumbing is tested
-(`tests/test_kernel_sutra.py`). What is NOT yet covered by a test:
-the full end-to-end semantic path — a real `_VSA.axon_project`
-slimming a real multi-key axon such that the consumer still
-`axon_item`-decodes its requested key correctly and cannot recover
-a non-requested key. That end-to-end test is the remaining work
-(see queue.md / planning/20-lazy-axon-evaluation.md § Status).
+(`tests/test_kernel_sutra.py`). The end-to-end *semantic* test now
+exists (`test_projected_payload_still_decodes_semantically`) and
+**proves the projection is a no-op for embedding fillers**:
+`_VSA.axon_project(bundle,[k]) = bind(k, unbind(k, bundle))`, and
+for orthogonal rotation binding on semantic-block fillers
+`Q_k·Q_kᵀ = I`, so the "slimmed" payload reconstructs the whole
+bundle — a receiver that asked for one key still decodes every
+key (measured: dropped key +0.5726 vs kept +0.5999). So the
+projection branch below is *correctly wired* but delivers **no
+bandwidth reduction and no capability isolation for the common
+(embedding) case** — the holographic bundle still crosses, and a
+receiver sees keys it never declared (bears on paper § 3.3.1).
+True slimming must be producer-side (rebuild without the unwanted
+`axon_add` terms — a Sutra-side design decision, not faked here).
+See `planning/20-lazy-axon-evaluation.md` § Status + queue.md.
+The strict-xfail test flips loud the moment this is actually
+fixed.
 
 Capability check still fires on every send: the sender must
 possess the role in its `write_roles`; the receiver must possess

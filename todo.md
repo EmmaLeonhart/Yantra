@@ -24,20 +24,23 @@ production form is Rust. Hardening list:
   is the API reference. Single largest piece of post-bootloader
   work in this list, and the one that turns `kernel/` from
   "behavioural harness" into "runtime."
-- **Lazy axon evaluation in the production router.** Both the
-  kernel-level slice (skip uninterested receivers) AND per-receiver
-  payload projection are **implemented and wired** (corrected
-  2026-05-15 — was misstated as "needs Sutra-side support to
-  expose the per-key projection primitive"; that primitive,
-  `_VSA.axon_project`, shipped and `SutraService` wires it to the
-  router's `register_projector`). Remaining work is **one
-  end-to-end semantic test**: a real `_VSA.axon_project` slimming
-  a real multi-key axon such that the consumer still
-  `axon_item`-decodes its requested key correctly and cannot
-  recover a non-requested key. Router-level (stand-in projector)
-  and axon_keys-plumbing tests already pass. See
-  `planning/20-lazy-axon-evaluation.md` § Status (2026-05-15) and
-  `queue.md`.
+- **Lazy axon evaluation in the production router.** Kernel-level
+  slice (skip uninterested receivers) works. Per-receiver
+  projection is wired (`register_projector` → `_VSA.axon_project`)
+  but the 2026-05-15 end-to-end semantic test
+  (`test_projected_payload_still_decodes_semantically`, strict
+  xfail) **proves it is a no-op for embedding fillers**:
+  `axon_project(bundle,[k]) = bind(k,unbind(k,bundle))` is identity
+  for orthogonal rotation binding on semantic-block fillers, so the
+  "slimmed" payload still holographically contains every key
+  (dropped key decoded +0.5726 vs kept +0.5999). **No bandwidth
+  reduction and no capability isolation for the common case** —
+  bears on `paper/paper.md` § 3.3.1. The real fix is producer-side
+  pruning (rebuild the bundle without the unwanted `axon_add`
+  terms, whole-program analysis per Sutra `axons.md` §"Lazy
+  evaluation across boundaries") — a **Sutra-side design
+  decision**, not a Yantra-side wiring task. See
+  `planning/20-lazy-axon-evaluation.md` § Status and `queue.md`.
 - **Storage-tier moves: disc ↔ RAM ↔ GPU.** The Python prototype
   only implements admit/deregister against an in-memory pool. The
   Connectome Manager's actual job is shuffling programs between
