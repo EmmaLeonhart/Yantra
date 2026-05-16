@@ -353,6 +353,147 @@ def test_sutra_service_emit_tags_axon_with_bound_keys(tmp_path: pathlib.Path) ->
 from kernel.router import Axon  # noqa: E402
 
 
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "axon_project(bundle,[k]) = bind(k, unbind(k, bundle)); for "
+        "orthogonal rotation binding on semantic-block (embedding) "
+        "fillers Q_k·Q_kᵀ=I, so the 'projected' payload reconstructs "
+        "the FULL bundle — every key still decodes. Measured "
+        "2026-05-15: kept 'animal'→dog +0.5999 vs projected-OUT "
+        "'color'→red +0.5726 (~equal). Per-receiver projection thus "
+        "gives NEITHER bandwidth reduction NOR capability isolation "
+        "for embedding fillers (a receiver asking for only 'animal' "
+        "still recovers 'color'/'user' — bears on paper §3.3.1). "
+        "Real slimming needs producer-side pruning (skip axon_add for "
+        "unwanted keys, axons.md §lazy-materialization), NOT post-hoc "
+        "axon_project on a finished bundle. Sutra-side design "
+        "decision; precise blocker in queue.md + "
+        "planning/20-lazy-axon-evaluation.md § Status. strict=True so "
+        "this flips loud the moment the projection is actually fixed."
+    ),
+)
+def test_projected_payload_still_decodes_semantically(tmp_path: pathlib.Path) -> None:
+    """End-to-end SEMANTIC proof of per-receiver projection.
+
+    The existing emit-tags test proves the plumbing (real
+    `_VSA.axon_project` fires, `keys` field == intersection,
+    `lazy_projected_count` increments). It does NOT prove the
+    projected payload is still semantically correct — it bundles a
+    zeros filler and never decodes. That is exactly the bug class
+    that bit multi_program_axon (the `keys` field looked right
+    while the recovered content was noise — fixed 2026-05-15 in
+    Sutra `eb0ce93e`).
+
+    This test closes that gap: a producer bundles THREE keys with
+    DISTINCT embedded fillers; a receiver declares interest in ONE;
+    after the router projects via the real `_VSA.axon_project`, the
+    receiver must (c) still recover its requested key with high
+    cosine to the true filler, and (d) NOT recover a projected-out
+    key. No tuning — the bars encode the semantic requirement; if
+    they fail it is a real defect to report, not a number to fudge.
+    """
+    producer = tmp_path / "producer.su"
+    producer.write_text(
+        "// Builds a 3-key axon with distinct embedded fillers, like\n"
+        "// examples/multi_program_axon/producer.su but as a service.\n"
+        "vector v_dog   = basis_vector(\"dog\");\n"
+        "vector v_red   = basis_vector(\"red\");\n"
+        "vector v_alice = basis_vector(\"alice\");\n"
+        "\n"
+        "function vector on_axon(vector input_axon) {\n"
+        "    Axon a;\n"
+        "    a.add(\"animal\", v_dog);\n"
+        "    a.add(\"color\",  v_red);\n"
+        "    a.add(\"user\",   v_alice);\n"
+        "    return a;\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    init = Init(compute_pool=5)
+    prod_svc = SutraService(source_path=producer, output_role="R_out")
+    init.admit(
+        Manifest(
+            name="prod", axon_width=AXON_WIDTH, compute_units=1,
+            read_roles=frozenset({"R_in"}),
+            write_roles=frozenset({"R_out"}),
+            source=str(producer),
+        ),
+        prod_svc,
+    )
+    assert prod_svc.axon_keys_bound == frozenset({"animal", "color", "user"})
+
+    consumer = tmp_path / "rcv.su"
+    consumer.write_text(
+        "function vector on_axon(vector input_axon) { return input_axon; }\n",
+        encoding="utf-8",
+    )
+    receiver = SutraService(source_path=consumer, output_role="R_done")
+    init.admit(
+        Manifest(
+            name="recv", axon_width=AXON_WIDTH, compute_units=1,
+            read_roles=frozenset({"R_out"}),
+            write_roles=frozenset({"R_done"}),
+            source=str(consumer),
+            axon_keys=frozenset({"animal"}),  # STRICT subset of 3
+        ),
+        receiver,
+    )
+
+    vsa = prod_svc._compiled_module._VSA  # noqa: SLF001 — host monitoring
+    init.router._inboxes["prod"].append(  # noqa: SLF001 — test injection
+        Axon(role="R_in", payload=torch.zeros(vsa.dim), from_proc="prod")
+    )
+    prod_svc.tick()  # on_axon builds the real 3-key axon → router projects
+
+    inbox = init.router.receive("recv")
+    assert inbox is not None
+    # Plumbing (same as the sibling test): real projector fired, the
+    # delivered keys field is the intersection.
+    assert init.router.lazy_projected_count() == 1
+    assert init.router.lazy_skipped_count() == 0
+    assert inbox.keys == frozenset({"animal"})
+
+    # SEMANTIC: decode the PROJECTED payload (host-side monitoring,
+    # allowed per CLAUDE.md). The requested key must still recover
+    # its filler; a projected-out key must not.
+    def _cos(a, b) -> float:
+        a = a.flatten().float()
+        b = b.flatten().float()
+        return float(
+            torch.dot(a, b)
+            / (torch.linalg.norm(a) * torch.linalg.norm(b) + 1e-9)
+        )
+
+    rec_animal = vsa.axon_item(inbox.payload, "animal")
+    rec_color = vsa.axon_item(inbox.payload, "color")  # projected OUT
+    cos_animal = _cos(rec_animal, vsa.embed("dog"))
+    cos_color = _cos(rec_color, vsa.embed("red"))
+    print(
+        f"\n[projection semantics] cos(kept 'animal'→dog)={cos_animal:+.4f}  "
+        f"cos(dropped 'color'→red)={cos_color:+.4f}"
+    )
+
+    # (c) requested key still decodes from the slimmed payload. A
+    # single-key projected axon decodes at least as strongly as the
+    # 5-key multi_program_axon case (+0.40); 0.30 is a conservative
+    # floor, not a tuned target.
+    assert cos_animal > 0.30, (
+        f"projected payload lost the requested key: "
+        f"cos(decode('animal'), embed('dog'))={cos_animal:+.4f}"
+    )
+    # (d) a projected-OUT key does not meaningfully decode, and
+    # decodes strictly worse than the kept key.
+    assert cos_color < 0.15, (
+        f"projected-out key still decodes — projection didn't drop it: "
+        f"cos(decode('color'), embed('red'))={cos_color:+.4f}"
+    )
+    assert cos_animal > cos_color + 0.20, (
+        f"insufficient separation: kept={cos_animal:+.4f} "
+        f"dropped={cos_color:+.4f}"
+    )
+
+
 # ---- Sutra v0.4.0 shared MultiProcessRuntime --------------------
 
 

@@ -12,32 +12,25 @@ See `CLAUDE.md` § "Workflow Rules" for how this file, planning mode, and the ta
 
 ## Active
 
-### End-to-end semantic test for per-receiver axon projection
+_(empty — add the next concrete design or implementation task here)_
 
-Investigation 2026-05-15 found the per-receiver projection chain
-is ALREADY implemented and wired (router `register_projector` +
-projection branch; `SutraService` registers a
-`_VSA.axon_project`-backed projector; Sutra ships `axon_project`).
-The stale "not done / needs Sutra support" claims in router.py,
-todo.md, and 20-lazy-axon-evaluation.md were corrected (they were
-the same false-doc class as the substrate-purity audit). Tested:
-router branch (stand-in projector) + axon_keys plumbing. The ONE
-remaining gap is honest end-to-end proof.
+### BLOCKER (Sutra-side design decision) — axon_project is a no-op for embedding fillers
 
-Concrete next step (do not claim projection "works end-to-end"
-until this passes):
-1. Add a producer .su that bundles a multi-key axon (≥3 keys,
-   embedded fillers) and admit it as a SutraService; admit a
-   consumer SutraService/manifest declaring a STRICT-SUBSET
-   `axon_keys` (e.g. one key).
-2. Send through the router; assert: (a) `lazy_projected_count`
-   incremented, (b) delivered `axon.keys == intersection`, (c) the
-   consumer recovers its requested key from the PROJECTED payload
-   with high cos to the true filler (≈ the multi_program_axon
-   +0.40 bar), (d) a non-requested key does NOT decode.
-3. Keep all existing kernel tests green. Slow (Sutra+CUDA
-   compile) — budget for it. If a real defect surfaces, document
-   it as a precise blocker; do NOT tune or fake a pass.
+Surfaced by the 2026-05-15 end-to-end semantic test (delivered;
+`tests/test_kernel_sutra.py::test_projected_payload_still_decodes_semantically`,
+strict xfail). `_VSA.axon_project(bundle,[k]) = bind(k,unbind(k,
+bundle))` ≈ identity for orthogonal rotation binding on
+semantic-block (embedding) fillers, so per-receiver projection
+delivers **no bandwidth reduction and no capability isolation**
+for the common case (measured: dropped key +0.5726 vs kept
++0.5999). Bears on `paper/paper.md` § 3.3.1. The real fix is
+producer-side pruning — rebuild the bundle without the unwanted
+`axon_add` terms via whole-program analysis of each receiver's
+read-keys, per Sutra `axons.md` §"Lazy evaluation across
+boundaries". That is a **Sutra-side design + spec decision**, not
+a Yantra wiring task — left here as a precise blocker for a
+Sutra-driven session rather than forced/faked. Full reasoning:
+`planning/20-lazy-axon-evaluation.md` § Status; `todo.md`.
 
 ---
 
