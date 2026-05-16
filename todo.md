@@ -10,6 +10,48 @@
 
 ---
 
+## ▶ Continuation — start here (autonomous hourly loop)
+
+**An autonomous hourly cron drives this repo** (a sibling machine
+pushes Sutra + site work concurrently). Every cycle: `git fetch` →
+FF/rebase Yantra (never force-push / reset --hard / discard the
+other machine's work) → bump `external/Sutra` to its `origin/master`
+→ commit+push → then work `queue.md`, and when it has no actionable
+Yantra item, promote the next **genuinely-unblocked, bounded,
+verifiable** `todo.md` item (plan into `queue.md` first).
+
+**Where the live state is** (don't re-derive it — read these):
+- `queue.md` — the active item + the standing **Sutra-side
+  `axon_project` blocker** (it's a no-op for embedding fillers;
+  real fix is producer-side pruning — a Sutra design decision,
+  deliberately not forced/faked from here).
+- `planning/20-lazy-axon-evaluation.md` § Status — the measured
+  lazy-eval reality.
+- `planning/18-kernel-browser-readiness.md` — honest engineering
+  accounting (refreshed; keep it honest as reality moves).
+- `external/Sutra/planning/findings/2026-05-15-*` — the
+  transcendental-leak and axon-key-coercion root-cause records.
+- `git log` — the narrative; each commit message says *why*.
+
+**Hard rails (these are why the loop is trusted):** never fake,
+never weaken/skip a test to make it pass, never claim
+"works"/"verified"/"substrate-pure" without having run it and
+measured. A real defect → strict `xfail` or a precise documented
+blocker, never a loosened assertion. Correct stale/false docs the
+moment you find them (this loop has de-lied several already). Name
+unbuilt/hard things plainly ("Don't paper over difficulty").
+
+**What's genuinely unblocked vs not:** most §1 kernel items are
+blocked — GPU passthrough (no spare GPU/VFIO), unbuilt Sutra
+primitives (serialise-process-state / evict-from-GPU), or the
+large Rust orchestrator port with no tight spec. The browser (§3)
+is build-sequence-gated (milestone 3, after kernel + CLI
+utilities) — do not jump it. The high-yield unblocked work has
+been: cross-repo regression root-causes+fixes, and honest
+engineering-accounting / doc-truth passes. Pick in that spirit.
+
+---
+
 ## 1. Kernel — Connectome Manager, beyond the Python v0.0 prototype
 
 The `kernel/` directory ships a working **Python prototype** of the
