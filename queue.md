@@ -12,7 +12,34 @@ See `CLAUDE.md` § "Workflow Rules" for how this file, planning mode, and the ta
 
 ## Active
 
-_(empty — add the next concrete design or implementation task here)_
+### Refresh planning/18-kernel-browser-readiness.md to current ground truth
+
+CLAUDE.md: "refresh it when the situation changes." It was written
+2026-05-13 vs Sutra v0.3.1 (commit 2582cd46); we are now at
+`dd448b47` (past v0.4.0). It is also internally contradictory
+(line 27 says the TS→Sutra CLI shipped v0.3.2; lines 43/102/117/119
+still call it an "unwired skeleton, wire it up first thing") — the
+exact false-doc harm this loop is mandated to fix.
+
+Verify-then-correct (no claim without measuring):
+1. Sutra version: v0.3.1 → current submodule commit (past v0.4.0).
+2. TS CLI contradiction → resolve to the true state (verify
+   `python -m sutra_from_ts` actually runs in the submodule).
+3. "Multi-process Sutra runtime is THE bottleneck / hasn't
+   landed" — Sutra v0.4.0 shipped MultiProcessRuntime; verify via
+   the shared-runtime kernel tests
+   (`test_make_shared_sutra_services_share_one_vsa`,
+   `test_shared_runtime_axon_passing_through_router`).
+4. Lazy axon eval / "kernel IPC primitive" — add the proven
+   caveat: `axon_project` is a no-op for embedding fillers (this
+   loop's strict-xfail finding), so per-receiver projection gives
+   no bandwidth reduction / no capability isolation for the common
+   case — bears on the "no degradation under load" claim.
+5. Transcendentals "substrate-pure, no host fall-throughs" — was
+   false 2026-05-15 (the leak), fixed in Sutra 21a9ff77 via
+   eigenrotation/cexp + saturate-not-raise; state accurately.
+6. Test counts ("25 tests") — refresh against current suites.
+Bounded doc-honesty pass; commit+push when done.
 
 ### BLOCKER (Sutra-side design decision) — axon_project is a no-op for embedding fillers
 
