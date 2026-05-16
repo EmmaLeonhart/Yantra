@@ -24,14 +24,20 @@ production form is Rust. Hardening list:
   is the API reference. Single largest piece of post-bootloader
   work in this list, and the one that turns `kernel/` from
   "behavioural harness" into "runtime."
-- **Lazy axon evaluation in the production router.** The Yantra
-  v0.0 in `kernel/router.py` ships the kernel-level slice (skip
-  uninterested receivers when the axon's keys don't intersect the
-  receiver's `axon_keys` declaration). The full per-receiver
-  projection — slicing the axon vector to materialize only the
-  dimensions the receiver references — needs Sutra-side support
-  to expose the per-key projection primitive. See
-  `planning/20-lazy-axon-evaluation.md`.
+- **Lazy axon evaluation in the production router.** Both the
+  kernel-level slice (skip uninterested receivers) AND per-receiver
+  payload projection are **implemented and wired** (corrected
+  2026-05-15 — was misstated as "needs Sutra-side support to
+  expose the per-key projection primitive"; that primitive,
+  `_VSA.axon_project`, shipped and `SutraService` wires it to the
+  router's `register_projector`). Remaining work is **one
+  end-to-end semantic test**: a real `_VSA.axon_project` slimming
+  a real multi-key axon such that the consumer still
+  `axon_item`-decodes its requested key correctly and cannot
+  recover a non-requested key. Router-level (stand-in projector)
+  and axon_keys-plumbing tests already pass. See
+  `planning/20-lazy-axon-evaluation.md` § Status (2026-05-15) and
+  `queue.md`.
 - **Storage-tier moves: disc ↔ RAM ↔ GPU.** The Python prototype
   only implements admit/deregister against an in-memory pool. The
   Connectome Manager's actual job is shuffling programs between

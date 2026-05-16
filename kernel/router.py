@@ -28,12 +28,31 @@ receiver) edges that actually share a key and K is the typical
 key count. See `planning/20-lazy-axon-evaluation.md` for the
 combinatorial reasoning.
 
-**What this kernel does NOT do (still upstream-Sutra-dependent):**
-per-receiver projection — slicing the payload tensor to
-materialize only the dimensions the receiver references. That
-needs Sutra-side support to expose the per-key projection
-primitive. The kernel here only decides whether to deliver the
-full payload or skip the receiver entirely.
+**Per-receiver projection IS implemented and wired** (corrected
+2026-05-15 — this paragraph previously claimed it was not done /
+"upstream-Sutra-dependent", which became false once Sutra shipped
+`axon_project` and `SutraService` wired it; the stale text was the
+same doc-lying class the substrate-purity audit flagged elsewhere).
+The chain is: `register_projector(sender, fn)` here →
+`SutraService` (kernel/services.py) registers a projector that
+calls its compiled module's `_VSA.axon_project(payload, keys)` →
+the `send()` projection branch below slims the payload to
+`axon.keys & receiver.axon_keys` before delivery. The kernel
+therefore does BOTH the skip-the-receiver slice AND payload
+projection. A sender without a registered projector (PythonService
+stubs, early bringup) falls back to full-payload delivery —
+correct, just not bandwidth-optimal.
+
+**Verification status (honest):** the router-level projection
+branch is unit-tested with a stand-in projector
+(`tests/test_kernel.py::test_projector_slims_payload_*`), and the
+`SutraService`→`axon_keys` plumbing is tested
+(`tests/test_kernel_sutra.py`). What is NOT yet covered by a test:
+the full end-to-end semantic path — a real `_VSA.axon_project`
+slimming a real multi-key axon such that the consumer still
+`axon_item`-decodes its requested key correctly and cannot recover
+a non-requested key. That end-to-end test is the remaining work
+(see queue.md / planning/20-lazy-axon-evaluation.md § Status).
 
 Capability check still fires on every send: the sender must
 possess the role in its `write_roles`; the receiver must possess
