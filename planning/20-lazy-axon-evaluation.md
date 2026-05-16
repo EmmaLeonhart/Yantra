@@ -183,15 +183,41 @@ text is kept only for the why-it-matters reasoning. Current truth:
   (`tests/test_kernel.py::test_projector_slims_payload_*`);
   `SutraService`→`axon_keys` static-analysis plumbing
   (`tests/test_kernel_sutra.py`).
-- **NOT yet tested (the only remaining gap):** the full
-  end-to-end semantic path — a real `_VSA.axon_project` slimming a
-  real multi-key axon such that the consumer still
-  `axon_item`-decodes its requested key correctly (high cos to the
-  true filler, like the multi_program_axon +0.40) and **cannot**
-  recover a non-requested key. This is the next concrete step
-  (queue.md). Until that test exists, "projection works
-  end-to-end" is plumbed-and-plausible, not proven — stated
-  honestly rather than claimed.
+- **End-to-end semantic test now exists — and it PROVES the
+  projection is a no-op for embedding fillers** (2026-05-15,
+  `tests/test_kernel_sutra.py::test_projected_payload_still_decodes_semantically`,
+  strict `xfail`). `_VSA.axon_project(bundle, [k])` is
+  `bind(k, unbind(k, bundle))`. For orthogonal rotation binding on
+  **semantic-block (embedding) fillers**, `Q_k·Q_kᵀ = I`, so
+  `bind(k, unbind(k, ·))` is the **identity** — the "projected"
+  payload reconstructs the *entire* bundle. Measured: a receiver
+  that declared interest in only `animal` recovers the
+  projected-OUT `color` key at cos `+0.5726`, essentially equal to
+  the kept `animal` key at `+0.5999`.
+
+  **Consequences (must not be papered over):**
+  - **No bandwidth reduction** for the common (embedding-filler)
+    case — the O(N²·D) → O(E·K) claim in this doc's body does NOT
+    hold via `axon_project`; the full holographic bundle still
+    crosses.
+  - **No capability isolation.** A receiver gets every key's
+    content regardless of its declared `axon_keys`. This
+    contradicts the operator-capability story in
+    `paper/paper.md` § 3.3.1 — flagged, not silently accepted.
+  - The per-key **synthetic-block permutation** does make
+    projection lossy for *synthetic* fillers (numbers via
+    `make_real`, strings via `make_string`), so `axon_project`
+    is only a true slim there — not for embeddings.
+
+  **The real fix is producer-side, and is a Sutra-side design
+  decision (not faked here):** true slimming requires the producer
+  to rebuild the bundle WITHOUT the unwanted keys' `axon_add`
+  terms (whole-program / compile-time analysis of which keys each
+  receiver reads — `external/Sutra/.../axons.md` §"Lazy evaluation
+  across boundaries"), because a finished bundle is holographic and
+  cannot be sliced after the fact. Post-hoc `axon_project` on a
+  bundled axon is information-theoretically a no-op for semantic
+  fillers. Precise blocker in `queue.md`.
 
 ## Cross-references
 
