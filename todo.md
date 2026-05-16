@@ -69,28 +69,19 @@ production form is Rust. Hardening list:
   C→Sutra transpiler is the long-term target if we want the
   bootloader inside the verification surface.
 
-## Investigate: bundle-decoding regression on this machine (filed 2026-05-14)
+## ~~Investigate: bundle-decoding regression~~ — RESOLVED 2026-05-15
 
-`examples/multi_program_axon/_run.py` in the Sutra submodule produces
-cosine recovery margins ~10× smaller than the README's expected
-output (e.g. `cos(recovered, 'dog') = +0.04` here vs `+0.40` in the
-expected output). Same code path; different numbers. Likely a
-runtime / numerical regression somewhere recent in Sutra. Worth
-investigating separately — it's not blocking Yantra-side work
-(the wiring is correct, the round-trip mechanism works) but it
-degrades the actual VSA capacity story the Sutra paper rests on.
-
-Root-cause candidates to check first:
-- One of the recent additions (axon-keys analysis, axon_project,
-  device-coherence as_tensor coercion) silently changed dtype or
-  rounding behaviour somewhere in the bind/permute chain.
-- The defensive `as_tensor(filler, dtype=self.dtype, device=...)`
-  in `bind()` might be casting from float64 to float32 in a way
-  that wasn't happening before, accumulating more rounding error
-  through chained binds.
-- Or a Sutra-side runtime change unrelated to my work.
-
-Reproduce locally: `cd external/Sutra && python examples/multi_program_axon/_run.py`.
+Root-caused and fixed in Sutra `eb0ce93e`. It was NOT a numerical /
+bind-chain regression and did NOT degrade the VSA-capacity story:
+the Sutra compiler coerced `axon_item`'s string-literal key to a
+`make_string` codepoint vector (because the stdlib signature types
+the param `string`) while the producer's member-access path kept it
+a host str → producer/consumer keyed on different role vectors →
+cross-module decode corruption. Surgical codegen fix; `_run.py` now
+PASS at the exact README numbers (+0.40 / margin +0.20), untuned.
+Full record: `external/Sutra/planning/findings/2026-05-15-axon-key-
+make-string-coercion-regression.md`. (Line kept as a one-time
+breadcrumb; delete on next todo.md tidy.)
 
 ## 2. Userspace utilities — native Sutra rewrites — second milestone
 
