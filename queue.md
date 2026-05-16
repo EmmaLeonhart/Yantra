@@ -12,7 +12,30 @@ See `CLAUDE.md` § "Workflow Rules" for how this file, planning mode, and the ta
 
 ## Active
 
-_(empty — add the next concrete design or implementation task here)_
+### Investigate the bundle-decoding regression (promoted from todo.md)
+
+`external/Sutra/examples/multi_program_axon/_run.py` was filed
+2026-05-14 as producing cosine recovery margins ~10× smaller than
+the README's expected output (`cos(recovered,'dog')=+0.04` here vs
+`+0.40` expected). Same code path, different numbers → a runtime /
+numerical regression somewhere in the bind/permute chain. Degrades
+the VSA-capacity story the Sutra paper rests on; not Yantra-wiring.
+
+Plan:
+1. Reproduce against current Sutra HEAD (cd464c0a — the submodule
+   moved a lot since the 2026-05-14 filing; the regression may have
+   been introduced OR fixed by intervening substrate-fix work).
+2. If still regressed: bisect the bind/permute/axon chain. Root-
+   cause candidates from todo.md — dtype/rounding from the
+   defensive `as_tensor(filler, dtype=…, device=…)` cast in
+   `bind()` (float64→float32 through chained binds), or the
+   axon-keys / axon_project / device-coherence additions.
+3. Fix at root cause Sutra-side if clear+safe (cross-repo
+   workflow: commit+push Sutra, bump Yantra pointer). Do NOT
+   tune numbers to look right — measure honestly, report the
+   real delta. If the fix isn't clear, document the bisect
+   result as a Sutra finding and leave a precise blocker here.
+4. Verify: re-run `_run.py`, report real margins vs expected.
 
 ---
 
