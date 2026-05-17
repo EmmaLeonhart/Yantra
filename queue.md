@@ -12,24 +12,6 @@ See `CLAUDE.md` § "Workflow Rules" for how this file, planning mode, and the ta
 
 ## Active
 
-### Replicate Linux 0.00 on Yantra (user-added 2026-05-17; scheduled +1h cron)
-
-Concrete plan + faithful-mapping design + honest scope are in
-**`planning/21-linux-0.00.md`** (written so a fresh/cron session
-executes without chat context). Summary: two trivial Sutra
-services `task_a.su`/`task_b.su` (emit codepoint `A`/`B`), a
-console/sink consumer, driven by the Connectome Manager's
-`Init.tick()` as the timer-IRQ analogue — Linux 0.00's "kernel
-mediates two trivial output tasks" realized in Yantra's connectome
-model (milestone 1; buildable on the tested v0.0 kernel). Deliver:
-the two `.su` + manifests + `tests/test_linux_000.py` (real
-`SutraService`, honest decode measurement, no weakened asserts).
-Honest gap recorded in the planning doc: the deeper bare-metal
-replica (real PIT IRQ + TSS + framebuffer in `bootloader/`) is a
-separate bootloader-track item gated on GPU passthrough / GRUB
-ISO — not faked here. A one-shot cron (~1h out, this session) will
-execute this; this entry is the durable plan if the cron is lost.
-
 ### Blocker (NARROWED 2026-05-17, not closed) — axon_project no-op across the connectome
 
 The intra-module slice of the real fix shipped (Sutra v0.4.1,
