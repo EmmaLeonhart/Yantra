@@ -1,5 +1,7 @@
 # Yantra
 
+**Website · [yantra.emmaleonhart.com](https://yantra.emmaleonhart.com)**
+
 A neuro-symbolic, GPU-native operating system written in Sutra.
 
 🌐 **Website: <https://yantra.emmaleonhart.com>**
