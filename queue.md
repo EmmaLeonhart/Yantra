@@ -12,7 +12,7 @@ See `CLAUDE.md` § "Workflow Rules" for how this file, planning mode, and the ta
 
 ## Active
 
-_(empty — add the next concrete design or implementation task here)_
+try to implement this https://computernewb.com/wiki/Linux_0.00
 
 ### BLOCKER (Sutra-side design decision) — axon_project is a no-op for embedding fillers
 
