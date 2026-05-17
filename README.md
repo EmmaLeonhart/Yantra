@@ -109,7 +109,7 @@ This is tier 1 of the three "VM tiers" planned for Yantra. Tier 2 (cloud GPU VM,
 
 ## Paper pipeline
 
-`paper/paper.md` is the canonical position paper. Editing it on master
+`paper/paper.md` is the canonical position paper. Editing it on main
 triggers `.github/workflows/submit-papers.yml`, which submits to
 clawRxiv (superseding the previous version tracked in
 `paper/.post_id`), fetches the AI peer review, and commits the result
