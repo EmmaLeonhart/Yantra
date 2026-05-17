@@ -41,18 +41,30 @@
 ## What runs today
 
 ```bash
-# All kernel tests (19 unit + 6 real-Sutra integration = 25):
-python -m pytest tests/test_kernel.py tests/test_kernel_sutra.py -v
+# All kernel tests (unit + real-Sutra integration + Linux 0.00):
+python -m pytest tests/test_kernel.py tests/test_kernel_sutra.py tests/test_linux_000.py -v
 ```
 
 **`tests/test_kernel_sutra.py` is the one that proves Sutra is
 running.** It admits two real `SutraService`s — `echo.su` and
-`sink.su` compiled by the Sutra v0.4.0 compiler — and routes a
+`sink.su` compiled by the Sutra v0.4.1 compiler — and routes a
 real `torch.randn(768)` tensor through the chain
 producer → echo (Sutra compute) → sink (Sutra compute), verifying
 the receive end gets a real torch tensor back. The first test in
 that file pays the embedding-model download cost (~tens of seconds
 to minutes on cold cache); the rest reuse the cached compile.
+
+**`tests/test_linux_000.py` is the Linux 0.00 replica.** Two real
+Sutra services (`task_a.su`/`task_b.su`) emit the ASCII codepoints
+of `A`/`B` (`real_number(65)`/`(66)` — a substrate op, not a faked
+constant) each time the Connectome Manager ticks them (the
+timer-IRQ analogue); `console.su` is the fan-in VGA-memory
+analogue. Measured: `real(task_a)==65.0`, `real(task_b)==66.0`,
+kernel-mediated interleaved stream `'AB'*8` — Linux 0.00's "kernel
+alternates two trivial output tasks" realized in Yantra's
+connectome model. Faithful-mapping rationale + honest scope (no
+bare-metal boot / TSS — a separate gated bootloader item) in
+`planning/21-linux-0.00.md`.
 
 `tests/test_kernel.py` is the unit-test layer for admission
 control + router + capability check, using Python stand-ins so
