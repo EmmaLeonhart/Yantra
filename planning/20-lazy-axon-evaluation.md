@@ -219,6 +219,49 @@ text is kept only for the why-it-matters reasoning. Current truth:
   bundled axon is information-theoretically a no-op for semantic
   fillers. Precise blocker in `queue.md`.
 
+## Status (2026-05-17) — producer-side pruning PARTLY landed; blocker NARROWED not closed
+
+The producer-side fix above was built **for the intra-module
+case** and shipped as **Sutra v0.4.1** (submodule pinned here).
+`_compute_axon_read_signatures` + the extended
+`_compute_axon_elision` (Sutra `codegen_base.py`) now compute
+per-`(function,param)` axon read demand across the whole module's
+call graph and **never emit** a producer `.add(k,v)` whose key no
+callee transitively reads — the filler is genuinely never bundled
+(not sliced after the fact). Sound over-approximation: anything
+the analysis can't bound (dynamic key, returned/aliased param,
+unknown callee, `vector`-typed param) keeps **all** keys. Proven
+by `external/Sutra/.../tests/test_codegen.py::TestCrossFunction
+AxonElision` + 141 green + smoke PASS. The Sutra `axons.md`
+open-question is resolved for the single-function-call case.
+
+**Why this NARROWS but does NOT close the Yantra blocker.** This
+doc's actual subject is the **connectome** boundary: Yantra's
+producer and each consumer are **separately-compiled `.su`
+modules**, wired by the kernel router at admission time. A
+single-module compiler pass cannot see the consumer's read-set
+across that boundary — and in the real shape the consumer types
+its parameter `vector` and reads via `axon_item(state, …)` (see
+`external/Sutra/examples/multi_program_axon/consumer.su`), which
+the new pass deliberately treats as OPAQUE → producer keeps all
+keys. So:
+
+- **Closed:** producer-side pruning *within a single compiled
+  program* across function calls (the spec's `getCat` example).
+- **Still open (the original blocker, narrowed to its true
+  scope):** cross-separately-compiled-program pruning for the
+  connectome. `axon_project` on a finished bundle is still an
+  information-theoretic no-op for embedding fillers; the
+  remaining fix needs **whole-connectome compilation** (compile
+  producer + its admitted consumers together so the producer sees
+  the union of consumer read-sets) or **admission-time producer
+  specialization** (re-emit/re-bundle the producer per wired
+  consumer set when the kernel router connects them). Both are
+  larger Sutra+kernel design items, deliberately not faked. The
+  end-to-end strict-`xfail` test
+  (`test_projected_payload_still_decodes_semantically`) stays
+  `xfail` — it is still accurate for the connectome case.
+
 ## Cross-references
 
 - `external/Sutra/planning/sutra-spec/axons.md` § "Lazy evaluation
