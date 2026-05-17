@@ -105,10 +105,46 @@ that in Yantra's connectome model.
 
 ## Status
 
-**NOT STARTED** as of 2026-05-17. Queued (`queue.md`) and scheduled
-(one-shot cron, ~1h out, this session). When executed, replace this
-section with: files added, `pytest tests/test_linux_000.py`
-result, and the measured per-task decode similarity.
+**DONE — 2026-05-17** (executed by the scheduled cron session).
+
+Files added:
+
+- `kernel/services/task_a.su`, `task_b.su` — emit `real_number(65.0)`
+  / `real_number(66.0)` (substrate op `_VSA.make_real`; the literal
+  ASCII codepoints of `A`/`B`, not a faked constant).
+- `kernel/services/console.su` — passthrough fan-in receiver (the
+  VGA-memory analogue).
+- `kernel/manifests/task_a.toml`, `task_b.toml`, `console.toml`.
+- `tests/test_linux_000.py` — 3 tests, real shared-runtime
+  `SutraService`s via `make_shared_sutra_services`.
+
+Measured (printed by the test, not tuned):
+
+```
+[linux 0.00] stream='ABABABABABABABAB'  real(task_a)=65.0  real(task_b)=66.0
+```
+
+- `real(task_a) == 65.0` exactly, `real(task_b) == 66.0` exactly —
+  decoded host-side via the `.real()` monitoring accessor. Literal
+  `chr(65)=='A'` / `chr(66)=='B'`; **no fudged tolerance** (the
+  1e-5 guard is float-repr only; the values are exact).
+- `stream == "AB" * 8` over 8 ticks: both hardcoded tasks ran every
+  tick under kernel mediation (neither starved), output interleaved
+  and carried by the real `AxonRouter` — the faithful Linux-0.00
+  "kernel alternates two trivial output tasks" behaviour.
+- Capability check verified real (a task cannot write a role it
+  doesn't hold) — this is the real Connectome Manager, not a stub.
+
+`pytest tests/test_linux_000.py` → **3 passed**. Full kernel
+regression `tests/test_kernel.py tests/test_kernel_sutra.py
+tests/test_linux_000.py` → **50 passed, 1 xfailed** (the
+unrelated connectome-projection strict-xfail, still correctly
+xfailing — no regression from the Sutra v0.4.1 submodule bump).
+
+The per-task-constant fallback in the deliverables note was NOT
+needed: Sutra's `real_number` cleanly emits a single decodable
+codepoint vector, so the A/B are genuine substrate values, not
+opaque constants. Honest-scope limits below stand unchanged.
 
 ## Cross-references
 
