@@ -83,6 +83,17 @@ production form is Rust. Hardening list:
   evaluation across boundaries") — a **Sutra-side design
   decision**, not a Yantra-side wiring task. See
   `planning/20-lazy-axon-evaluation.md` § Status and `queue.md`.
+  **NARROWED 2026-05-17:** the *intra-module* slice of producer-
+  side pruning shipped (Sutra v0.4.1 — cross-function read-demand
+  propagation; submodule pinned). What remains is **only** the
+  cross-separately-compiled-program (connectome) case: producer +
+  consumer are independent `.su` modules wired at admission, which
+  a single-module compiler structurally cannot bridge. The fix is
+  whole-connectome compilation or admission-time producer
+  specialization (a Sutra+kernel design item, not the no-op
+  `axon_project`). The strict-`xfail` test stays accurate for the
+  connectome case. Full reasoning: `planning/20` § "Status
+  (2026-05-17)".
 - **Storage-tier moves: disc ↔ RAM ↔ GPU.** The Python prototype
   only implements admit/deregister against an in-memory pool. The
   Connectome Manager's actual job is shuffling programs between
