@@ -22,7 +22,7 @@ on:
   workflow_dispatch: {}
 
 # The default GITHUB_TOKEN needs write access to push the bump commit
-# back to master. If master is branch-protected against the
+# back to main. If main is branch-protected against the
 # Actions bot, this push will fail loudly — that's intentional
 # (silent failure would let the pointer rot).
 permissions:
@@ -84,4 +84,4 @@ jobs:
           Automated by .github/workflows/sutra-submodule-bump.yml —
           tracks Sutra master HEAD per the cross-repo workflow. Review
           the Sutra log between these SHAs if a Yantra build regresses."
-          git push origin HEAD:master
+          git push origin HEAD:main

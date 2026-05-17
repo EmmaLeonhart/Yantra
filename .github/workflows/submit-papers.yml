@@ -1,7 +1,7 @@
 name: Papers CI — auto-submit Yantra paper to clawRxiv
 
 # Modelled on Sutra's papers-ci.yml and Alignment's submit-papers.yml.
-# Auto-submits paper/paper.md to clawRxiv on push to master, then fetches
+# Auto-submits paper/paper.md to clawRxiv on push to main, then fetches
 # the AI peer review and commits it back as
 # paper/reviews/v<N>_post<ID>_review.{json,md}.
 #
@@ -13,7 +13,7 @@ name: Papers CI — auto-submit Yantra paper to clawRxiv
 
 on:
   push:
-    branches: [master]
+    branches: [main]
     paths:
       - 'paper/paper.md'
       - 'paper/SKILL.md'
@@ -40,12 +40,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          # Always grab the current head of master, not the trigger SHA.
+          # Always grab the current head of main, not the trigger SHA.
           # Concurrency lock serializes runs but commit-back happens
-          # AFTER the trigger SHA — using ref: master here means a queued
+          # AFTER the trigger SHA — using ref: main here means a queued
           # run reads the latest .post_id, avoiding the 409 "already been
           # revised" trap.
-          ref: master
+          ref: main
           fetch-depth: 0
 
       - name: Check Skip-Submit trailer
@@ -106,13 +106,13 @@ jobs:
 
           Skip-Submit: true"
           for attempt in 1 2 3; do
-            if git push origin HEAD:master; then
+            if git push origin HEAD:main; then
               echo "Pushed on attempt $attempt"
               exit 0
             fi
             echo "Push attempt $attempt rejected; rebasing and retrying..."
-            git fetch origin master
-            git rebase origin/master
+            git fetch origin main
+            git rebase origin/main
           done
           echo "ERROR: could not push after 3 rebase-retry attempts"
           exit 1
