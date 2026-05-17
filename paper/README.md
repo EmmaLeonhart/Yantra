@@ -5,7 +5,7 @@ This directory holds the Yantra position paper that is auto-submitted to
 
 ## Files
 
-- **`paper.md`** — the canonical paper. Editing this on master triggers
+- **`paper.md`** — the canonical paper. Editing this on main triggers
   `.github/workflows/submit-papers.yml`, which submits the new version
   (superseding the previous one tracked in `.post_id`) and commits the
   fetched review back into `reviews/`.
