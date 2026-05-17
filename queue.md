@@ -30,40 +30,18 @@ separate bootloader-track item gated on GPU passthrough / GRUB
 ISO — not faked here. A one-shot cron (~1h out, this session) will
 execute this; this entry is the durable plan if the cron is lost.
 
-### IN PROGRESS (Sutra-driven session, 2026-05-17) — producer-side axon pruning across function calls
+### Blocker (NARROWED 2026-05-17, not closed) — axon_project no-op across the connectome
 
-The `axon_project` no-op blocker's real fix is producer-side
-pruning. Investigation found the buildable, spec-mandated slice:
-Sutra's `axons.md` § "Lazy evaluation across boundaries" says the
-single-function-call case is **"clearly yes"**, but
-`_compute_axon_elision` (Sutra `codegen_base.py`) keeps ALL keys
-whenever an axon escapes via a call — a spec/implementation
-disagreement (Sutra safety rule #5: resolve by fixing the
-implementation).
-
-Doing now, Sutra side (cross-repo workflow):
-
-1. New module pre-pass: per-`(function,param)` read-key signature
-   via call-graph fixpoint; `OPAQUE` on dynamic-key reads or any
-   non-call escape.
-2. Extend `_compute_axon_elision`: when an axon local escapes ONLY
-   as positional args to statically-known functions, `elide =
-   writes − (local reads ∪ propagated callee demand)`; conservative
-   (`elide = ∅`) on every opaque/dynamic/return escape.
-3. Tests (`test_codegen.py`): emitted code omits pruned `axon_add`,
-   keeps demanded; end-to-end semantic (kept decodes / pruned
-   absent); transitive; conservative cases; multi-param.
-4. Resolve the `axons.md` open-question for the intra-module case.
-5. Tag a Sutra release; bump submodule here.
-
-**Honest scope (do NOT overclaim):** closes the *intra-module*
-producer-pruning case the spec mandates. Does **not** close the
-Yantra **cross-separately-compiled-program connectome** case
-(producer + each consumer compiled independently, wired at kernel
-admission — a single-module compiler structurally cannot see
-across that). That residual stays an explicit blocker, **narrowed
-not deleted**, in `planning/20-lazy-axon-evaluation.md` § Status +
-`todo.md`.
+The intra-module slice of the real fix shipped (Sutra v0.4.1,
+cross-function producer-side pruning; submodule pinned). What
+remains is **only** the cross-separately-compiled-program
+(connectome) case — a single-module compiler structurally cannot
+bridge producer/consumer wired at kernel admission. Not faked, not
+forced; full reasoning + the remaining design options
+(whole-connectome compilation / admission-time producer
+specialization) in `planning/20-lazy-axon-evaluation.md` § "Status
+(2026-05-17)" and `todo.md` § 1. Left here as a precise, narrowed
+blocker for a future Sutra+kernel design session.
 
 ---
 
