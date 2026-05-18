@@ -227,6 +227,20 @@ class AxonRouter:
                 raise NotAdmittedError(sender_name)
             self._projectors[sender_name] = fn
 
+    def unregister_projector(self, sender_name: str) -> None:
+        """Drop a previously-registered projector. Idempotent.
+
+        Used when a process is **unloaded from the GPU** (its Sutra
+        runtime is torn down) but stays admitted: the projector
+        closure captures the compiled module's `_VSA`, so leaving it
+        registered would pin that `_VSA`'s GPU tensors and defeat the
+        memory free. The process keeps its route entry (it can be
+        reloaded); only the projector is dropped. Falls back to
+        full-payload pass-through until reload re-registers one.
+        """
+        with self._lock:
+            self._projectors.pop(sender_name, None)
+
     # --- send / receive (called by services) ---
 
     def send(self, axon: Axon) -> int:
