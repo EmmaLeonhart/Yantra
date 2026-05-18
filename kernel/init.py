@@ -24,12 +24,37 @@ In v0.0:
 from __future__ import annotations
 
 import dataclasses
+import enum
 import pathlib
 import threading
 
 from kernel.manifest import Manifest, load_manifest
 from kernel.router import AxonRouter
 from kernel.services import Service
+
+
+class Tier(enum.Enum):
+    """Where an admitted program currently lives.
+
+    The Connectome Manager's core job is moving programs between
+    storage tiers (see `planning/01-architecture.md` § "The kernel
+    is a Connectome Manager"). The MVP implements the two tiers that
+    matter for "is this program running":
+
+      - ``GPU``  — the Sutra runtime is instantiated and resident on
+        the GPU; the program executes on every tick.
+      - ``DISC`` — the program is at rest: admitted (route entry
+        kept, reloadable) but its Sutra runtime is torn down and it
+        holds zero GPU memory. It does not run.
+
+    A ``RAM`` cold-store tier (a *running* program checkpointed to
+    host memory and resumed bit-exact) is deliberately NOT modelled
+    yet: that needs the Sutra ``serialise-process-state`` primitive,
+    which does not exist. Naming the gap, not faking a tier.
+    """
+
+    GPU = "gpu"
+    DISC = "disc"
 
 
 class AdmissionError(RuntimeError):
@@ -64,6 +89,10 @@ class Init:
         self._compute_pool_free = compute_pool
         self._router = router or AxonRouter()
         self._table: dict[str, AdmittedProcess] = {}
+        # Per-process storage tier. admit() binds the service
+        # (compiles its Sutra runtime → GPU-resident), so a freshly
+        # admitted process starts on the GPU tier.
+        self._tier: dict[str, Tier] = {}
 
     # --- admission lifecycle ---
 
@@ -100,6 +129,9 @@ class Init:
             )
             ap = AdmittedProcess(manifest=final_manifest, service=service)
             self._table[manifest.name] = ap
+            # admit() bound the service: its Sutra runtime is
+            # instantiated and (when CUDA is present) GPU-resident.
+            self._tier[manifest.name] = Tier.GPU
             return ap
 
     def admit_from_path(
@@ -118,24 +150,88 @@ class Init:
                 )
             ap = self._table.pop(name)
             self._router.deregister(name)
+            self._tier.pop(name, None)
             self._compute_pool_free += ap.manifest.compute_units
+
+    # --- GPU residency: load / unload (the Connectome Manager's job) -
+
+    def unload(self, name: str) -> None:
+        """Evict a program from the GPU. It stays admitted (route
+        entry kept, reloadable) but its Sutra runtime is torn down,
+        its GPU memory freed, and it no longer runs on `tick()`.
+
+        Raises `AdmissionError` if not admitted. Raises
+        `NotImplementedError` (from the service) if the service
+        cannot be individually evicted (e.g. shared-runtime).
+        Idempotent: unloading an already-unloaded program is a no-op.
+        """
+        with self._lock:
+            if name not in self._table:
+                raise AdmissionError(
+                    f"process {name!r} is not admitted; cannot unload"
+                )
+            ap = self._table[name]
+            ap.service.unload()
+            self._tier[name] = Tier.DISC
+
+    def load(self, name: str) -> None:
+        """(Re)instantiate a program's Sutra runtime so it is
+        GPU-resident and runs again. Idempotent: loading an
+        already-loaded program is a no-op. Raises `AdmissionError`
+        if not admitted."""
+        with self._lock:
+            if name not in self._table:
+                raise AdmissionError(
+                    f"process {name!r} is not admitted; cannot load"
+                )
+            ap = self._table[name]
+            ap.service.load()
+            self._tier[name] = Tier.GPU
+
+    def tier(self, name: str) -> Tier:
+        """The storage tier a program currently lives in."""
+        with self._lock:
+            if name not in self._tier:
+                raise AdmissionError(
+                    f"process {name!r} is not admitted"
+                )
+            return self._tier[name]
+
+    def gpu_resident(self) -> list[str]:
+        """Names of programs currently resident on the GPU."""
+        with self._lock:
+            return sorted(
+                n for n, t in self._tier.items() if t is Tier.GPU
+            )
 
     # --- tick scheduler (sequential; v0.1 will swap for GPU-tick) ---
 
     def tick(self) -> dict[str, int]:
-        """Run one tick: every admitted service drains its inbox once.
+        """Run one tick: every **GPU-resident** admitted service
+        drains its inbox once.
+
+        A program that has been `unload()`-ed is on the DISC tier —
+        it is not on the GPU, so it does not run. It still appears
+        in the returned dict (count 0) so callers can see it was
+        skipped, not silently dropped.
 
         Returns a per-process dict of axons-processed counts. The
         order is not promised stable; the production GPU-tick model
-        runs every admitted process simultaneously.
+        runs every GPU-resident process simultaneously.
         """
         counts: dict[str, int] = {}
         # Snapshot the table so a service that deregisters another
         # mid-tick doesn't blow up the iteration.
         with self._lock:
-            snapshot = list(self._table.values())
-        for ap in snapshot:
-            counts[ap.manifest.name] = ap.service.tick()
+            snapshot = [
+                (ap, self._tier.get(ap.manifest.name, Tier.GPU))
+                for ap in self._table.values()
+            ]
+        for ap, tier in snapshot:
+            if tier is Tier.GPU:
+                counts[ap.manifest.name] = ap.service.tick()
+            else:
+                counts[ap.manifest.name] = 0  # unloaded — not on GPU
         return counts
 
     # --- introspection ---
