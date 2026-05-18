@@ -15,10 +15,26 @@
 **An autonomous hourly cron drives this repo** (a sibling machine
 pushes Sutra + site work concurrently). Every cycle: `git fetch` →
 FF/rebase Yantra (never force-push / reset --hard / discard the
-other machine's work) → bump `external/Sutra` to its `origin/master`
-→ commit+push → then work `queue.md`, and when it has no actionable
-Yantra item, promote the next **genuinely-unblocked, bounded,
-verifiable** `todo.md` item (plan into `queue.md` first).
+other machine's work) → bump `external/Sutra` **to its latest
+release tag** → commit+push → then work `queue.md`, and when it
+has no actionable Yantra item, promote the next
+**genuinely-unblocked, bounded, verifiable** `todo.md` item (plan
+into `queue.md` first).
+
+> **⚠️ Submodule-tracking correction (2026-05-17).** The old text
+> here (and Yantra CLAUDE.md § "Cross-repo workflow") said bump to
+> `origin/master`. **Sutra migrated its default branch master→main
+> (CI + Pages migrated; `master` is now FROZEN at `v0.4.1`).**
+> Following the stale `master` instruction silently missed 36
+> Sutra commits + the `v0.5.0` tag for a whole session. **Pin
+> against Sutra release *tags*** (the External-dependencies rule
+> already says "pin a specific tag, never a branch"): check the
+> latest tag with `git -C external/Sutra fetch --tags && git -C
+> external/Sutra tag --sort=-creatordate | head`, verify the
+> Yantra kernel regression is green at it, then pin. CLAUDE.md
+> § "Cross-repo workflow" still says `git checkout master` — that
+> is stale; treat "master" there as "the latest release tag on
+> Sutra's real default branch (`main`)" until the user updates it.
 
 **Where the live state is** (don't re-derive it — read these):
 - `queue.md` — the active item + the standing **Sutra-side
