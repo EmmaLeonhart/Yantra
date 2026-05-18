@@ -41,10 +41,17 @@ blocker, never a loosened assertion. Correct stale/false docs the
 moment you find them (this loop has de-lied several already). Name
 unbuilt/hard things plainly ("Don't paper over difficulty").
 
-**What's genuinely unblocked vs not:** most §1 kernel items are
-blocked — GPU passthrough (no spare GPU/VFIO), unbuilt Sutra
-primitives (serialise-process-state / evict-from-GPU), or the
-large Rust orchestrator port with no tight spec. The browser (§3)
+**What's genuinely unblocked vs not** (refreshed 2026-05-17):
+DISC↔GPU load/unload is now DONE (real RTX 4070; `evict-from-GPU`
+turned out to be buildable, not an unbuilt primitive — it's
+`_VSA` device-tensor release). Still blocked: the RAM cold-store
+of *running* state (genuinely needs Sutra
+`serialise-process-state`), real per-process GPU arenas + GPU-tick
+parallelism (need the multi-process Sutra runtime), the large Rust
+orchestrator port (no tight spec), and bare-metal-boot-to-GPU
+(needs Linux host + VFIO + spare GPU — the RTX 4070 is the host's,
+fine for running the kernel on it directly, not for VM
+passthrough). The browser (§3)
 is build-sequence-gated (milestone 3, after kernel + CLI
 utilities) — do not jump it. The high-yield unblocked work has
 been: cross-repo regression root-causes+fixes, and honest
@@ -94,14 +101,21 @@ production form is Rust. Hardening list:
   `axon_project`). The strict-`xfail` test stays accurate for the
   connectome case. Full reasoning: `planning/20` § "Status
   (2026-05-17)".
-- **Storage-tier moves: disc ↔ RAM ↔ GPU.** The Python prototype
-  only implements admit/deregister against an in-memory pool. The
-  Connectome Manager's actual job is shuffling programs between
-  disc, RAM, and GPU per the architecture. RAM in Yantra is
-  semantically closer to disc than to traditional RAM
-  (`planning/01-architecture.md` § "The kernel is a Connectome
-  Manager"); the manager decides which tier each program lives in
-  at any moment.
+- **Storage-tier moves: disc ↔ RAM ↔ GPU — DISC↔GPU DONE
+  2026-05-17.** The DISC↔GPU slice ships: `Init.load`/`unload`
+  instantiate / tear down a program's CUDA-resident Sutra runtime
+  with the GPU memory genuinely reclaimed (real RTX 4070, measured
+  669696→0→669696 B; `tests/test_kernel_gpu_tiers.py`). The old
+  "only admit/deregister against an in-memory pool" + the §44-46
+  "blocked on … evict-from-GPU" are stale: `evict-from-GPU` is now
+  real (proactive `_VSA` device-tensor release). **Still open:**
+  the RAM cold-store of a *running* program's mutated state
+  (checkpoint + bit-exact resume) — that genuinely needs the Sutra
+  `serialise-process-state` primitive. So start/stop-on-GPU is
+  done; pause-and-resume-preserving-state is the remaining piece.
+  RAM in Yantra is semantically closer to disc than to traditional
+  RAM (`planning/01-architecture.md` § "The kernel is a Connectome
+  Manager").
 - **Real per-process GPU memory arenas.** v0.0's `compute_units`
   is bookkeeping only. Production needs the multi-process Sutra
   runtime (being implemented in the Sutra repo upstream) to carve

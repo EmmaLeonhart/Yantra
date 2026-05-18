@@ -33,17 +33,39 @@
 >    iterates services sequentially on CPU. Real Yantra runs all
 >    admitted programs simultaneously on the GPU at every tick.
 >    Single-program-per-tick is a CPU-side stand-in.
-> 4. Not a model of the storage-tier moves the Connectome Manager
->    actually does. The disc ↔ RAM ↔ GPU shuffling that is the
->    Connectome Manager's primary job is not implemented; v0.0
->    only does in-memory admit/deregister.
+> 4. Partial model of the storage-tier moves the Connectome
+>    Manager does. **The DISC↔GPU slice is now implemented and
+>    GPU-measured** (corrected 2026-05-17 — the old "not
+>    implemented; only admit/deregister" text was stale, and so was
+>    "blocked on no GPU": there is a real RTX 4070 here):
+>    `Init.load(name)`/`unload(name)` instantiate / tear down a
+>    program's CUDA-resident Sutra runtime, with the GPU memory
+>    actually reclaimed (`tests/test_kernel_gpu_tiers.py`:
+>    `loaded=669696 → unloaded=0 → reloaded=669696` bytes). What is
+>    *still* not modelled is the **RAM cold-store of a running
+>    program's mutated state** (checkpoint + bit-exact resume) —
+>    that needs the Sutra `serialise-process-state` primitive,
+>    which does not exist. So: start/stop-on-GPU works; pause-and-
+>    resume-preserving-state does not. Naming the real remaining
+>    gap, not the old over-broad one.
 
 ## What runs today
 
 ```bash
-# All kernel tests (unit + real-Sutra integration + Linux 0.00):
-python -m pytest tests/test_kernel.py tests/test_kernel_sutra.py tests/test_linux_000.py -v
+# All kernel tests (unit + real-Sutra + Linux 0.00 + GPU tiers):
+python -m pytest tests/test_kernel.py tests/test_kernel_sutra.py \
+    tests/test_linux_000.py tests/test_kernel_gpu_tiers.py -v
 ```
+
+**`tests/test_kernel_gpu_tiers.py` proves the load/unload-onto-GPU
+MVP.** CUDA-gated (skips without a GPU). It admits a real
+`SutraService`, then measures `torch.cuda.memory_allocated()`
+across `unload`/`load`: `loaded=669696 → unloaded=0 →
+reloaded=669696` bytes — the program's GPU arena is genuinely
+allocated, freed on unload, and re-allocated on reload, and the
+program stops running on `tick()` while unloaded. This is the
+Connectome Manager's core "decide what is resident on the GPU"
+job, for real.
 
 **`tests/test_kernel_sutra.py` is the one that proves Sutra is
 running.** It admits two real `SutraService`s — `echo.su` and
@@ -116,21 +138,33 @@ Sutra-side work that hasn't shipped:
   being built in the Sutra repo upstream; until that lands, no
   orchestrator (Python or Rust) can make real per-process arenas
   work.
-- **Disc ↔ RAM ↔ GPU storage-tier moves** — the Connectome
-  Manager's actual job. Blocked on Sutra-side primitives that
-  don't exist yet: serialise-process-state-to-bytes (so a live
-  Sutra process can be paused) and evict-from-GPU. The
-  multi-program axon-passing demo in
-  `external/Sutra/examples/multi_program_axon/` runs each program
-  to completion and serialises its *output*; it doesn't
-  pause-and-resume a live process.
+- **Storage-tier moves — DISC↔GPU done; RAM cold-store still
+  blocked.** (Corrected 2026-05-17.) `Init.load`/`unload` is real
+  and GPU-measured: a program's CUDA-resident Sutra runtime is
+  instantiated / torn down with the GPU memory actually reclaimed
+  (`evict-from-GPU` is no longer a missing primitive — it's
+  proactive `_VSA` device-tensor release in
+  `SutraService.unload()`; `tests/test_kernel_gpu_tiers.py`).
+  What is **still** blocked is checkpointing a *running* program's
+  mutated state to a RAM/disc cold-store and resuming it bit-exact
+  — that needs the Sutra `serialise-process-state` primitive,
+  which does not exist. The multi-program axon-passing demo in
+  `external/Sutra/examples/multi_program_axon/` serialises a
+  program's *output*, not a live process's state. So the MVP is
+  "start/stop a program on the GPU" (done), not "pause a running
+  program and resume it where it left off" (still open).
 - **GPU-tick-parallel scheduling.** `Init.tick()` iterates
   services sequentially on the CPU. Production Yantra runs all
   admitted processes simultaneously on the GPU at each tick. The
   service abstraction is concurrency-agnostic so the swap is
   drop-in once the upstream Sutra runtime supports it.
-- **Eviction to RAM cold-store.** Same blocker as the storage-tier
-  moves. v0.0 only implements admit + deregister.
+- **Eviction to RAM cold-store (state-preserving).** Evicting a
+  program *from the GPU* is done (`unload`, GPU memory freed).
+  What remains is preserving its *running* state across the
+  eviction so a later `load` resumes where it left off rather than
+  fresh — same `serialise-process-state` blocker as above. Today
+  `unload`/`load` is load-fresh/drop, which is the correct MVP
+  semantics for start/stop.
 - **Rotation-operator-based capability check.** v0.0 trusts the
   sender's name (admission grants identity; capability is checked
   by name). Production's threat model
