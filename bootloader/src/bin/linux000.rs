@@ -56,7 +56,11 @@ static mut CUR: u32 = 0;
 // kernel prints a DONE marker and halts. Keeps the serial
 // transcript finite and the A/B pattern unambiguous.
 static TOTAL: AtomicU32 = AtomicU32::new(0);
-const LIMIT: u32 = 40;
+// One full 80x25 VGA text screen: the faithful Linux 0.00 "the
+// screen fills with AAAA…BBBB…". 2000 = 80*25 so vga_putc fills
+// every cell exactly once (no wrap), then both tasks halt with a
+// static, fully-painted screen — ideal for a screenshot.
+const LIMIT: u32 = 2000;
 
 // --- entry + naked ISRs (asm) ---------------------------------------
 
@@ -293,7 +297,10 @@ unsafe fn remap_pic() {
 
 /// 8253 PIT channel 0, mode 3 (square wave), ~100 Hz.
 unsafe fn init_pit() {
-    let divisor: u16 = 11932; // 1193182 / 100 ≈ 11932
+    // ~1000 Hz (1193182 / 1193 ≈ 1000). Faster than Linux 0.00's
+    // ~100 Hz only so a full-screen fill takes ~2 s instead of
+    // ~20 s — same real 8253 PIT, same real timer-driven switch.
+    let divisor: u16 = 1193;
     outb(0x43, 0x36);
     outb(0x40, (divisor & 0xFF) as u8);
     outb(0x40, (divisor >> 8) as u8);
@@ -384,7 +391,7 @@ pub extern "C" fn kernel_main() -> ! {
         sputs(b"  [ok] 8259 PIC remapped (IRQ0->0x20, only IRQ0 unmasked)\n");
 
         init_pit();
-        sputs(b"  [ok] 8253 PIT @ ~100 Hz (channel 0, mode 3)\n");
+        sputs(b"  [ok] 8253 PIT @ ~1000 Hz (channel 0, mode 3)\n");
 
         let esp_a = seed_task(&mut *core::ptr::addr_of_mut!(TASK_A_STACK), task_a);
         let esp_b = seed_task(&mut *core::ptr::addr_of_mut!(TASK_B_STACK), task_b);

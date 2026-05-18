@@ -175,11 +175,16 @@ opaque constants. Honest-scope limits below stand unchanged.
 **DONE.** `bootloader/src/bin/linux000.rs` — a 2nd binary in the
 bootloader crate. 32-bit protected mode, multiboot1, **no GPU**.
 Real GDT + IDT, real **8259 PIC** remap (IRQ0→vector 0x20), real
-**8253 PIT** @ ~100 Hz, two hardcoded tasks A/B each with its own
+**8253 PIT** @ ~1000 Hz, two hardcoded tasks A/B each with its own
 seeded stack, a naked **timer ISR** doing a software ESP context
 switch round-robin. Output to the VGA text buffer (0xB8000 — the
-faithful "screen") and COM1 serial (the capturable proof). Build:
-`scripts/linux000-build.{sh,bat}`; run:
+faithful "screen") and COM1 serial (the capturable proof). Each
+task emits exactly one char then `hlt`, so the timer tick drives
+the switch. `LIMIT` is one full 80×25 screen (2000) so the screen
+visibly fills, then both tasks halt with a static painted screen.
+PIT is ~1000 Hz (vs Linux 0.00's ~100 Hz) only so a full-screen
+fill takes ~2 s not ~20 s — same real 8253, same real switch.
+Build: `scripts/linux000-build.{sh,bat}`; run:
 `scripts/linux000-run.{sh,bat}`.
 
 Two real bugs were found and fixed (not papered over): (1)
@@ -200,10 +205,10 @@ Yantra bare-metal Linux 0.00 replica - hello from bare metal
   [ok] GDT loaded (flat code 0x08 / data 0x10)
   [ok] IDT loaded (exc 0..31, timer @ 0x20)
   [ok] 8259 PIC remapped (IRQ0->0x20, only IRQ0 unmasked)
-  [ok] 8253 PIT @ ~100 Hz (channel 0, mode 3)
+  [ok] 8253 PIT @ ~1000 Hz (channel 0, mode 3)
   [ok] tasks A/B seeded; jump-starting task A
   --- timer-driven A/B stream follows ---
-BABABABABABABABABABABABABABABABABABABABA
+BABABABAB … (2000 chars; one full 80x25 screen) … BABABAB
 [linux000] reached LIMIT; timer-driven A/B task switch verified
 [linux000 DONE]
 ```
@@ -211,11 +216,17 @@ BABABABABABABABABABABABABABABABABABABABA
 The QEMU `-d int` log **independently** confirms it is genuine
 hardware-timer-driven, not a busy-loop print: repeated `v=20`
 (our remapped IRQ0) interrupts with `EAX` alternating `0x41`/`0x42`
-('A'/'B') across the two task contexts. 20 A / 20 B, perfectly
-alternating. It leads with `B` because the first PIT tick lands
-between task A's counter-increment and its first `sputc` — an
-honest one-character startup timing artifact (this is what
-preemptive timing looks like), not a correctness bug.
+('A'/'B') across the two task contexts. It leads with `B` because
+the first PIT tick lands between task A's counter-increment and
+its first `sputc` — an honest one-character startup timing
+artifact (this is what preemptive timing looks like), not a
+correctness bug.
+
+**Visual proof in the VM.** Captured via QEMU QMP `screendump`
+(not faked): `bootloader/linux000_screen.png` — the full 80×25
+VGA text screen painted with the timer-alternated `BABABA…`, the
+faithful Linux 0.00 "the screen fills". This is the bare metal
+running visibly in the QEMU VM, not just a serial transcript.
 
 This is the faithful Linux 0.00 mechanism: two hardcoded tasks,
 the real PIT/PIC, a real timer interrupt switching them, output
