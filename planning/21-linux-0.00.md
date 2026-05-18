@@ -85,25 +85,49 @@ that in Yantra's connectome model.
    "What runs today"; delete the queue item on completion.
 5. Update this doc's status section with measured results.
 
-## Honest scope — what is NOT replicated
+## Two realizations (both real, both done)
 
-- **No bare-metal boot.** Linux 0.00's defining trait is that it
-  boots from a 512-byte sector into protected mode on real x86.
-  Yantra's bootloader (`bootloader/`, Rust, v0.4) reaches long
-  mode in QEMU but **real Sutra-kernel execution at boot is gated
-  on GPU passthrough** (VFIO + spare GPU, or a GRUB ISO build —
-  `bootloader/README.md`). A bare-metal A/B-on-the-framebuffer
-  replica (real PIT IRQ + TSS + VGA writes in Rust long mode) is
-  the *deeper-fidelity* version and is a **separate, bootloader-
-  track item**, not this one. This item is the milestone-1
-  (Connectome Manager) realization, which is what is buildable
-  today. Naming this gap is required by CLAUDE.md "Don't paper
-  over difficulty."
-- **No hardware task switch.** By Yantra architecture, on purpose
-  (see table). The faithfulness is to the *purpose*, not the TSS
-  mechanism.
+This doc originally framed "the bare-metal replica" as deferred
+and *"gated on GPU passthrough"*. **That was a conflation, now
+corrected (2026-05-17).** There are two independent realizations:
 
-## Status
+1. **Connectome-Manager realization** (the Yantra-native mapping
+   in the table above) — `kernel/services/task_{a,b}.su` +
+   `tests/test_linux_000.py`. Done; measured below.
+2. **Bare-metal realization** — `bootloader/src/bin/linux000.rs`.
+   Linux 0.00 runs in **32-bit protected mode writing to VGA text
+   memory**; it touches **no GPU at all**. So it was never
+   actually GPU-gated — it builds and runs on the existing v0.4
+   bootloader infrastructure (multiboot1, real 32-bit Rust in
+   QEMU). Done; measured below.
+
+The GPU-passthrough / GRUB-ISO blockers in `bootloader/README.md`
+are about a **different, larger** thing: running the **Sutra
+kernel itself on a real GPU at boot** (v0.5+), which needs a Linux
+host + VFIO + a spare GPU and 64-bit Rust. That is unrelated to
+Linux 0.00, which is pure CPU + VGA. Conflating the two is the
+exact "paper over difficulty" failure CLAUDE.md warns against —
+fixed here and in `bootloader/README.md`.
+
+### Honest scope — what is still NOT replicated
+
+- **No hardware TSS task switch.** Linux 0.00 used the x86
+  hardware-TSS `ljmp` mechanism. The bare-metal replica uses a
+  **software** ESP context switch in the timer ISR (the
+  modern-OSdev equivalent — same observable behaviour, fewer
+  modern-QEMU footguns). Faithfulness is to the *purpose*
+  (timer-interrupt-driven multitasking of two trivial tasks), not
+  the exact TSS opcode.
+- **No real-hardware boot / no real disk boot sector.** It boots
+  via QEMU's multiboot1 `-kernel`, not a 512-byte BIOS boot
+  sector off a disk. QEMU is the dev tier; real-iron boot is a
+  separate concern.
+- The **Connectome-Manager** realization additionally does not
+  context-switch by design (Yantra's kernel doesn't — see table);
+  its faithfulness is to Linux 0.00's purpose in the connectome
+  model, not the mechanism.
+
+## Status — Connectome-Manager realization
 
 **DONE — 2026-05-17** (executed by the scheduled cron session).
 
@@ -146,13 +170,69 @@ needed: Sutra's `real_number` cleanly emits a single decodable
 codepoint vector, so the A/B are genuine substrate values, not
 opaque constants. Honest-scope limits below stand unchanged.
 
+## Status — bare-metal realization (2026-05-17)
+
+**DONE.** `bootloader/src/bin/linux000.rs` — a 2nd binary in the
+bootloader crate. 32-bit protected mode, multiboot1, **no GPU**.
+Real GDT + IDT, real **8259 PIC** remap (IRQ0→vector 0x20), real
+**8253 PIT** @ ~100 Hz, two hardcoded tasks A/B each with its own
+seeded stack, a naked **timer ISR** doing a software ESP context
+switch round-robin. Output to the VGA text buffer (0xB8000 — the
+faithful "screen") and COM1 serial (the capturable proof). Build:
+`scripts/linux000-build.{sh,bat}`; run:
+`scripts/linux000-run.{sh,bat}`.
+
+Two real bugs were found and fixed (not papered over): (1)
+`nightly-2026-04-01` gates JSON target specs behind
+`-Zjson-target-spec` — added `[unstable] json-target-spec` to
+`bootloader/.cargo/config.toml` (also un-breaks a bare
+`cargo build` of the v0.4 bootloader); (2) the `global_asm!`
+lacked `.code32`, so LLVM assembled `iret` as 16-bit `iretw` →
+`#GP` at the task-switch return (caught by the `[EXC]` handler,
+diagnosed from the QEMU `-d int` log: `v=0d e=0010`).
+
+**Measured QEMU serial transcript** (`-serial file:` capture, NOT
+hand-written):
+
+```
+Yantra bare-metal Linux 0.00 replica - hello from bare metal
+  32-bit protected mode, multiboot1, no GPU.
+  [ok] GDT loaded (flat code 0x08 / data 0x10)
+  [ok] IDT loaded (exc 0..31, timer @ 0x20)
+  [ok] 8259 PIC remapped (IRQ0->0x20, only IRQ0 unmasked)
+  [ok] 8253 PIT @ ~100 Hz (channel 0, mode 3)
+  [ok] tasks A/B seeded; jump-starting task A
+  --- timer-driven A/B stream follows ---
+BABABABABABABABABABABABABABABABABABABABA
+[linux000] reached LIMIT; timer-driven A/B task switch verified
+[linux000 DONE]
+```
+
+The QEMU `-d int` log **independently** confirms it is genuine
+hardware-timer-driven, not a busy-loop print: repeated `v=20`
+(our remapped IRQ0) interrupts with `EAX` alternating `0x41`/`0x42`
+('A'/'B') across the two task contexts. 20 A / 20 B, perfectly
+alternating. It leads with `B` because the first PIT tick lands
+between task A's counter-increment and its first `sputc` — an
+honest one-character startup timing artifact (this is what
+preemptive timing looks like), not a correctness bug.
+
+This is the faithful Linux 0.00 mechanism: two hardcoded tasks,
+the real PIT/PIC, a real timer interrupt switching them, output
+poked into VGA memory. Run it yourself: `scripts/linux000-run.sh`
+(or `.bat`).
+
 ## Cross-references
 
 - `kernel/README.md` — the v0.0 Connectome Manager API this builds on.
 - `kernel/init.py` — `Init.tick()` (the timer-IRQ analogue) + the
   explicit "does NOT schedule / context-switch" design.
-- `bootloader/README.md` — where the deeper bare-metal replica's
-  blockers (GPU passthrough / GRUB ISO) are recorded.
+- `bootloader/src/bin/linux000.rs` — the bare-metal realization
+  (32-bit, no GPU). `scripts/linux000-{build,run}.{sh,bat}`.
+- `bootloader/README.md` — the v0.4 bootloader; its GPU-passthrough
+  / GRUB-ISO blockers are about running the **Sutra kernel on a
+  real GPU at boot** (v0.5+), NOT about Linux 0.00 (which is pure
+  CPU+VGA and is done — see § "Two realizations").
 - `planning/18-kernel-browser-readiness.md` — build-sequence context.
 - Source: <https://computernewb.com/wiki/Linux_0.00>,
   oldlinux.org `Linux.old/kernel/0.00/`.
