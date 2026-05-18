@@ -91,6 +91,47 @@ since 1.59).
   ELF entry, enabling 64-bit Rust without the two-crate
   workspace alternative.
 
+Note: every blocker above is about running **the Sutra kernel on
+a real GPU at boot** (needs Linux host + VFIO + spare GPU + 64-bit
+Rust). None of it gates the bare-metal Linux 0.00 replica below,
+which is pure CPU + VGA.
+
+## Bare-metal Linux 0.00 replica (`linux000` bin) — WORKS
+
+`src/bin/linux000.rs` is a second binary in this crate: a faithful
+bare-metal replica of **Linux 0.00** (Torvalds 1991 — two
+hardcoded tasks, A writes 'A', B writes 'B', alternated by the
+timer interrupt, output to VGA text memory). It runs in **32-bit
+protected mode and touches no GPU at all**, so — unlike the v0.5+
+Sutra-on-GPU path above — it is fully buildable and runnable
+today on this same multiboot1 infrastructure.
+
+Real GDT + IDT, real 8259 PIC remap (IRQ0→0x20), real 8253 PIT
+@ ~100 Hz, two tasks with their own seeded stacks, a naked timer
+ISR doing a software ESP context switch round-robin. Output to
+the VGA text buffer (0xB8000) and COM1 serial.
+
+```bash
+./scripts/linux000-build.sh && ./scripts/linux000-run.sh
+# Windows: scripts\linux000-build.bat & scripts\linux000-run.bat
+```
+
+Measured QEMU serial (verified 2026-05-17, `-serial file:`
+capture — not hand-written; QEMU `-d int` log independently shows
+the genuine `v=20` timer IRQs driving the switch):
+
+```
+  [ok] 8259 PIC remapped (IRQ0->0x20, only IRQ0 unmasked)
+  [ok] 8253 PIT @ ~100 Hz (channel 0, mode 3)
+  [ok] tasks A/B seeded; jump-starting task A
+  --- timer-driven A/B stream follows ---
+BABABABABABABABABABABABABABABABABABABABA
+[linux000 DONE]
+```
+
+Full design, the two real bugs fixed (json-target-spec; `.code32`/
+`iretw`), and the honest-scope limits: `planning/21-linux-0.00.md`.
+
 ## Prerequisites
 
 ### Rust toolchain
@@ -163,6 +204,8 @@ Then QEMU stays open with the VM halted — exit with `Ctrl+A`, then
 | `Cargo.toml` | Crate manifest. No third-party deps — pure no_std + inline asm. |
 | `src/main.rs` | Multiboot1 header static; `_start` + long-mode transition + 64-bit hello-print in `global_asm!`; `kernel_main` in 32-bit Rust (writes banner, runs PCI scan, returns into the long-mode asm tail). |
 | `src/pci.rs` | PCI config-space access via I/O ports `0xCF8` / `0xCFC`. Enumerates all (bus, dev, func) combos; calls back per present device. |
+| `src/bin/linux000.rs` | The bare-metal Linux 0.00 replica (2nd bin). Multiboot1 32-bit; GDT/IDT/8259-PIC/8253-PIT; two tasks + naked timer-ISR software context switch; VGA + COM1 output. Verified in QEMU — see the §"Bare-metal Linux 0.00 replica" above. |
+| `.cargo/config.toml` | + `[unstable] json-target-spec` so a bare `cargo build` works on `nightly-2026-04-01` (also un-breaks the v0.4 build). |
 | `linker.ld` | Linker script. Puts `.multiboot` first (multiboot1 needs it in the first 8KB), loads at 1MB physical (where QEMU's `-kernel` puts multiboot binaries). |
 | `i686-yantra.json` | Custom target spec — bare-metal i686, no OS, no SSE. |
 | `.cargo/config.toml` | Cargo config: target = our JSON; `build-std` rebuilds core for the bare target; `-Tlinker.ld` linker arg. |
