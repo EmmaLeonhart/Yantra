@@ -64,6 +64,14 @@ global_asm!(
     r#"
     .intel_syntax noprefix
     .section .text
+    /* multiboot1 hands off in 32-bit protected mode. Without an
+     * explicit .code32 the LLVM assembler emits the 16-bit forms
+     * of mode-sized instructions — notably `iret` -> `iretw`
+     * (pops 16-bit IP/CS/FLAGS, 6 bytes, not 32-bit EIP/CS/EFLAGS,
+     * 12 bytes), which #GPs the moment the task switch returns.
+     * The v0.4 bootloader's asm is explicitly .code32/.code64 for
+     * the same reason. */
+    .code32
     .global _start
 _start:
     /* multiboot1 hands off in 32-bit protected mode, flat segments
@@ -84,7 +92,7 @@ _start:
      * its entry point. This IS the timer-interrupt task switch. */
     .global timer_isr
 timer_isr:
-    pusha                       /* edi esi ebp esp ebx edx ecx eax */
+    pushad                      /* edi esi ebp esp ebx edx ecx eax */
     mov al, 0x20                /* non-specific EOI ... */
     out 0x20, al               /* ... to the master 8259 PIC */
     /* save current ESP -> TASK_ESP[CUR] */
@@ -96,8 +104,8 @@ timer_isr:
     mov [CUR], eax
     /* ESP = TASK_ESP[CUR] */
     mov esp, [edi + eax*4]
-    popa
-    iret
+    popad
+    iretd
 
     /* ---- default exception ISR ----
      * Any CPU exception we didn't expect: print a marker via COM1
@@ -130,8 +138,8 @@ exc_isr:
     .global start_tasks
 start_tasks:
     mov esp, [esp + 4]         /* arg0 = task-0 initial ESP */
-    popa
-    iret
+    popad
+    iretd
 
     .section .bss
     .align 16
@@ -332,10 +340,10 @@ extern "C" fn task_b() -> ! {
     task_body(b'B')
 }
 
-/// Seed a task's initial stack so the timer ISR's `popa; iret`
+/// Seed a task's initial stack so the timer ISR's `popad; iretd`
 /// tail lands at `entry` with interrupts enabled. Layout, high → low
-/// address:  [EFLAGS][CS][EIP] then the 8-word pusha block. Returns
-/// the ESP value (points at the pusha block) for TASK_ESP[k].
+/// address:  [EFLAGS][CS][EIP] then the 8-dword pushad block. Returns
+/// the ESP value (points at the pushad block) for TASK_ESP[k].
 unsafe fn seed_task(stack: &'static mut [u32; TASK_STACK_WORDS], entry: extern "C" fn() -> !) -> u32 {
     let top = stack.as_mut_ptr().add(TASK_STACK_WORDS);
     // iret frame
