@@ -68,6 +68,7 @@ from kernel.init import (
     AdmissionError,
     Init,
     PoolExhaustedError,
+    Tier,
 )
 from kernel.services import (
     PythonService,
@@ -89,6 +90,7 @@ __all__ = [
     "PythonService",
     "Service",
     "SutraService",
+    "Tier",
     "load_manifest",
     "make_shared_sutra_services",
 ]

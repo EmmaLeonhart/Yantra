@@ -27,6 +27,7 @@ embedding tables.
 from __future__ import annotations
 
 import dataclasses
+import gc
 import os
 import pathlib
 import sys
@@ -55,6 +56,31 @@ class Service:
     @property
     def name(self) -> str:
         return self._manifest.name
+
+    # --- GPU residency (Connectome Manager tier moves) -------------
+    #
+    # The kernel decides which programs are resident on the GPU vs
+    # at rest. The base service is always "loaded" and cannot be
+    # unloaded — only a real Sutra runtime holds GPU tensors worth
+    # evicting. SutraService overrides these.
+
+    @property
+    def is_loaded(self) -> bool:
+        return True
+
+    @property
+    def unloadable(self) -> bool:
+        return False
+
+    def unload(self) -> None:
+        raise NotImplementedError(
+            f"{type(self).__name__} is not unloadable"
+        )
+
+    def load(self) -> None:
+        """Re-instantiate after an unload. No-op for always-loaded
+        services."""
+        return None
 
     def emit(
         self, role: str, payload: Any,
@@ -156,6 +182,107 @@ class SutraService(Service):
     def axon_keys_read(self) -> frozenset[str]:
         """Keys this service reads (from the compiled module's static analysis)."""
         return self._axon_keys_read
+
+    # --- GPU residency: load / unload (the kernel's tier move) -----
+
+    @property
+    def is_loaded(self) -> bool:
+        """True iff the Sutra runtime is instantiated and GPU-resident."""
+        return self._on_axon is not None
+
+    @property
+    def unloadable(self) -> bool:
+        # Shared-MultiProcessRuntime services share one `_VSA`;
+        # residency is a property of the runtime, not one service.
+        # Per-service-compile services own their `_VSA` and can be
+        # individually evicted. (Shared-runtime eviction is a
+        # documented follow-on, not the MVP.)
+        return self._runtime is None
+
+    def unload(self) -> None:
+        """Evict this program from the GPU: tear down its Sutra
+        runtime and free the GPU memory it held. The process stays
+        admitted (route entry kept) and can be `load()`-ed again.
+
+        Honest scope: this is *residency* load-fresh/drop, NOT a
+        running-state checkpoint. A program's mutated runtime state
+        is NOT preserved across unload — preserving it needs the
+        Sutra `serialise-process-state` primitive, which does not
+        exist yet. For the MVP "start/stop a program on the GPU",
+        drop-and-reload is the correct semantics.
+        """
+        if not self.unloadable:
+            raise NotImplementedError(
+                f"{self.name!r} runs on a shared MultiProcessRuntime; "
+                f"per-service GPU eviction is a documented follow-on, "
+                f"not the MVP. Unload the whole runtime instead."
+            )
+        if self._on_axon is None:
+            return  # already unloaded — idempotent
+        # The router's projector closure captures the compiled
+        # module's `_VSA`; leaving it registered pins the GPU
+        # tensors and defeats the free. Drop it first.
+        self._router.unregister_projector(self.name)
+        # Proactively release the runtime's device tensors. Nulling
+        # the module ref alone does NOT reliably drop GPU memory
+        # (measured: 0 bytes freed) — a lingering Python ref to the
+        # `_VSA` (e.g. a held traceback, a debugger, an interactive
+        # frame) keeps every tensor alive. So we explicitly None out
+        # the `_VSA`'s tensor attributes and clear its caches /
+        # module globals: the *evicted* program's GPU arena is
+        # released regardless of any dangling ref to the (now
+        # gutted) objects. This is the correct eviction teardown —
+        # the Rust orchestrator's per-process GPU-arena free has the
+        # same shape. `load()` rebuilds a fresh module, so gutting
+        # the old one is safe.
+        try:
+            import torch
+            _is_tensor = torch.is_tensor
+        except Exception:
+            torch = None
+
+            def _is_tensor(_):
+                return False
+
+        mod = self._compiled_module
+        if mod is not None:
+            vsa = getattr(mod, "_VSA", None)
+            if vsa is not None and hasattr(vsa, "__dict__"):
+                for k, v in list(vars(vsa).items()):
+                    if _is_tensor(v):
+                        setattr(vsa, k, None)
+                    elif isinstance(v, dict):
+                        v.clear()   # _rot_cache, _perm_cache, codebook
+                    elif isinstance(v, list):
+                        v.clear()
+            for k in list(vars(mod).keys()):
+                if not k.startswith("__"):
+                    try:
+                        setattr(mod, k, None)
+                    except Exception:
+                        pass
+        self._on_axon = None
+        self._compiled_module = None
+        gc.collect()
+        if torch is not None:
+            try:
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+            except Exception:
+                pass
+
+    def load(self) -> None:
+        """(Re)instantiate the Sutra runtime so the program is
+        GPU-resident again. Idempotent. Requires a prior bind
+        (admission) so the manifest + router are known."""
+        if self._on_axon is not None:
+            return  # already loaded — idempotent
+        if not hasattr(self, "_manifest") or not hasattr(self, "_router"):
+            raise RuntimeError(
+                f"{self._source_path.name!r} cannot load before its "
+                f"first admission (no manifest/router bound yet)"
+            )
+        self.bind(manifest=self._manifest, router=self._router)
 
     def bind(self, *, manifest: Manifest, router: AxonRouter) -> None:
         super().bind(manifest=manifest, router=router)
