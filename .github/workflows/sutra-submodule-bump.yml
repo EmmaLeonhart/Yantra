@@ -2,17 +2,26 @@ name: Sutra submodule daily bump
 
 # Yantra is "the OS that uses Sutra"; the two are tightly coupled and
 # Sutra changes (often driven from inside Yantra sessions) land on
-# Sutra master continuously. This job keeps Yantra's pinned
-# external/Sutra pointer tracking Sutra master HEAD so a substrate fix
+# Sutra's default branch continuously. This job keeps Yantra's pinned
+# external/Sutra pointer tracking that branch's HEAD so a substrate fix
 # (e.g. the 2026-05-15 transcendental substrate-leak fix) reaches
 # Yantra without a human remembering to bump the submodule.
 #
-# This is the master-HEAD-bump shape the cross-repo workflow in
+# It resolves Sutra's default branch dynamically (ls-remote --symref)
+# rather than hardcoding it. This is deliberate: the previous version
+# hardcoded `master`, and the 2026-05 Sutra master→main migration left
+# `master` frozen at a5c0896 — so this job ran daily, saw "master
+# unchanged", and silently never advanced to `main` for weeks. A
+# dynamic default-branch lookup cannot rot that way again.
+#
+# This is the default-branch-HEAD-bump shape the cross-repo workflow in
 # CLAUDE.md authorizes for runtime/docs Sutra changes. It deliberately
-# does NOT pin a tag — release-tag pinning (the procurement-security
-# posture for external deps) is a separate, manual decision made when
-# Yantra needs to depend on a specific Sutra version. If you want that
-# stricter posture, disable this workflow and bump by tag instead.
+# does NOT pin a tag, and it touches ONLY external/Sutra — the
+# coreutils/util-linux/busybox submodules stay tag-pinned per the
+# procurement-security posture in CLAUDE.md § "External dependencies".
+# Release-tag pinning of Sutra is a separate, manual decision made when
+# Yantra needs a specific Sutra version. For that stricter posture,
+# disable this workflow and bump by tag instead.
 
 on:
   schedule:
@@ -45,22 +54,32 @@ jobs:
           persist-credentials: true
           fetch-depth: 0
 
-      - name: Fast-forward external/Sutra to Sutra master HEAD
+      - name: Fast-forward external/Sutra to Sutra default-branch HEAD
         id: bump
         run: |
           set -euo pipefail
           old_sha="$(git -C external/Sutra rev-parse HEAD)"
-          git -C external/Sutra fetch origin master --depth=1
-          new_sha="$(git -C external/Sutra rev-parse origin/master)"
+          # Resolve Sutra's own remote default branch (main today; was
+          # master pre-2026-05). Hardcoding the branch is exactly what
+          # froze this pointer at old master — never reintroduce that.
+          branch="$(git -C external/Sutra ls-remote --symref origin HEAD \
+                    | awk '/^ref:/{sub("refs/heads/","",$2);print $2;exit}')"
+          if [ -z "${branch:-}" ]; then
+            echo "Could not resolve Sutra's default branch" >&2
+            exit 1
+          fi
+          echo "Sutra default branch: $branch"
+          git -C external/Sutra fetch origin "$branch" --depth=1
+          new_sha="$(git -C external/Sutra rev-parse "origin/$branch")"
           echo "old=$old_sha" >> "$GITHUB_OUTPUT"
           echo "new=$new_sha" >> "$GITHUB_OUTPUT"
           if [ "$old_sha" = "$new_sha" ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "Sutra master unchanged ($new_sha) — nothing to bump."
+            echo "Sutra $branch unchanged ($new_sha) — nothing to bump."
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
             git -C external/Sutra checkout --detach "$new_sha"
-            echo "Sutra master moved: $old_sha -> $new_sha"
+            echo "Sutra $branch moved: $old_sha -> $new_sha"
           fi
 
       - name: Commit + push the pointer bump
@@ -82,6 +101,7 @@ jobs:
           git commit -m "Bump Sutra submodule ${short_old} -> ${short_new} (daily auto-bump)
 
           Automated by .github/workflows/sutra-submodule-bump.yml —
-          tracks Sutra master HEAD per the cross-repo workflow. Review
-          the Sutra log between these SHAs if a Yantra build regresses."
+          tracks Sutra's default-branch HEAD per the cross-repo
+          workflow. Review the Sutra log between these SHAs if a
+          Yantra build regresses."
           git push origin HEAD:main
