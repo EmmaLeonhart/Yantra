@@ -66,8 +66,8 @@ Two trends converge:
    is what a substrate looks like once you stop pretending.
 
 A bet underneath all of this: if a credible analog/neuromorphic substrate
-emerges, Yantra is already the
-operating system designed for it. See `13-hardware-roadmap.md`.
+emerges, Yantra is already the operating system designed for it. See
+`13-hardware-roadmap.md`.
 
 ## What "good" looks like
 
