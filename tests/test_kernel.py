@@ -252,6 +252,42 @@ def test_send_fans_out_to_multiple_receivers() -> None:
     assert init.router.inbox_depth("r2") == 1
 
 
+def test_fv_role_contract_read_isolation() -> None:
+    """FV §3.1 contract obligation, RECEIVE half: a process is delivered ONLY
+    axons on roles it declared in read_roles, even when other roles flow
+    concurrently — no cross-role leakage.
+
+    Complements the WRITE/capability half (test_send_refused_when_sender_
+    lacks_write_role) and the no-reader case (test_send_to_unadmitted_role_
+    is_black_hole). Together these mechanically discharge the role-level
+    contract obligation the kernel enforces (cf.
+    external/Sutra/planning/sutra-spec/formal-verification.md §3.1). The
+    router enforces read-isolation structurally via its role->readers table;
+    this confirms it with two concurrent roles and checks the payloads are
+    role-correct, so a routing bug that crossed the streams would be caught.
+    """
+    init = Init(compute_pool=5)
+    got_a: list[tuple[str, object]] = []
+    got_b: list[tuple[str, object]] = []
+    sender = _admit(init, name="sender", reads=set(), writes={"R_a", "R_b"})
+    _admit(
+        init, name="reader_a", reads={"R_a"}, writes=set(),
+        svc=PythonService(lambda s, ax: got_a.append((ax.role, ax.payload))),
+    )
+    _admit(
+        init, name="reader_b", reads={"R_b"}, writes=set(),
+        svc=PythonService(lambda s, ax: got_b.append((ax.role, ax.payload))),
+    )
+
+    sender.emit("R_a", "payload_a")
+    sender.emit("R_b", "payload_b")
+    init.tick()
+
+    # Each reader saw exactly its own role's axon — no cross-delivery.
+    assert got_a == [("R_a", "payload_a")], f"reader_a cross-delivery: {got_a}"
+    assert got_b == [("R_b", "payload_b")], f"reader_b cross-delivery: {got_b}"
+
+
 def test_send_from_unadmitted_process_raises() -> None:
     router = AxonRouter()
     with pytest.raises(NotAdmittedError):
