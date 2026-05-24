@@ -1,6 +1,7 @@
 # `apps/calc` — the CLI calculator
 
-Type `5 * 10 =`, get `50`. A plain text-in / text-out calculator — the
+Type `5 * 10 =` and get `50` — or a full expression like
+`2 + 3 * 4 = 14`. A plain text-in / text-out calculator — the
 small, definitive contrast with Meta's *Neural Computers* (NCCLIGen, a
 DiT video model that *generates* terminal frames and whose own paper
 lists symbolic stability as unsolved). Two things it shows:
@@ -10,6 +11,11 @@ lists symbolic stability as unsolved). Two things it shows:
    through the kernel, exact by construction. Where a diffusion model
    hallucinates a plausible-looking number, Yantra computes the true
    one.
+
+Multi-term expressions with operator precedence and parentheses are
+supported (`2 + 3 * 4 = 14`, `(10 - 2) * 5 = 40`): a recursive-descent
+parser on the host evaluates **each binary operation on the substrate**
+in turn, and the whole expression is refused if any step can't be exact.
 
 ## Layering
 
@@ -45,5 +51,5 @@ orchestration** (the CPU side's job); the `+ - * /` operators are real
 ## Run the tests
 
 ```bash
-pytest tests/test_calc.py -v   # 28 cases, all exact-or-refused
+pytest tests/test_calc.py -v   # 52 cases, all exact-or-refused
 ```

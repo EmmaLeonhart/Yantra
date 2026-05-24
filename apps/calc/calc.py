@@ -12,14 +12,17 @@ names symbolic stability as unsolved). Two things it demonstrates:
      true one.
 
 Layering matches the architecture (planning/01): text I/O + parsing is
-**host orchestration** (the CPU side's job); the ``+ - *`` services are
-real ``.su`` programs the kernel admits and runs on the substrate.
+**host orchestration** (the CPU side's job); the ``+ - * /`` services
+are real ``.su`` programs the kernel admits and runs on the substrate.
+Multi-term expressions with precedence and parentheses are supported
+(``2 + 3 * 4 = 14``, ``(10 - 2) * 5 = 40``) — a recursive-descent parser
+on the host evaluates each binary operation on the substrate in turn.
 
-Exact for integer operands and results within the float32 exact-integer
-range (|value| < 2**24). Bigger values need an arbitrary-precision
-digit encoding (planning/22 Stage 3). Division is omitted on purpose —
-Sutra has no runtime real/complex division yet (docs/numeric-math.md
-"Pending"), so a ``/`` expression errors rather than printing a guess.
+Every result is verified exact against a host oracle and REFUSED if it
+can't be confirmed (a non-terminating quotient like ``10 / 3``, a
+divide-by-zero, or a result past the float32 exact range) — never
+approximated. Arbitrary precision to extend the range is planning/22
+Stage 3.
 """
 from __future__ import annotations
 
@@ -45,13 +48,19 @@ AXON_WIDTH = 768
 
 # operator symbol -> service name (matching the .su files).
 OPS = {"+": "add", "-": "sub", "*": "mul", "/": "div"}
-# Host oracle for the exactness gate in evaluate() (monitoring only).
-# Division is handled separately (exact-rational check) in evaluate().
-_HOST_OP = {"+": operator.add, "-": operator.sub, "*": operator.mul}
-# Parse ``a op b`` with an optional trailing ``=``. We accept ``/`` in
-# the grammar only so we can give a clear "unsupported" error instead
-# of a parse error.
-_EXPR = re.compile(r"^\s*(-?\d+)\s*([-+*/])\s*(-?\d+)\s*=?\s*$")
+# Host oracle for the exactness gate (monitoring only): exact rational
+# arithmetic used to verify each substrate op's result.
+_FOPS = {
+    "+": operator.add, "-": operator.sub,
+    "*": operator.mul, "/": operator.truediv,
+}
+# Expression tokens: integer literals, the four operators, parentheses.
+_TOKEN = re.compile(r"\d+|[-+*/()]")
+
+
+def _fmt(x: Fraction) -> int | float:
+    """An int when integral, else a float — for display/error messages."""
+    return int(x) if x.denominator == 1 else float(x)
 
 
 class Calculator:
@@ -109,75 +118,124 @@ class Calculator:
         )
 
     def evaluate(self, line: str) -> int | float:
-        """Parse ``a op b`` (optional trailing ``=``); compute on substrate.
+        """Evaluate an arithmetic expression on the substrate.
 
-        Returns the exact result — an ``int``, or a ``float`` for exact
-        fractional division like ``7 / 2``. Raises ``ValueError`` on an
-        unparseable expression, division by zero, or a result the
-        substrate cannot compute exactly (refused, never approximated).
+        Supports multi-term expressions with ``+ - * /``, precedence, and
+        parentheses (``2 + 3 * 4`` → ``14``), unary minus, and an optional
+        trailing ``=``. Each binary operation is computed on a real Sutra
+        service through the kernel and verified exact; the returned value
+        is an ``int`` (or a ``float`` for an exact fraction like
+        ``7 / 2``). Raises ``ValueError`` on a parse error, division by
+        zero, or any result the substrate cannot compute exactly (refused,
+        never approximated).
         """
-        m = _EXPR.match(line)
-        if not m:
+        toks = self._tokenize(line)
+        self._toks, self._pos = toks, 0
+        value = self._parse_expr()
+        if self._pos != len(toks):
+            raise ValueError(
+                f"unexpected token {toks[self._pos]!r} in {line!r}"
+            )
+        return _fmt(value)
+
+    @staticmethod
+    def _tokenize(line: str) -> list[str]:
+        s = line.strip()
+        if s.endswith("="):
+            s = s[:-1]
+        toks = _TOKEN.findall(s)
+        # Reject stray characters: the tokens must account for everything
+        # but whitespace.
+        if "".join(toks) != re.sub(r"\s+", "", s):
             raise ValueError(f"cannot parse expression: {line!r}")
-        a, op, b = int(m.group(1)), m.group(2), int(m.group(3))
-        if op not in OPS:
-            raise ValueError(f"operator {op!r} is not supported")
+        if not toks:
+            raise ValueError(f"empty expression: {line!r}")
+        return toks
+
+    # --- recursive-descent parser; each binary op runs on the substrate ---
+
+    def _peek(self) -> str | None:
+        return self._toks[self._pos] if self._pos < len(self._toks) else None
+
+    def _parse_expr(self) -> Fraction:  # term (('+' | '-') term)*
+        value = self._parse_term()
+        while self._peek() in ("+", "-"):
+            op = self._toks[self._pos]
+            self._pos += 1
+            value = self._binop(value, op, self._parse_term())
+        return value
+
+    def _parse_term(self) -> Fraction:  # factor (('*' | '/') factor)*
+        value = self._parse_factor()
+        while self._peek() in ("*", "/"):
+            op = self._toks[self._pos]
+            self._pos += 1
+            value = self._binop(value, op, self._parse_factor())
+        return value
+
+    def _parse_factor(self) -> Fraction:  # NUMBER | '(' expr ')' | ('-'|'+') factor
+        t = self._peek()
+        if t is None:
+            raise ValueError("unexpected end of expression")
+        if t == "-":
+            self._pos += 1
+            return -self._parse_factor()
+        if t == "+":
+            self._pos += 1
+            return self._parse_factor()
+        if t == "(":
+            self._pos += 1
+            value = self._parse_expr()
+            if self._peek() != ")":
+                raise ValueError("missing closing parenthesis")
+            self._pos += 1
+            return value
+        if t.isdigit():
+            self._pos += 1
+            return Fraction(int(t))
+        raise ValueError(f"unexpected token {t!r}")
+
+    def _binop(self, a: Fraction, op: str, b: Fraction) -> Fraction:
+        """Compute ``a op b`` on the substrate; verify exact; return exact.
+
+        The substrate computes the value; an exact-rational host oracle
+        (monitoring) verifies it. Anything not confirmed exact is refused
+        rather than approximated.
+        """
         if op == "/" and b == 0:
             raise ValueError("division by zero")
+        result = self._binop_substrate(float(a), float(b), op)
+        true = _FOPS[op](a, b)  # exact rational
+        if Fraction(result) != true:
+            raise ValueError(
+                f"{_fmt(a)} {op} {_fmt(b)} is not exactly representable on "
+                f"the substrate (~ {result:g}); refusing rather than printing "
+                f"an approximation (arbitrary precision: planning/22 Stage 3)"
+            )
+        return true
+
+    def _binop_substrate(self, a: float, b: float, op: str) -> float:
+        """Run one binary op on a real Sutra service through the kernel."""
         name = OPS[op]
         vsa = self.services[name]._compiled_module._VSA  # noqa: SLF001
-        # Encode the operands into a two-key axon on the substrate.
-        axon = vsa.axon_add(vsa.zero_vector(), "a", float(a))
-        axon = vsa.axon_add(axon, "b", float(b))
-
+        axon = vsa.axon_add(vsa.zero_vector(), "a", a)
+        axon = vsa.axon_add(axon, "b", b)
         self._received.clear()
         self._producer.emit(f"R_{name}_in", axon)
-        # Two ticks: one fires the op service, one fires the sink.
-        self.init.tick()
-        self.init.tick()
+        self.init.tick()  # fire the op service
+        self.init.tick()  # fire the sink
         if len(self._received) != 1:
             raise RuntimeError(
-                f"calculator delivered {len(self._received)} results for "
-                f"{line!r} (expected 1)"
+                f"calculator delivered {len(self._received)} results (expected 1)"
             )
-        result = float(vsa.real(self._received[0].payload))  # decode real axis
-
-        # Exactness gate (monitoring, allowed): the real axis is float32,
-        # so verify each substrate result against a host oracle and REFUSE
-        # anything we can't confirm exact rather than print a wrong
-        # answer. "Never a wrong answer" is the whole point versus a model
-        # that hallucinates.
-        if op == "/":
-            # Division (Sutra complex_div). Accept only results that are
-            # the EXACT rational a / b; non-terminating quotients (10/3)
-            # and any float32-inexact result are refused, not rounded.
-            true = Fraction(a, b)
-            if Fraction(result) != true:
-                raise ValueError(
-                    f"{a} / {b} is not exactly representable on the substrate "
-                    f"(~ {result:g}); refusing rather than printing an "
-                    f"approximation"
-                )
-            return int(result) if true.denominator == 1 else result
-
-        # +, -, *: integer-exact. Float32 holds integers to 2**24 exactly
-        # (and some larger ones); refuse anything that doesn't verify.
-        got = int(round(result))
-        if got != _HOST_OP[op](a, b):
-            raise ValueError(
-                f"{a} {op} {b} is outside the substrate's exact range "
-                f"(float32 integers to 2**24); refusing the inexact result "
-                f"rather than printing a wrong answer "
-                f"(arbitrary precision: planning/22 Stage 3)"
-            )
-        return got
+        return float(vsa.real(self._received[0].payload))  # decode real axis
 
 
 def main() -> None:  # pragma: no cover - interactive REPL
     import sys
 
     calc = Calculator()
-    print("Yantra calculator — type e.g. `5 * 10 =`  (Ctrl-D to quit).")
+    print("Yantra calculator — type an expression, e.g. `2 + 3 * 4 =`  (Ctrl-D to quit).")
     for line in sys.stdin:
         line = line.strip()
         if not line:
