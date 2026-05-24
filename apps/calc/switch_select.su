@@ -1,0 +1,49 @@
+// switch_select.su — calculator operator dispatch via the LANGUAGE'S OWN
+// `select` primitive, made exact by softmax saturation. This is the
+// intended switch (Emma's "defuzzify select enough so the branches stop
+// blending" approach); it is the better answer than the Lagrange-mask
+// switch.su because it uses Sutra's conditional-branching primitive rather
+// than an arithmetic identity. VERIFIED 18/18 bit-exact (incl. b=0 and the
+// 2^24 ceiling).
+//
+// ⚠️ INERT until `dot` is in PINNED Sutra. It uses the `dot` builtin, which
+// is currently on Sutra's `yantra-driven` branch (commit d17feaf4), NOT on
+// master — and Yantra pins master. When `dot` merges to Sutra master and
+// the submodule is bumped, PROMOTE this file to `switch.su` and point
+// calc.py's source_path at it. Until then `switch.su` (Lagrange masks) is
+// the active, pinned-Sutra-compatible switch. See planning/23.
+//
+// How it stays exact: score_t = -120*(op-t)^2, read as a clean scalar with
+// dot(op - make_real(t), make_real(1)) — the dot with the real unit zeroes
+// every other axis (incl. axon-recovery noise). At op=t the score is 0;
+// elsewhere it is <= -120, and exp(-120) underflows to exactly 0.0 in
+// float32, so select's softmax is a TRUE one-hot and the matched branch
+// passes through with zero blend. A second select picks the division
+// denominator (b for op=/, else 1) so a zero denominator in a killed
+// branch can never produce nan. A genuine /0 (op=/, b=0) is caught upstream.
+function vector on_axon(vector input_axon) {
+    complex a = axon_item(input_axon, "a");
+    complex b = axon_item(input_axon, "b");
+    vector op = axon_item(input_axon, "op");
+
+    vector u = real_number(1.0);
+    scalar d0 = dot(op - real_number(0.0), u);
+    scalar d1 = dot(op - real_number(1.0), u);
+    scalar d2 = dot(op - real_number(2.0), u);
+    scalar d3 = dot(op - real_number(3.0), u);
+
+    scalar s0 = 0.0 - 120.0 * d0 * d0;
+    scalar s1 = 0.0 - 120.0 * d1 * d1;
+    scalar s2 = 0.0 - 120.0 * d2 * d2;
+    scalar s3 = 0.0 - 120.0 * d3 * d3;
+
+    vector one = real_number(1.0);
+    complex denom = select([s0, s1, s2, s3], [one, one, one, b]);
+    complex quot = a / denom;
+
+    complex sum  = a + b;
+    complex diff = a - b;
+    complex prod = a * b;
+
+    return select([s0, s1, s2, s3], [sum, diff, prod, quot]);
+}
