@@ -37,36 +37,35 @@ ambition in `todo.md` § 5.
 **Decomposed into ordered, bounded steps. Work top-down; promote each
 into its own active item as it is picked up. Focus = symbolic stability
 via execution; we are NOT chasing video / screen-frame generation
-(deferred, only if the GUI layer lands):**
+(deferred, only if the GUI layer lands).**
 
-1. **Symbol-fidelity harness — fully unblocked, do this first.** A
-   repeatable test pushing a long scripted sequence (N ≥ 1000) of
-   distinct symbols (text + numbers) through the kernel router
-   (producer → echo → sink), asserting **100% exact match, zero
-   drift** as N grows. Turns Stage 0 (proof-in-miniature) into the
-   measured seed of the symbol-fidelity-vs-horizon figure. No new
-   Sutra primitives — extends `apps/echo` + `tests/`. The core of the
-   claim; start here.
-2. **Minimal terminal surface.** A Sutra-native command reader
+Shipped: the Stage-1 **symbol-fidelity harness** —
+`tests/test_symbol_fidelity.py`, 1024/1024 symbols bit-exact through a
+real Sutra service + the kernel router, zero drift (see `planning/22`
+Stage 1). Remaining steps, in order:
+
+1. **Minimal terminal surface.** A Sutra-native command reader
    (scripted or button-driven is fine — need not be keyboard-typed)
    that admits a utility through the kernel and shows its exact output.
-3. **First CLI utilities beyond echo** (cat, ls, wc) — native Sutra,
+   Start here.
+2. **First CLI utilities beyond echo** (cat, ls, wc) — native Sutra,
    gated on Sutra's string + IO + FS vocabulary; promote from
    `todo.md` § 2 as each unblocks.
-4. **Calculator app — the optimal demo (stretch).** A visible
+3. **Calculator app — the optimal demo (stretch).** A visible
    calculator: press buttons → the result is *actually computed* on
-   the substrate, exact every time. Exceeds Meta (their GUIWorld would
-   generate a plausible-but-wrong frame; a diffusion model can't
-   compute 4729 × 8831 — ours does). Needs a minimal GUI (button grid
-   + display), possibly a small carve-out ahead of the full browser.
-5. **Ship a downloadable demo on the site.** Once the terminal (then
+   the substrate, exact every time. Exceeds Meta (a diffusion model
+   can't compute 4729 × 8831 — ours does). Needs a minimal GUI (button
+   grid + display) AND an arbitrary-precision number representation:
+   the real axis is float32 (exact only to 2²⁴), so big products need a
+   digit-array (make_string-style) encoding — settle that before the
+   buttons. See `planning/22` Stage 3.
+4. **Ship a downloadable demo on the site.** Once the terminal (then
    the calculator) runs, host a downloadable, runnable artifact on
    yantra.emmaleonhart.com, plus the contrast figure vs a generative
    baseline.
 
 Not in scope: replicating their *video / screen-frame generation*
 (NCGUIWorld-style) — deferred, optional, only if the GUI layer matures.
-Start at (1): fully unblocked, the measured heart of the demo.
 
 ---
 
