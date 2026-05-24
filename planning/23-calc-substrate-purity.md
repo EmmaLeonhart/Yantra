@@ -7,14 +7,18 @@ drifts"):
 
 1. **Host Python picks the operation.** `calc.py`'s `OPS[op]` selects which `.su`
    to run. Operation *selection* is part of the computation; a host `if`/dict
-   choosing it is a substrate leak.
+   choosing it is a substrate leak. **CLOSED 2026-05-24** — replaced by
+   `switch.su` (exact Lagrange one-hot masks on the substrate; see Stage 3).
 2. **Host Python returns the answer.** `_binop` computes on the substrate, then
    recomputes the exact answer with a host `Fraction`, compares, and **returns the
    host value** — using the substrate only as a pass/refuse gate. The displayed
-   exactness is host-provided, not substrate-provided.
+   exactness is host-provided, not substrate-provided. **STILL OPEN** — closing it
+   means dropping the "never a wrong answer" refuse-gate, which is a user-facing
+   product decision (see "Drop the exactness oracle" below). Flag for Emma; do not
+   do autonomously.
 
-The four per-op files (`add/sub/mul/div.su`) are real substrate math. What's
-missing is the *switch* and *trusting the substrate's own output*.
+The four per-op files (`add/sub/mul/div.su`) were real substrate math; they are
+**removed** — `switch.su` computes all four internally and selects on the substrate.
 
 ## The correct design — parse + switch, all on the substrate
 
@@ -36,13 +40,30 @@ Walk the codepoint string:
 
 **Stage 2 — compute all four ops at once:** `a+b`, `a−b`, `a×b`, `a÷b`.
 
-**Stage 3 — defuzzified one-hot switch:** from the operator build
-`is_add/is_sub/is_mul/is_div` ≈ 1 for the match, ≈ 0 otherwise (defuzzification,
-`is_true`/`select`, per
-`external/Sutra/planning/sutra-spec/equality-and-defuzzification.md`). Then
-`result = is_add·(a+b) + is_sub·(a−b) + is_mul·(a×b) + is_div·(a÷b)` — the three
-unselected branches are ×0; only the chosen one survives. One substrate expression,
-no host `if`.
+**Stage 3 — exact one-hot switch (IMPLEMENTED + measured 2026-05-24).** The
+original plan was a "defuzzified one-hot switch" via `is_true`/`select`. **That
+does not work on the pinned substrate — measured, not assumed:**
+- `is_true` is **not a builtin** in the pinned Sutra compiler (`588055e3`).
+- `select(scores, options)` is a **softmax-weighted** superposition, never a hard
+  one-hot. For a numeric (non-argmax-decodable) result it returns a blend of all
+  four branches: measured **13/13 wrong, worst abs error 1.26×10⁷** (e.g.
+  `1000 − 1000` → 250492). The operator embeddings are barely separated (match
+  similarity 0.089 vs ~0.06 off-match), so softmax is ≈uniform (0.25 each); and
+  sharpening can't reach one-hot (×100 → max weight only 0.82), while *any*
+  residual weight on the product branch corrupts the real-axis number.
+
+**What works (measured 18/18 bit-exact, incl. `b=0` and the 2²⁴ ceiling):** exact
+**Lagrange one-hot masks** over the integer operator grid {0=+, 1=−, 2=×, 3=÷}.
+With the operator as a real-axis code `op`, the basis polynomial
+`m_t(op) = Π_{j≠t} (op−j)/(t−j)` is **exactly 1 at `op=t` and exactly 0 at every
+other integer grid point**, using only real `+ − × ÷`. Then
+`result = m0·(a+b) + m1·(a−b) + m2·(a×b) + quot`. The division branch is
+**self-guarding** — `quot = (m3·a)/(m3·b + (1−m3))` is `a/b` when `op=÷` (m3=1) and
+`0/1 = 0` otherwise — so a zero denominator in an *unselected* branch never poisons
+the sum with nan (a genuine `÷0` still yields nan and is caught upstream by the
+host, a domain error, not an arithmetic result). Shipped as `apps/calc/switch.su`;
+`calc.py` passes the op-code and the host `OPS[op]` dispatch is gone. **Leak 1
+closed.** All 53 `tests/test_calc.py` cases stay green.
 
 **Output:** the Sutra program's float goes out to the host, which displays it.
 (Native float→string rendering *on the substrate* is a future want — there's no

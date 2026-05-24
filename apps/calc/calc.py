@@ -12,17 +12,21 @@ names symbolic stability as unsolved). Two things it demonstrates:
      true one.
 
 Layering matches the architecture (planning/01): text I/O + parsing is
-**host orchestration** (the CPU side's job); the ``+ - * /`` services
-are real ``.su`` programs the kernel admits and runs on the substrate.
-Multi-term expressions with precedence and parentheses are supported
-(``2 + 3 * 4 = 14``, ``(10 - 2) * 5 = 40``) — a recursive-descent parser
-on the host evaluates each binary operation on the substrate in turn.
+**host orchestration** (the CPU side's job); the arithmetic — including
+*which* operation runs — happens on the substrate. ``switch.su`` computes
+all four ops and selects the requested one with exact Lagrange one-hot
+masks driven by an operator code, so the host does not pick the operation
+with an ``OPS[op]`` dispatch. Multi-term expressions with precedence and
+parentheses are supported (``2 + 3 * 4 = 14``, ``(10 - 2) * 5 = 40``) — a
+recursive-descent parser on the host evaluates each binary operation on
+the substrate in turn.
 
-Every result is verified exact against a host oracle and REFUSED if it
-can't be confirmed (a non-terminating quotient like ``10 / 3``, a
-divide-by-zero, or a result past the float32 exact range) — never
-approximated. Arbitrary precision to extend the range is planning/22
-Stage 3.
+Known remaining purity gap (planning/23 step c): the result is still
+verified against a host oracle and REFUSED if it can't be confirmed (a
+non-terminating quotient like ``10 / 3``, a divide-by-zero, or a result
+past the float32 exact range) — never approximated. Returning the
+substrate's own decoded float (dropping the refuse-gate) is a pending
+product decision. Arbitrary precision is planning/22 Stage 3.
 """
 from __future__ import annotations
 
@@ -46,8 +50,10 @@ from kernel.router import Axon  # noqa: E402
 APPS_CALC = pathlib.Path(__file__).resolve().parent
 AXON_WIDTH = 768
 
-# operator symbol -> service name (matching the .su files).
-OPS = {"+": "add", "-": "sub", "*": "mul", "/": "div"}
+# operator symbol -> real-axis op-code fed to switch.su, which selects the
+# operation ON THE SUBSTRATE via exact Lagrange one-hot masks (not a host
+# `if`/dict). 0=+, 1=-, 2=*, 3=/ — the integer grid switch.su interpolates.
+CODE = {"+": 0.0, "-": 1.0, "*": 2.0, "/": 3.0}
 # Host oracle for the exactness gate (monitoring only): exact rational
 # arithmetic used to verify each substrate op's result.
 _FOPS = {
@@ -72,36 +78,31 @@ class Calculator:
 
     def __init__(self) -> None:
         self.init = Init(compute_pool=32)
-        self.services: dict[str, SutraService] = {}
-        in_roles: set[str] = set()
-        out_roles: set[str] = set()
-        for name in OPS.values():
-            svc = SutraService(
-                source_path=APPS_CALC / f"{name}.su",
-                output_role=f"R_{name}_out",
-            )
-            self.init.admit(
-                Manifest(
-                    name=name, axon_width=AXON_WIDTH, compute_units=1,
-                    read_roles=frozenset({f"R_{name}_in"}),
-                    write_roles=frozenset({f"R_{name}_out"}),
-                    source=f"{name}.su",
-                ),
-                svc,
-            )
-            self.services[name] = svc
-            in_roles.add(f"R_{name}_in")
-            out_roles.add(f"R_{name}_out")
+        # ONE service computes every operation and selects the requested
+        # one on the substrate (switch.su's Lagrange masks). No host
+        # `OPS[op]` choosing which .su to run.
+        self._service = SutraService(
+            source_path=APPS_CALC / "switch.su",
+            output_role="R_switch_out",
+        )
+        self.init.admit(
+            Manifest(
+                name="switch", axon_width=AXON_WIDTH, compute_units=1,
+                read_roles=frozenset({"R_switch_in"}),
+                write_roles=frozenset({"R_switch_out"}),
+                source="switch.su",
+            ),
+            self._service,
+        )
 
-        # One host producer that can inject on any op's input role, and
-        # one host sink that reads every op's output role. The math
-        # still happens inside the .su services; these are just the
-        # orchestrator's I/O endpoints.
+        # Host producer (injects the input axon) and sink (reads the
+        # result). The math — including which operation runs — happens
+        # inside switch.su; these are just the orchestrator's I/O endpoints.
         self._producer = PythonService(lambda s, ax: None)
         self.init.admit(
             Manifest(
                 name="calc_in", axon_width=AXON_WIDTH, compute_units=1,
-                read_roles=frozenset(), write_roles=frozenset(in_roles),
+                read_roles=frozenset(), write_roles=frozenset({"R_switch_in"}),
                 source="calc_in.py",
             ),
             self._producer,
@@ -111,7 +112,7 @@ class Calculator:
         self.init.admit(
             Manifest(
                 name="calc_out", axon_width=AXON_WIDTH, compute_units=1,
-                read_roles=frozenset(out_roles), write_roles=frozenset(),
+                read_roles=frozenset({"R_switch_out"}), write_roles=frozenset(),
                 source="calc_out.py",
             ),
             sink,
@@ -215,14 +216,22 @@ class Calculator:
         return true
 
     def _binop_substrate(self, a: float, b: float, op: str) -> float:
-        """Run one binary op on a real Sutra service through the kernel."""
-        name = OPS[op]
-        vsa = self.services[name]._compiled_module._VSA  # noqa: SLF001
+        """Run one binary op on the substrate, with the OPERATOR SELECTED
+        ON THE SUBSTRATE.
+
+        The host injects operands ``a``/``b`` and an operator *code* (not
+        a choice of service); ``switch.su`` computes all four operations
+        and returns the one the operator code selects via exact Lagrange
+        one-hot masks. There is no host ``OPS[op]`` dispatch — which
+        operation runs is decided on the substrate.
+        """
+        vsa = self._service._compiled_module._VSA  # noqa: SLF001
         axon = vsa.axon_add(vsa.zero_vector(), "a", a)
         axon = vsa.axon_add(axon, "b", b)
+        axon = vsa.axon_add(axon, "op", CODE[op])
         self._received.clear()
-        self._producer.emit(f"R_{name}_in", axon)
-        self.init.tick()  # fire the op service
+        self._producer.emit("R_switch_in", axon)
+        self.init.tick()  # fire the switch service
         self.init.tick()  # fire the sink
         if len(self._received) != 1:
             raise RuntimeError(

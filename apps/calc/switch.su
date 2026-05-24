@@ -1,0 +1,61 @@
+// switch.su — calculator operator dispatch ON THE SUBSTRATE.
+//
+// One service computes all four operations and selects the requested one
+// using EXACT Lagrange one-hot masks over the integer operator grid
+// {0=+, 1=-, 2=*, 3=/}. This replaces host-side `OPS[op]` selection:
+// the host passes the operator as a real-axis code, and the substrate —
+// not a host `if`/dict — decides which arithmetic result survives.
+//
+// Why Lagrange masks and not `select`: Sutra's `select(scores, options)`
+// is a softmax-weighted superposition (never a hard one-hot), so for a
+// numeric (non-argmax-decodable) result it returns a blend of all four
+// branches — measured 13/13 wrong, worst error 1.26e7. The Lagrange
+// basis polynomial m_t(op) = prod_{j!=t} (op-j)/(t-j) is EXACTLY 1 at
+// op=t and EXACTLY 0 at every other integer grid point, using only real
+// arithmetic. Measured 18/18 bit-exact (incl. b=0 and the 2^24 ceiling).
+//
+//   result = m0*(a+b) + m1*(a-b) + m2*(a*b) + quot
+//
+// The division branch is self-guarding: quot = (m3*a)/(m3*b + (1-m3)).
+// When op=/ (m3=1) it is a/b; otherwise (m3=0) it is 0/1 = 0, so a zero
+// denominator in an unselected branch can never poison the sum with nan.
+// A genuine division by zero (op=/, b=0) still yields nan and must be
+// caught upstream by the host (a domain error, not an arithmetic result).
+//
+// Operands are `complex` so `/` routes through Sutra's complex_div; for
+// real inputs (imag=0) every result lands back on the real axis. Exact
+// for operands and result within the float32 exact-integer range
+// (|value| < 2^24); bigger values need an arbitrary-precision digit
+// encoding (planning/22 Stage 3, planning/23 step e).
+function vector on_axon(vector input_axon) {
+    complex a = axon_item(input_axon, "a");
+    complex b = axon_item(input_axon, "b");
+    complex op = axon_item(input_axon, "op");
+
+    complex sum  = a + b;
+    complex diff = a - b;
+    complex prod = a * b;
+
+    complex k1 = real_number(1.0);
+    complex k2 = real_number(2.0);
+    complex k3 = real_number(3.0);
+    complex n6 = real_number(-6.0);
+    complex p2 = real_number(2.0);
+    complex n2 = real_number(-2.0);
+    complex p6 = real_number(6.0);
+    complex one = real_number(1.0);
+
+    complex d0 = op;
+    complex d1 = op - k1;
+    complex d2 = op - k2;
+    complex d3 = op - k3;
+
+    complex m0 = (d1 * d2 * d3) / n6;
+    complex m1 = (d0 * d2 * d3) / p2;
+    complex m2 = (d0 * d1 * d3) / n2;
+    complex m3 = (d0 * d1 * d2) / p6;
+
+    complex quot = (m3 * a) / (m3 * b + (one - m3));
+
+    return m0 * sum + m1 * diff + m2 * prod + quot;
+}

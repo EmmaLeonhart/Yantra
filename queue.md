@@ -65,19 +65,26 @@ not yet substrate-pure. Fix is step 3 below + `planning/23`. See
    **Substrate-purity gap (audit 2026-05-24):** as built, host Python picks which
    operation runs (`OPS[op]`) and returns a host `Fraction` answer (the substrate is
    used only as a pass/refuse gate). That defeats "computes on the substrate." Full
-   redesign in `planning/23-calc-substrate-purity.md`. Barrel-through steps:
-   - b. **Operator dispatch on the substrate** — a `.su` defuzzified switch: compute
-     all four ops on (a,b), one-hot select by operator (`is_true`/`select`), ×0 the
-     rest. Replaces host `OPS[op]`.
-   - c. **Return the substrate float** — drop the host `Fraction` oracle / refuse-gate;
-     output is the substrate's decoded float (host only displays it). Keep host-oracle
-     checks as `tests/` only.
+   redesign + measured findings in `planning/23-calc-substrate-purity.md`. Steps:
+   - b. **Operator dispatch on the substrate — DONE 2026-05-24, verified.** The
+     planning/23 softmax-`select`/`is_true` design does NOT work (measured: 13/13
+     wrong, worst err 1.26e7 — `select` is softmax, never one-hot; `is_true` isn't a
+     pinned builtin). What works (measured 18/18 bit-exact incl. b=0): **exact
+     Lagrange one-hot masks** over the integer op-grid {0,1,2,3} with a self-guarding
+     division branch — `apps/calc/switch.su`. `calc.py` passes an op-code; the
+     substrate selects. Host `OPS[op]` removed.
+   - c. **Return the substrate float (OPEN — needs a product decision).** The host
+     still returns a `Fraction` verified by a host oracle that REFUSES inexact /
+     out-of-range results. Returning the substrate's decoded float instead means
+     dropping the "never a wrong answer" refuse-gate (CLAUDE.md flags the runtime
+     refusal as impure). That is a user-facing product change — do not make it
+     autonomously. Flag for Emma.
    - d. **Parse on the substrate** — a Sutra loop over the codepoint string: digit →
      strip char flag → value; place-value assembly (2-digit cap to start); space ends
      an operand; `=` triggers. Host shrinks to read-line / print-float.
    - e. **Then the optimal demo:** arbitrary-precision (digit-array) so big products
      stay exact past the float32 2²⁴ ceiling.
-   See `planning/23-calc-substrate-purity.md` (full design) + `planning/22` Stage 3.
+   See `planning/23-calc-substrate-purity.md` (full design + findings) + `planning/22`.
 4. **Demo on the site — DONE.** `site/index.html` has a "See it compute"
    section (the calculator transcript + the symbolic-stability contrast),
    live at yantra.emmaleonhart.com; `!runCalculator.bat` at the repo root

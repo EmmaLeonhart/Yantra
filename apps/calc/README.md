@@ -20,16 +20,23 @@ in turn, and the whole expression is refused if any step can't be exact.
 ## Layering
 
 Per `planning/01-architecture.md`, text I/O + parsing is **host
-orchestration** (the CPU side's job); the `+ - * /` operators are real
-`.su` programs the kernel admits and runs on the substrate:
+orchestration** (the CPU side's job); the arithmetic — **including which
+operation runs** — happens on the substrate:
 
-- `add.su`, `sub.su`, `mul.su`, `div.su` — each reads operands `a`/`b`
-  from the input axon and returns the result on the real axis (`div.su`
-  routes through Sutra's `complex_div`). Verified exact through the
-  kernel (`tests/test_calc.py`).
+- `switch.su` — one service computes all four operations and selects the
+  requested one **on the substrate**, using exact Lagrange one-hot masks
+  over the integer operator grid (`0=+ 1=- 2=* 3=/`). This replaced host
+  `OPS[op]` dispatch (the host no longer picks which `.su` runs — it
+  passes an operator code and the substrate decides). Operands are
+  `complex` so `/` routes through Sutra's `complex_div`; the division
+  branch is self-guarding so a zero denominator in an unselected branch
+  can't poison the result. Verified 18/18 bit-exact incl. `b=0` and the
+  `2**24` ceiling; the softmax `select` primitive was measured 13/13
+  wrong for this (it is never a hard one-hot) — see
+  `planning/23-calc-substrate-purity.md`.
 - `calc.py` — the host driver: `Calculator.evaluate("5 * 10 =")` parses
-  the expression, encodes the operands into a two-key axon, routes it to
-  the right op service through the kernel, and decodes the real-axis
+  the expression, encodes the operands + operator code into an axon,
+  routes it through the kernel to `switch.su`, and decodes the real-axis
   result. `python apps/calc/calc.py` is an interactive REPL.
 
 ## Scope
@@ -51,5 +58,5 @@ orchestration** (the CPU side's job); the `+ - * /` operators are real
 ## Run the tests
 
 ```bash
-pytest tests/test_calc.py -v   # 52 cases, all exact-or-refused
+pytest tests/test_calc.py -v   # 53 cases, all exact-or-refused
 ```
