@@ -295,6 +295,27 @@ Two capabilities flagged as wanted, not yet scheduled:
   process uses to persist and query structured / vector data locally
   without leaving the axon world. Design not started.
 
+## 5. Headline demo — out-do the Meta *Neural Computers* prototypes (symbol-stable)
+
+The decisive external proof. Meta's *Neural Computers*
+(arXiv:2604.06425, 2026) shipped two video-diffusion prototypes —
+**CLIGen** (terminal screen frames) and **GUIWorld** (desktop screen
+frames) — whose own paper lists the failure modes: poor symbolic
+stability, weak long-horizon reasoning, behaviour drift. Yantra's
+posture is the opposite (neural *execution*, not *simulation*), so the
+demo that matters is to reproduce both on Yantra with the **symbols
+staying exact** over a long horizon: a real terminal whose output is
+computed (vs CLIGen hallucinating it) and a real browser-rendered
+desktop whose state is maintained (vs GUIWorld diffusing it). Doing
+this definitively is the strongest single piece of evidence the design
+works.
+
+Full roadmap + measurement protocol (exact-match symbol fidelity vs.
+interaction horizon): `planning/22-meta-demo-replication.md`. Gated on
+the build sequence (kernel → CLI → GUI); the proof-in-miniature — an
+exact symbol round-trip through the kernel — already holds via
+`apps/echo`.
+
 ---
 
 ## Pointers to the live work

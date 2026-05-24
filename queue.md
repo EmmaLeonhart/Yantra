@@ -25,6 +25,19 @@ specialization) in `planning/20-lazy-axon-evaluation.md` § "Status
 (2026-05-17)" and `todo.md` § 1. Left here as a precise, narrowed
 blocker for a future Sutra+kernel design session.
 
+### Headline demo — replicate the Meta *Neural Computers* prototypes, symbol-stable
+
+The two things the Meta paper demonstrated — (1) a terminal (their
+CLIGen) and (2) a desktop GUI (their GUIWorld) — reproduced on Yantra
+as real execution so the **symbols stay exact** where their
+video-diffusion approach drifts. That contrast is the decisive proof
+the design works. **Roadmap drafted: `planning/22-meta-demo-replication.md`**
+(current state → Demo 1 terminal → Demo 2 desktop → the
+symbol-fidelity-vs-horizon figure). Gated on the build sequence; the
+near-term bounded step is Demo 1's exact-symbol terminal once the CLI
+utilities + a shell surface land (`todo.md` § 2). Ambition tracked in
+`todo.md` § 5.
+
 ---
 
 ## Pointers
