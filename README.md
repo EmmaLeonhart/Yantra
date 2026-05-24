@@ -103,9 +103,6 @@ This is tier 1 of the three "VM tiers" planned for Yantra. Tier 2 (cloud GPU VM,
   review on every push; reviews live in [paper/reviews/](paper/reviews/).
 - [planning/](planning/README.md) — the design notes, in reading order.
   Start with [`00-vision.md`](planning/00-vision.md).
-- [chats/](chats/) — extracted, readable Markdown of the long-form
-  conversations the design grew out of. Useful for context and for the
-  motivations behind specific decisions.
 
 ## Paper pipeline
 

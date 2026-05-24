@@ -77,7 +77,7 @@ else's GPU" cannot.
 
 ## The CUDA/abstract-substrate relationship
 
-A useful framing borrowed from the chats: Sutra's relationship to
+A useful framing: Sutra's relationship to
 hardware is roughly "compile to CUDA, conceptually need a CPU only to
 orchestrate." This isn't tied to NVIDIA — the same applies to ROCm,
 Apple silicon's Metal, and (eventually) any analog substrate. The
