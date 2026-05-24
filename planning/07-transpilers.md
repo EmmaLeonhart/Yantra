@@ -6,21 +6,21 @@ is **not** "transpile the world into Sutra"; it is "transpile where
 existing code is the well-tested asset, write natively where it is
 not."
 
-Two transpilers are in scope:
+One transpiler is in scope:
 
 1. **JS / TS → Sutra** — **GUI/browser layer only.** The user-facing
    stack is HTML5 + CSS + JavaScript + WebGL/Three.js; component
    logic ships as idiomatic TypeScript and is AOT-transpiled at
    page load. Outside the browser layer this transpiler is not used.
-2. **C → Sutra** — priority but deferred. Scope when built:
-   bootloader, specific Linux drivers worth bringing across,
-   kernel-adjacent pieces. *Not* userspace utilities, *not* the
-   Yantra kernel itself.
+
+There is **no C → Sutra transpiler** (decision 2026-05-23): Yantra
+is not copying the Linux kernel or C apps, userspace is written
+natively in Sutra, and the bootloader + orchestrator are written
+natively in Rust. See "C → Sutra — not planned" below.
 
 Explicitly **deferred — eventually, but not soon** (decision 2026-05-14):
 
-- **WASM → Sutra.** Earlier plans called for best-effort WASM as a
-  fall-out of the C transpiler. WASM is *eventually* in scope but
+- **WASM → Sutra.** WASM is *eventually* in scope but
   **not now and not for a long time** — it is not a v0 target, not a
   v0.1 target, not on any near-term roadmap. WASM's linear-memory
   and threading model is alien to Sutra's substrate; the edge-case
@@ -36,8 +36,8 @@ What is **written natively in Sutra** (no transpiler involved):
   runs on the GPU vs sits in RAM cold-store vs on disk. The CPU-side
   orchestrator wrapper around it is **Rust** (see `01-architecture.md`).
 - **Userspace utilities** (cat, ls, grep, awk, sed, etc.) — see
-  `todo.md` § 2 for the Q-list. The Linux source under `external/`
-  is behavioural reference, not transpile input.
+  `todo.md` § 2 for the Q-list. GNU coreutils / util-linux behaviour
+  is the conceptual reference for these native rewrites.
 
 ## JS / TS → Sutra
 
@@ -118,70 +118,32 @@ To get a usable userspace fast, we draw a line at:
 
 Anything beyond this still works if it does, but is not promised.
 
-## C → Sutra
+## C → Sutra — not planned
 
-**Status: priority but deferred.** The C transpiler is genuinely a
-skeleton today (`external/Sutra/sdk/sutra-from-c/` is ~57 lines of
-CLI scaffolding with no lowering pass). It will be built; it is not
-v0.0 work.
+The C→Sutra transpiler is **not planned** (decision 2026-05-23). An
+earlier draft listed it as "priority but deferred" with a stubbed
+`sdk/sutra-from-c/`; that direction is dropped. The reasoning:
 
-**Scope when it lands.** Strictly kernel-adjacent C — bootloader,
-specific drivers we want to bring across from Linux for well-tested
-behaviour, possibly WASM via the C-like IR path. **Userspace is NOT
-a target for C-transpile.** The Linux userspace utility sources
-under `external/{coreutils,util-linux,busybox}/` are reference
-material — useful for "what does GNU `sort` actually do at the
-edge" — not transpile inputs. Yantra userspace utilities will be
-written natively in Sutra (see `apps/`-shaped work in `todo.md`).
+- Sutra is a systems language for a GPU-native architecture, a poor
+  fit for C's mutable-memory + pointer model. Yantra is not trying to
+  copy the Linux kernel or bring across C userspace.
+- Userspace utilities are written **natively in Sutra**. The
+  bootloader and the CPU-side orchestrator are written **natively in
+  Rust** — not produced by transpiling C. (Sutra pairs naturally with
+  Rust for the systems layer; it does not pair with C.)
+- The only code Yantra needs to *bring across* rather than rewrite is
+  JavaScript/TypeScript, because the GUI layer is "everything is a
+  browser." That is the TS→Sutra transpiler's job, above.
 
-**The kernel itself is NOT C-transpiled.** Yantra's kernel
-(`kernel/` in this repo) is native Sutra. C-transpiling would
-defeat the verification surface argument in `paper/paper.md` § 4 —
-the whole point is that the trusted base reduces to tensor normal
-form, which C-transpiled code does not cleanly do.
-
-What the C transpiler IS for, when built:
-
-- Bootstrapping the firmware-side bootloader (small, finite, the
-  one place we want a known-good C origin).
-- Bringing across specific Linux drivers where the code is
-  well-tested and idiomatic re-writing is wasteful (block-device
-  handling, common filesystem drivers, networking primitives).
-- WASM via the same backend (a cleaner C-shaped IR).
-
-What it is NOT for:
-
-- The kernel — written natively in Sutra.
-- Userspace applications and utilities — native Sutra rewrites.
-- Browser GUI — that is the TS→Sutra transpiler's job.
-- Anything performance-sensitive on the hot path. Translated code
-  is correct, not fast.
-
-### The memory model gap
-
-C's mutable memory + pointers does not map cleanly onto Sutra's
-fixed-width state. The transpiler does its best, but practically:
-
-- Loops in C tend to write into pre-allocated buffers. The transpiler
-  has to reify these as either bounded streams or (when the size is
-  known statically) as fixed-length axons.
-- Pointers as identity (e.g., `*p == *q`) survive by treating pointers
-  as opaque tokens that can be compared but not dereferenced
-  arbitrarily.
-- Dynamic allocation (`malloc`/`free`) is what you must avoid in
-  transpiled C. Code that uses arenas or pre-sized buffers translates
-  cleanly; code that depends heavily on `malloc` is a bad candidate.
-
-Practically, this means we curate which Linux components we transpile,
-and we do small adjustments to the C source first to make it more
-buffer-oriented and less heap-oriented.
+The kernel is, and remains, native Sutra — C-transpiling it would
+have defeated the verification-surface argument in `paper/paper.md`
+§ 4 regardless. C→Sutra may be revisited far down the road, but it is
+not on any roadmap and should not be treated as planned work.
 
 ## WASM → Sutra — deferred (eventually, but not soon)
 
-Earlier drafts committed to a WASM transpile target as a free
-fall-out of the C transpiler. That commitment was rescoped
-2026-05-14: WASM is **eventually** in scope but **not now and not
-for a long time**.
+WASM is **eventually** in scope but **not now and not for a long
+time** (decision 2026-05-14).
 
 The reasoning for the deferral:
 

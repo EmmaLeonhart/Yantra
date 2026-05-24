@@ -57,17 +57,17 @@ Committed:
 
 Explicitly **deferred — eventually, but not soon** (decision 2026-05-14):
 
-- **WebAssembly.** Earlier plans listed best-effort WASM via the C
-  transpiler. WASM is *eventually* in scope but **not now and not
-  for a long time** — not v0, not v0.1, not on any near-term
-  roadmap. The edge cases, threading, and linear-memory model
-  complexity make it a poor fit for the v0 GUI stack the way
-  Sutra+rotation-binding works today. v0's GUI stack is HTML5 +
-  CSS + idiomatic TypeScript + WebGL/Three.js. Web apps that ship
-  only as WASM bundles either re-ship as JS/TS for v0 or wait for
-  the eventual WASM transpile path. See `planning/07-transpilers.md`
-  § "WASM → Sutra — deferred (eventually, but not soon)" for the
-  decision record.
+- **WebAssembly.** WASM is *eventually* in scope but **not now and
+  not for a long time** — not v0, not v0.1, not on any near-term
+  roadmap. WASM's linear-memory and threading model is alien to
+  Sutra's substrate: there is no flat byte heap to map onto the
+  connectome, and its edge cases make it a poor fit for the v0 GUI
+  stack the way Sutra+rotation-binding works today. v0's GUI stack
+  is JS/TS only — HTML5 + CSS + idiomatic TypeScript +
+  WebGL/Three.js. Web apps that ship only as WASM bundles either
+  re-ship as JS/TS for v0 or wait for the eventual WASM lowering
+  path. See `planning/07-transpilers.md` § "WASM → Sutra — deferred
+  (eventually, but not soon)" for the decision record.
 
 Explicitly **not** supported:
 

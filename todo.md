@@ -169,9 +169,10 @@ production form is Rust. Hardening list:
   pattern in `paper/paper.md` § 3.5. Blocked on having target
   hardware. The shim itself is in the Rust orchestrator's scope.
 - **Bootloader.** A small program that loads the compiled kernel
-  image onto the GPU and starts it executing. C or Rust; the
-  C→Sutra transpiler is the long-term target if we want the
-  bootloader inside the verification surface.
+  image onto the GPU and starts it executing. Written **natively in
+  Rust** (see `bootloader/`), the same systems language as the
+  orchestrator — not a C→Sutra transpile target (that transpiler is
+  not planned).
 
 ## ~~Investigate: bundle-decoding regression~~ — RESOLVED 2026-05-15
 
@@ -195,9 +196,10 @@ only** (SSH or serial from a host computer). No GUI in this phase.
 The vision is "we can edit files on this thing from my computer";
 once that works the browser becomes the third milestone.
 
-**Policy:** written natively in Sutra. Not C-transpiled. The
-`external/{coreutils,util-linux,busybox}` submodules are
-behavioural reference, not transpile inputs.
+**Policy:** written natively in Sutra. GNU coreutils / util-linux
+behaviour is the conceptual reference for these rewrites; there is
+no C→Sutra transpiler (not planned), and no vendored Linux source is
+kept in-tree for them.
 
 **Status: cannot do right now.** The blocker is not the language —
 it's that Sutra's string + IO + filesystem vocabulary isn't mature
@@ -273,6 +275,25 @@ What's not yet in any plan:
   implementation path.
 - Network stack (`fetch`, `WebSocket`). Several weeks of work even
   with the language in place.
+
+## 4. Language reach + local data — future wants (2026-05-23)
+
+Two capabilities flagged as wanted, not yet scheduled:
+
+- **Run Python on Yantra.** Python is, with JavaScript, one of the
+  two most widely used languages and the gateway to most ML tooling.
+  The likely path is the route that already works — Python → JS/TS →
+  Sutra — rather than a separate Python frontend. JavaScript stays
+  the priority (the browser layer requires it); Python is the
+  next-most-important language to reach. Leaning *toward* doing this
+  eventually; not a near-term milestone.
+- **A local database.** Yantra is strong on the web/compute side but
+  has no local-data story, and real systems need one — this is a
+  genuine gap. The lean is toward a variant of the Sutra ecosystem's
+  vector-flavoured store (`sutraDB/`), referred to in conversation as
+  a "LOKA"-style store; the exact product is open. Scope: what a
+  process uses to persist and query structured / vector data locally
+  without leaving the axon world. Design not started.
 
 ---
 
