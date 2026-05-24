@@ -70,6 +70,24 @@ no Sutra change) was the active switch until v0.6.1 landed; it worked but was an
 arithmetic identity rather than the language's branching primitive, so it was
 replaced by the `select` version. See `git log` for the Lagrange `switch.su`.
 
+### Extending the exact range — float64 (substrate-pure, verified 2026-05-24)
+
+The "2²⁴ ceiling" is float32's exact-integer mantissa, not a fixed property. Running
+the substrate in **float64 extends the exact-integer range to 2⁵³ (~9.007×10¹⁵)**
+with **no host carries** — the same `switch.su`, just higher-precision substrate.
+Measured through the real compile path: `4729*8831 → 41761799` and
+`94906265² → 9007199136250225` (just under 2⁵³) are bit-exact in float64 where
+float32 is off-by-one; past 2⁵³ the substrate is inexact again, so the exactness
+gate still refuses (never-a-wrong-answer holds at the new ceiling). The `select`
+one-hot stays exact: `exp(−120) ≈ 8×10⁻⁵³` is far below float64 ulp at those
+magnitudes. Enabling change: a selectable substrate dtype
+(`Codegen(runtime_dtype="float64")`), additive + default-float32, shipped on Sutra
+`yantra-driven` (`bc2459ca`). **Gated:** Yantra can't switch the calc to float64
+until that param is in *pinned* Sutra (merge to main, like `dot`); then `calc.py`
+requests float64 and the past-range refusal tests move to >2⁵³ values. This is the
+preferred first step over digit-array arbitrary precision precisely because it adds
+no host-side carry arithmetic.
+
 **Output:** the Sutra program's float goes out to the host, which displays it.
 (Native float→string rendering *on the substrate* is a future want — there's no
 method yet, so for now the host displays the float.)
