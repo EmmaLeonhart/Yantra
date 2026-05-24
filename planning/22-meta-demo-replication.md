@@ -72,23 +72,22 @@ anywhere. It is a stretch — it needs a minimal GUI (a button grid + a
 display) — but it is the demo that makes the contrast undeniable to a
 non-expert: *press the buttons, get the right answer, every time.*
 
-**Update (2026-05-24):** this already ships, in two forms, both over the
-real substrate: a **CLI calculator** (`apps/calc/calc.py`) and a
-**button GUI** (`apps/calc/gui.py`, `!runCalculatorGUI.bat`) — a host
-Tkinter window where you press buttons (or type) and `=` computes the
-answer on real Sutra **`+ - * /`** services through the kernel (division
-via `complex_div`), full expressions with precedence. Every result is
-verified exact and refused if not — never a wrong answer
-(`tests/test_calc.py`, 53 cases). The window and parsing are host
-orchestration; the math is substrate. The button GUI is the
-"press-buttons-get-the-right-answer" demo that exceeds Meta's
-frame-generation.
+**Update (2026-05-24):** the **CLI calculator** ships
+(`apps/calc/calc.py`) — full expressions with precedence, `+ - * /` on
+real Sutra services through the kernel (division via `complex_div`),
+exact or refused (`tests/test_calc.py`). **Substrate-purity caveat:** the
+per-op `.su` math is real, but operator dispatch and the returned value
+are still host-side, not yet substrate-pure — the redesign is
+`planning/23`.
 
-**Not** the Yantra-OS-native GUI: that "everything is a browser" layer
-(Sutra-native renderer + HTML/CSS + WebGL) is build-sequence milestone 3
-and unbuilt — this Tkinter window is a demo frontend, not that. What
-remains for the *optimal* version: arbitrary-precision numbers past the
-float32 2²⁴ ceiling, and eventually the OS-native GUI.
+A host **Tkinter button GUI** was built and then **removed (2026-05-24)**:
+a CPU window is not the Yantra GUI, and presenting it as the
+"press-buttons" demo overstated what runs on the substrate. The real
+press-buttons demo waits on the OS-native GUI — the "everything is a
+browser" layer (Sutra-native renderer + HTML/CSS + WebGL), build-sequence
+milestone 3, unbuilt. What remains for the *optimal* version:
+substrate-pure parse/dispatch/output (`planning/23`), arbitrary-precision
+numbers past the float32 2²⁴ ceiling, and eventually that OS-native GUI.
 
 ### 3. Frame / desktop work — deferred, optional
 

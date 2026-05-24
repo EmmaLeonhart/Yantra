@@ -67,6 +67,8 @@ fine as a *test* in `tests/`, never the runtime value or a runtime refusal.
 
 ## GUI
 
-`apps/calc/gui.py` (+ `!runCalculatorGUI.bat`) is a host Tkinter frontend bolted on
-— **fake, to be removed** (see `queue.md`). The real OS-native GUI is doable but a
-genuinely complicated thing; it's build-sequence-gated and deferred. String first.
+**Removed (2026-05-24).** `apps/calc/gui.py` (+ `!runCalculatorGUI.bat`) was a host
+Tkinter frontend bolted on — a fake stand-in for an OS GUI — and is deleted, along
+with its controller test in `tests/test_calc.py`. The real OS-native GUI is doable
+but a genuinely complicated thing; it's build-sequence-gated and deferred. String
+first.
