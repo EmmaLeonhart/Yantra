@@ -25,7 +25,7 @@ Each section below is read in this sequencing context.
 ## TL;DR
 
 - **Kernel (Connectome Manager) — Sutra-running v0.0 shipped; Rust port pending.** The v0.0 runtime under `kernel/` is real and tested. **Sutra is doing the actual computation**: `SutraService` compiles `.su` source via the Sutra compiler (now `v0.4.0-27-gdd448b47`, not v0.3.1) at admission time and invokes the program's `on_axon(vector) -> vector` on real torch tensors carried through the router. `tests/test_kernel_sutra.py` admits real Sutra services and routes a payload producer → echo → sink end-to-end. The orchestration layer (init/resource-manager + router + capability check) is currently in Python; production form on the CPU side is Rust per `planning/01-architecture.md` § "CPU side: small, Rust, orchestrator." **48 tests collected across `tests/test_kernel.py` + `tests/test_kernel_sutra.py`** (measured 2026-05-16; the old "25 total" is stale). **Correction 2026-05-16:** the Sutra **multi-process runtime SHIPPED** (Sutra v0.4.0) — `kernel.make_shared_sutra_services` builds shared-`_VSA` services and `test_make_shared_sutra_services_share_one_vsa` + `test_shared_runtime_axon_passing_through_router` **pass** (measured this run). So "blocked on the multi-process Sutra runtime" is no longer true for the shared-runtime case. Still genuinely out of scope: real per-process GPU memory carve-outs, disc/RAM/GPU storage-tier moves (missing serialise-process-state / evict-from-GPU primitives), GPU-tick-parallel scheduling. **New caveat (this loop's measured finding):** per-receiver axon projection (`_VSA.axon_project`) is a **no-op for embedding fillers** — `bind(k,unbind(k,bundle))≈identity` under orthogonal rotation binding, so the "slimmed" payload still holographically carries every key (a receiver asking for one key decoded a projected-OUT key at +0.5726 vs kept +0.5999). So lazy axon eval delivers neither the bandwidth nor the capability-isolation property for the common case — see `planning/20-lazy-axon-evaluation.md` § Status; bears on `paper/paper.md` § 3.3.1.
-- **Native userspace utilities (cat, ls, grep, awk, etc.) — second milestone, deferred.** Written natively in Sutra, not C-transpiled. `external/{coreutils,util-linux,busybox}` are behavioural reference, not transpile inputs. Blocked on Sutra's string + IO + FS vocabulary maturing and on the kernel `.su` loader landing.
+- **Native userspace utilities (cat, ls, grep, awk, etc.) — second milestone, deferred.** Written natively in Sutra. GNU coreutils / util-linux behaviour is the conceptual reference (no vendored Linux source). Blocked on Sutra's string + IO + FS vocabulary maturing and on the kernel `.su` loader landing.
 - **Browser — third milestone, deferred.** "Every GUI component is a browser." HTML5 + CSS + idiomatic TS + WebGL/Three.js. WASM eventually but not for a long time (decision 2026-05-14). **The TS→Sutra transpiler ships as Sutra v0.3.2**: CLI works (`python -m sutra_from_ts in.ts -o out.su`), 17 fixtures pass through, `pip install sutra-dev[ts]` bundles it. Coverage isn't "every npm package compiles" — it's "the typed core works, edge constructs need new lowering rules as encountered." The Sutra-native renderer doesn't depend on the TS transpiler and could in principle start now, but is sequenced third per the user's plan.
 
 ## What Sutra actually ships
@@ -44,27 +44,15 @@ Pinned at `external/Sutra` @ **`v0.4.0-27-gdd448b47`** (refreshed 2026-05-16; wa
 
 - **TypeScript transpiler (`sdk/sutra-from-ts/`).** `lower.py` is real lowering: function declarations, type annotations, interface/type erasure, member access (`p.x` → `p.item("x")` for axon-typed `p`), JS-coercive `+` via `JavaScriptObject.add`, classes (fields + methods + static + constructors + `new`), discriminated unions, while/for/do-while loops, string concat, arrays, enums. 17 fixtures exercise it end-to-end. **The CLI is WIRED** — measured 2026-05-16: `python -m sutra_from_ts --help` prints the real `ts2su` argparse usage ("Transpile a typed core of TypeScript … into Sutra (.su) source", exit 0), shipped as Sutra v0.3.2 (2026-05-14). The earlier "CLI is still the skeleton not-yet-implemented stub, wiring it is a small task" text in this doc was stale and **contradicted its own TL;DR**; deleted. Real remaining work is TS-completeness (lowering rules for constructs the 17 fixtures don't cover), not CLI wiring.
 
-### Genuinely skeleton
+### Not planned
 
-- **C transpiler (`sdk/sutra-from-c/`).** ~57 lines total, no `lower.py`. The CLI prints "not yet implemented" and exits non-zero. To bring across coreutils / util-linux / busybox, this needs to be built. Out of scope for a v1 OS attempt; the imported source under `external/` is for *when* the C transpiler arrives, not for *now*.
+- **C transpiler (`sdk/sutra-from-c/`).** A ~57-line stub exists in the Sutra SDK; it will not be built out. C→Sutra is **not planned** (decision 2026-05-23) — Yantra does not bring across the Linux kernel or C apps. Userspace is native Sutra; the bootloader and orchestrator are native Rust.
 
 ### Adjacent
 
 - **`sutraDB/`** — included in the repo. Vector-store-flavoured. Not directly on the OS critical path but useful for the FS bridge's `semantic` mode.
 - **CUDA backend** — `compile_to_cuda.py`, `hello_world_cuda.py`. The PyTorch backend works on CPU and CUDA; an explicit CUDA emission path exists.
 - **`paper/paper.md`** — the Sutra paper itself, with the empirical measurements Yantra's design rests on (100% bundle decoding through k=8 across four substrates, ~1.5×10⁻¹⁵ round-trip, 4→95% in 50 epochs). Cite this directly from `paper/paper.md` in Yantra rather than paraphrasing.
-
-## Imported Linux userspace (under `external/`)
-
-Three submodules, pinned at their latest stable tags as of 2026-05-13:
-
-| Submodule | Tag | Why |
-|---|---|---|
-| `external/coreutils` | `v9.11` | `ls`, `cat`, `cp`, `mv`, `rm`, `mkdir`, `cut`, `sort`, `uniq`, `wc`, etc. The minimum-viable shell environment. |
-| `external/util-linux` | `v2.42` | `mount`, `umount`, `dmesg`, `lsblk`, `findmnt`, `kill`, etc. The administrative layer. |
-| `external/busybox` | `1_36_1` | Compact alt-implementations; useful as a fallback when full coreutils is too heavyweight. |
-
-**These are unusable today** because the C→Sutra transpiler is a skeleton. They are checked in so that, when the C transpiler arrives, the source is already pinned to known-good versions and the build harness can proceed without pulling fresh upstreams. Treat the `external/` directory as a *reservation*, not as a working dependency.
 
 ## Kernel — what we have, what we need
 
@@ -117,7 +105,7 @@ The kernel nucleus is real and tested. v0.1 is the hardening list above. **Corre
 ## Cross-cutting recommendations
 
 - ~~**Wire up the TS transpiler CLI first thing.**~~ **Done** (Sutra v0.3.2). `ts2su` is a working command (measured 2026-05-16). This recommendation is retired.
-- **Don't promise the C-transpilation Linux story in v0.0.** The source is reserved under `external/`; the transpiler is genuinely not built (~57 lines, no `lower.py`). Yantra's first userspace will be hand-written Sutra (and TS-transpiled) for a long time. *(This one is still true.)*
+- **No C-transpilation Linux story.** C→Sutra is not planned (decision 2026-05-23) and the vendored Linux source (`coreutils`/`util-linux`/`busybox`) was removed. Yantra's userspace is hand-written Sutra; the browser layer is TS-transpiled.
 - **TS→Sutra is genuinely running, CLI included.** Earlier this doc and the paper hedged on "the CLI is unwired" — that nuance is now obsolete (CLI shipped v0.3.2). The accurate statement: the lowering engine + CLI work; TS-*completeness* (rules for constructs beyond the 17 fixtures) is the open edge, not CLI wiring. Keep CLAUDE.md / `planning/07-transpilers.md` matching this.
 - **The bottleneck is not the language, and not "the multi-process runtime hasn't landed" — it landed (Sutra v0.4.0, measured).** The real long pole is now the *specific* GPU-side slice: per-process memory arenas + tick-parallel execution + storage-tier eviction. Plus the newly-measured caveat that `axon_project` doesn't actually slim embedding-filler axons (no lazy-eval bandwidth/isolation for the common case) — a Sutra-side design problem (`planning/20-lazy-axon-evaluation.md` § Status).
 
@@ -125,6 +113,6 @@ The kernel nucleus is real and tested. v0.1 is the hardening list above. **Corre
 
 - `paper/paper.md` § 8.2 milestones — high-level readiness, but written before this submodule audit; this doc supersedes for engineering planning.
 - `planning/06-gui-stack.md` — what the GUI layer is supposed to look like.
-- `planning/07-transpilers.md` — the transpiler section as written; the TS transpiler is real **and CLI-wired** (Sutra v0.3.2), the C transpiler is genuinely bare (~57 lines). Keep that doc matching this.
+- `planning/07-transpilers.md` — the transpiler section as written; the TS transpiler is real **and CLI-wired** (Sutra v0.3.2); C→Sutra is not planned. Keep that doc matching this.
 - `planning/17-memory-model.md` — the long-pole problem that does not block first writing but bites at scale.
 - `external/Sutra/` — the actual code; read it, don't trust this summary alone.

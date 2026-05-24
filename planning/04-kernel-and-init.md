@@ -9,7 +9,7 @@ power on
 firmware (C, conventional)
    │
    v
-bootloader (small C program)
+bootloader (small native-Rust program)
    │   loads:
    v
 GPU image (Sutra kernel + init system)
@@ -93,8 +93,10 @@ moving parts) so init can stay small without anyone arguing about it.
 
 ## Bootloader implementation reality
 
-The bootloader has to be a real C program because firmware speaks C.
-This is one of the few places C survives in Yantra. It does the minimum
+The bootloader is written natively in Rust, the same language as the
+CPU-side orchestrator. It runs on bare metal before any Sutra runtime
+exists, so there is nothing for a tensor program to execute on yet; the
+job is firmware-shaped, not connectome-shaped. It does the minimum
 needed to:
 
 1. Probe the GPU and any analog accelerators.
@@ -103,9 +105,10 @@ needed to:
 4. Hand control to the GPU runtime.
 5. Drop into resource-manager mode.
 
-We expect to ship the bootloader as a transpilation target of a small
-Sutra description, both to keep the language story consistent and so the
-verification arguments cover firmware too.
+Keeping the bootloader and the orchestrator in one systems language
+(Rust) is deliberate: a single trusted CPU-side base is easier to
+audit than a polyglot one, and the verification arguments only have to
+reason about one boot-time language rather than a transpilation chain.
 
 ## What we will steal from Linux
 

@@ -1,11 +1,12 @@
 # `apps/` — native Sutra userspace utilities
 
 Per `planning/07-transpilers.md` and `todo.md` § 2: userspace
-utilities are written **natively in Sutra** here, not C-transpiled
-from the Linux source under `external/{coreutils,util-linux,
-busybox}/`. Each utility ships as its own subdirectory with a
-`.su` source + manifest TOML + (eventually) a CLI shim once Sutra
-has stdin/stdout vocabulary that doesn't go through axon-passing.
+utilities are written **natively in Sutra** here. GNU coreutils /
+util-linux behaviour is the conceptual reference for these native
+rewrites; no vendored Linux source is kept in-tree. Each
+utility ships as its own subdirectory with a `.su` source +
+manifest TOML + (eventually) a CLI shim once Sutra has
+stdin/stdout vocabulary that doesn't go through axon-passing.
 
 ## What ships today
 

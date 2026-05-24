@@ -30,7 +30,7 @@ medical, autonomous) where predictable latency, formal verifiability, and
 a small attack surface matter more than mass-market compatibility.
 
 This repo currently holds **planning documents**, not an implementation.
-The Sutra compiler/runtime and the JS/TS and C transpilers live in
+The Sutra compiler/runtime and the JS/TS transpiler live in
 adjacent projects.
 
 ## Architecture and Conventions
@@ -84,33 +84,37 @@ adjacent projects.
   kernel code today, edit the Python and write `.su` files;
   treat the Python as the API-shape pin the eventual Rust
   reimplementation must match.
-- **Kernel is NOT C-transpiled.** The verification surface in
-  `paper/paper.md` § 4 depends on the trusted base reducing
-  cleanly to tensor normal form; running the kernel through a
-  C→Sutra path would defeat that. Sutra services run on the GPU;
-  the Rust orchestrator runs on the CPU; neither is a C-transpile
-  target.
+- **Kernel is native Sutra, not transpiled.** The verification
+  surface in `paper/paper.md` § 4 depends on the trusted base
+  reducing cleanly to tensor normal form. Sutra services run on the
+  GPU; the Rust orchestrator runs on the CPU, written natively in
+  Rust.
 
 ### Transpilers
 
-- **C→Sutra transpiler is priority but deferred.** Scope when
-  built: bootloader, specific Linux drivers worth bringing across.
-  *Not* userspace utilities, *not* the Yantra kernel itself.
-  **WASM target deferred — eventually in scope but not now and not
-  for a long time** (decision 2026-05-14; not a v0 target, not a
-  v0.1 target, not on any near-term roadmap). See
-  `planning/07-transpilers.md` and `planning/06-gui-stack.md`.
-- **TS→Sutra transpiler is browser/GUI-scoped only.** Outside the
-  browser layer, TS→Sutra is not used. **Shipped as Sutra v0.3.2**
-  (released 2026-05-14): CLI works, 17 fixtures pass, `pip install
-  sutra-dev[ts]` bundles it. Coverage caveat: typed core works,
-  but TS-completeness is not a solved problem — real-world bundles
-  may need new lowering rules. Foundation, not finished feature.
+- **TS→Sutra is the only transpiler in scope, and it is
+  browser/GUI-scoped.** Outside the browser layer, TS→Sutra is not
+  used. **Shipped as Sutra v0.3.2** (released 2026-05-14): CLI
+  works, 17 fixtures pass, `pip install sutra-dev[ts]` bundles it.
+  Coverage caveat: typed core works, but TS-completeness is not a
+  solved problem — real-world bundles may need new lowering rules.
+  Foundation, not finished feature.
+- **C→Sutra transpiler is NOT planned** (decision 2026-05-23).
+  Sutra is a systems language for a GPU-native architecture; Yantra
+  is not copying the Linux kernel or C apps. Userspace is written
+  natively in Sutra; the bootloader and orchestrator are written
+  natively in Rust. C→Sutra may be revisited someday but is not on
+  any roadmap and must not be presented as planned work.
+- **WASM target deferred** — eventually in scope but not now and not
+  for a long time (its linear-memory/threading model is alien to
+  Sutra's substrate; the v0 GUI is JS/TS only; not a v0 or v0.1
+  target). See `planning/07-transpilers.md` and
+  `planning/06-gui-stack.md`.
 
 ### Userspace utilities (cat, ls, grep, awk, sed, sort, etc.)
 
-Written **natively in Sutra**, not transpiled from C. The Linux
-source trees under `external/` are behavioural reference, not
+Written **natively in Sutra**. The Linux source trees under
+`external/` are behavioural reference for native rewrites, not
 transpile inputs. Deferred until the Sutra-side string + IO + FS
 vocabulary matures and the kernel `.su` loader lands. Q-list is in
 `todo.md` § 2.
@@ -180,8 +184,8 @@ requires a change to the other in the same session.
 - **Sutra (`external/Sutra` submodule) — connecting things
   together at the language level, debugging the language,
   language-side primitives Yantra needs.** What goes in
-  `sdk/sutra-compiler/`, `sdk/sutra-from-ts/`,
-  `sdk/sutra-from-c/`, the compiler, the lowering passes, the
+  `sdk/sutra-compiler/`, `sdk/sutra-from-ts/`, the compiler,
+  the lowering passes, the
   axon spec, the multi-process runtime, the
   serialise-process-state primitive, the runtime ABI Yantra
   consumes.
@@ -322,14 +326,11 @@ Submodules pinned at known-good releases. Layout:
 - `external/Sutra` (tag `v0.4.0`) — the language, compiler, runtime,
   and Sutra paper Yantra depends on. Website: <https://sutralang.dev>
   (canonical, built from `external/Sutra/docs/`).
-- `external/coreutils` (tag `v9.11`) — GNU userspace utilities
-  reserved for the C→Sutra transpilation path. **Not usable today**
-  because the C transpiler is genuinely a skeleton (~57 lines of
-  CLI scaffolding, no lowering pass).
-- `external/util-linux` (tag `v2.42`) — administrative-layer Linux
-  utilities. Same reservation status.
-- `external/busybox` (tag `1_36_1`) — compact alt-implementations.
-  Same reservation status.
+The Linux userspace submodules (`coreutils`, `util-linux`,
+`busybox`) were **removed 2026-05-23** along with the C→Sutra
+transpilation path they were imported for. GNU behaviour remains the
+conceptual reference for native-Sutra utility rewrites, but no Linux
+source is vendored. `external/` now holds only `external/Sutra`.
 
 To add a new external dependency: pin a specific tag, never `main`.
 A floating dependency on master is a procurement-security

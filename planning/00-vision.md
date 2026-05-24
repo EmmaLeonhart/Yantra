@@ -101,7 +101,7 @@ This repo is currently a **planning corpus**, not an implementation. The
 existing artifacts that anchor the vision live elsewhere:
 
 - The Sutra compiler and runtime (separate project).
-- The C and JS/TS transpilers (separate projects).
+- The JS/TS transpiler (separate project).
 - Connectome/alignment research that pressure-tests the substrate-as-
   -architecture-target idea.
 
