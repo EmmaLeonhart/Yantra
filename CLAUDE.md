@@ -375,6 +375,20 @@ it hides the gap and burns trust.
 - **Don't barrel into code surgery in another repo unbidden.** Add the design + queue;
   let the owner (or a deliberate session) execute. Plausible-looking speed is the trap.
 
+## When Emma gives an algorithmic explanation, implement it
+
+Emma knows Sutra — and the substrate mechanisms Yantra rides on — far better
+than an agent does. Recurring, costly failure: she gives a concrete algorithm,
+the agent decides it "can't work," substitutes its own variant, the variant
+fails, and the idea gets reported as blocked — when **her original idea was
+right**. Implement the thing she actually described *first*, run it, read the
+output. "I think that can't work" is a hypothesis to test on the substrate, not
+a conclusion. If it seems not to compose, the gap is usually a primitive to
+expose, not a wrong idea. (2026-05-24: "defuzzify `select` enough so the
+branches don't blend" → **18/18 bit-exact** once actually built, after a
+session lost to agent-invented detours; full write-up + the Sutra-side rule in
+`external/Sutra/CLAUDE.md` § "When Emma gives an algorithmic explanation.")
+
 ## External dependencies (`external/`)
 
 Submodules pinned at known-good releases. Layout:
