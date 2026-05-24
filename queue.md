@@ -43,16 +43,19 @@ Shipped: (a) the Stage-1 **symbol-fidelity harness** —
 `tests/test_symbol_fidelity.py`, 1024/1024 symbols bit-exact through a
 real Sutra service + the kernel router, zero drift — for both numeric
 and **text** symbols (text is the axis Meta's NCCLIGen drifts on);
-(b) the **CLI
-calculator** — `apps/calc/`, full expressions (`2 + 3 * 4 = 14`,
-precedence + parens), exact `+ - * /` with each sub-op on real Sutra
-services through the kernel (division via `complex_div`;
-`tests/test_calc.py`, 54 cases incl. a randomized never-a-wrong-answer
-property test); every result is verified exact and refused if not —
-**never a wrong answer**. **Caveat (audit 2026-05-24):** the per-op `.su`
-math is real, but dispatch + the returned value are currently host-side —
-not yet substrate-pure. Fix is step 3 below + `planning/23`. See
-`planning/22`. Remaining steps:
+(b) the **CLI calculator** — `apps/calc/`, full expressions
+(`2 + 3 * 4 = 14`, precedence + parens), exact `+ - * /`. **Which
+operation runs is selected ON the substrate** by `switch.su` (Sutra's
+`select` made a true one-hot via softmax saturation; needs Sutra v0.6.1
+`dot`), and the calc runs the substrate in **float64** (v0.6.2
+`runtime_dtype`) so exact integers hold to 2⁵³ (~9.007e15); results past
+that are refused, never guessed. `tests/test_calc.py`, **57 cases** incl.
+a randomized never-a-wrong-answer property test; full kernel gate 114
+passed, 1 xfail (measured 2026-05-24). **Remaining purity gap (step c
+only):** the returned value is still a host `Fraction` behind a
+host-oracle refuse-gate — closing it is a product decision (drop "never a
+wrong answer"), flagged for Emma, not done autonomously. Dispatch is no
+longer host-side. See `planning/23`, `planning/22`. Remaining steps:
 
 1. **Minimal terminal surface.** A Sutra-native command reader
    (scripted or button-driven is fine — need not be keyboard-typed)

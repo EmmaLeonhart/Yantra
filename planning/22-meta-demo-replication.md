@@ -73,12 +73,16 @@ display) — but it is the demo that makes the contrast undeniable to a
 non-expert: *press the buttons, get the right answer, every time.*
 
 **Update (2026-05-24):** the **CLI calculator** ships
-(`apps/calc/calc.py`) — full expressions with precedence, `+ - * /` on
-real Sutra services through the kernel (division via `complex_div`),
-exact or refused (`tests/test_calc.py`). **Substrate-purity caveat:** the
-per-op `.su` math is real, but operator dispatch and the returned value
-are still host-side, not yet substrate-pure — the redesign is
-`planning/23`.
+(`apps/calc/calc.py`) — full expressions with precedence, `+ - * /`,
+exact or refused (`tests/test_calc.py`, 57 cases). **Operation selection
+runs ON the substrate** now: `switch.su` computes all four ops and picks
+one via Sutra's `select` made a true one-hot by softmax saturation (Sutra
+v0.6.1 `dot` for the separating score) — host `OPS[op]` dispatch is gone.
+The calc runs the substrate in **float64** (v0.6.2 `runtime_dtype`), so
+exact integers hold to 2⁵³ (~9.007e15). **Remaining purity gap:** the
+returned value is still a host `Fraction` behind a host-oracle refuse-gate
+(step c in `planning/23`) — closing it drops "never a wrong answer," a
+product decision left for Emma. Parse-on-substrate is still host-side too.
 
 A host **Tkinter button GUI** was built and then **removed (2026-05-24)**:
 a CPU window is not the Yantra GUI, and presenting it as the
@@ -86,8 +90,9 @@ a CPU window is not the Yantra GUI, and presenting it as the
 press-buttons demo waits on the OS-native GUI — the "everything is a
 browser" layer (Sutra-native renderer + HTML/CSS + WebGL), build-sequence
 milestone 3, unbuilt. What remains for the *optimal* version:
-substrate-pure parse/dispatch/output (`planning/23`), arbitrary-precision
-numbers past the float32 2²⁴ ceiling, and eventually that OS-native GUI.
+substrate-pure parse/output (`planning/23`), and arbitrary-precision
+numbers past the **float64 2⁵³** ceiling (digit arrays; float64 already
+took the calc past float32's 2²⁴), and eventually that OS-native GUI.
 
 ### 3. Frame / desktop work — deferred, optional
 
@@ -138,28 +143,30 @@ Gated on the build sequence (`planning/18`: kernel → CLI → GUI).
   symbol-fidelity-vs-horizon figure is pinned at perfect, for both
   numbers and text. No new Sutra primitives were needed.
 - **Stage 1b — CLI calculator. DONE (2026-05-24).** `apps/calc/` +
-  `tests/test_calc.py` (54 cases, incl. a randomized property test that
+  `tests/test_calc.py` (57 cases, incl. a randomized property test that
   it never returns a wrong answer across 100 fuzzed expressions): type
   `5 * 10 =` → `50` — or a full expression like `2 + 3 * 4 = 14`
-  (precedence + parentheses, each sub-op on the substrate) — computed
-  exactly on real Sutra
-  **`+ - * /`** services through the kernel (division via Sutra's
-  `complex_div`). **Never a wrong answer:** every
+  (precedence + parentheses). One `switch.su` computes all four ops and
+  **selects on the substrate** via Sutra's `select` (a true one-hot by
+  softmax saturation, scored with `dot`; host `OPS[op]` removed), in
+  **float64** so exact integers reach 2⁵³. **Never a wrong answer:** every
   result is verified exact against a host oracle and *refused* if it
   can't be confirmed — non-exact quotients (10/3), divide-by-zero, and
-  results past float32's exact range all refuse rather than guess. The
-  "text parsing + reliable math" proof — the calculator's compute core,
-  minus the buttons.
+  results past float64's 2⁵³ exact range all refuse rather than guess.
+  (The returned value is still the host oracle's, not the substrate's
+  decode — step c, a product decision; see `planning/23`.) The "text
+  parsing + reliable math" proof — the calculator's compute core.
 - **Stage 2 — terminal surface.** A Sutra-native command reader
   (scripted or button-driven is fine) that admits utilities through the
   kernel and shows exact output.
 - **Stage 3 — the calculator app.** A minimal GUI (button grid +
   display) over real Sutra arithmetic. The optimal demo; needs the GUI
-  layer. **Precision note:** the real-axis encoding is float32, so exact
-  integers hold only to 2²⁴ (~16.7M); a headline product like
-  4729 × 8831 = 41,765,099 exceeds that and needs an arbitrary-precision
-  digit-array encoding (make_string-style codepoints), not a single
-  real-axis value. Settle the number representation before the buttons.
+  layer. **Precision note (updated 2026-05-24):** the real-axis encoding
+  is now selectable, and the calc runs **float64**, so exact integers hold
+  to 2⁵³ (~9.007e15) — the headline product 4729 × 8831 = 41,761,799 is
+  exact today (it was refused under float32's 2²⁴). Going past 2⁵³ needs an
+  arbitrary-precision digit-array encoding (make_string-style codepoints,
+  carries on the substrate), not a single real-axis value — still open.
 - **Stage 4 — ship + measure.** A downloadable demo on the site, plus
   the contrast figure against a generative baseline.
 
