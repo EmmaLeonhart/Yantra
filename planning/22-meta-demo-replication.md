@@ -72,14 +72,14 @@ anywhere. It is a stretch — it needs a minimal GUI (a button grid + a
 display) — but it is the demo that makes the contrast undeniable to a
 non-expert: *press the buttons, get the right answer, every time.*
 
-**Update (2026-05-23):** the *compute core* of this already ships as a
-**CLI calculator** (`apps/calc/`, `tests/test_calc.py`): type
-`5 * 10 =` → `50`, computed exactly on real Sutra `+ - *` services
-through the kernel (14 cases, incl. 4096 × 4096 = 2²⁴, all exact). Text
-parsing is host orchestration; the math is substrate. What remains for
-the *optimal* version: the button GUI, a **division** op (Sutra has no
-runtime divide yet — a `yantra-driven` Sutra-branch change), and
-arbitrary-precision numbers for products past the float32 2²⁴ ceiling.
+**Update (2026-05-24):** the *compute core* of this already ships as a
+**CLI calculator** (`apps/calc/`, `tests/test_calc.py`, 28 cases): type
+`5 * 10 =` → `50`, computed exactly on real Sutra **`+ - * /`** services
+through the kernel (division via Sutra's `complex_div`). Every result is
+verified exact and refused if not — never a wrong answer. Text parsing
+is host orchestration; the math is substrate. What remains for the
+*optimal* version: the button GUI, and arbitrary-precision numbers for
+results past the float32 2²⁴ ceiling.
 
 ### 3. Frame / desktop work — deferred, optional
 
@@ -126,14 +126,15 @@ Gated on the build sequence (`planning/18`: kernel → CLI → GUI).
   zero drift (first-decile max |err| = last-decile max |err| = 0.0).
   The left end of the symbol-fidelity-vs-horizon figure is pinned at
   perfect. No new Sutra primitives were needed.
-- **Stage 1b — CLI calculator. DONE (2026-05-23).** `apps/calc/` +
-  `tests/test_calc.py` (19 cases): type `5 * 10 =` → `50`, computed
-  exactly on real Sutra `+ - *` services through the kernel. **Never a
-  wrong answer:** every result is verified exact against a host oracle
-  and *refused* if it can't be confirmed — past float32's exact range
-  (and for division, which has no Sutra op yet) it refuses rather than
-  guessing. The "text parsing + reliable math" proof — the calculator's
-  compute core, minus the buttons.
+- **Stage 1b — CLI calculator. DONE (2026-05-24).** `apps/calc/` +
+  `tests/test_calc.py` (28 cases): type `5 * 10 =` → `50`, computed
+  exactly on real Sutra **`+ - * /`** services through the kernel
+  (division via Sutra's `complex_div`). **Never a wrong answer:** every
+  result is verified exact against a host oracle and *refused* if it
+  can't be confirmed — non-exact quotients (10/3), divide-by-zero, and
+  results past float32's exact range all refuse rather than guess. The
+  "text parsing + reliable math" proof — the calculator's compute core,
+  minus the buttons.
 - **Stage 2 — terminal surface.** A Sutra-native command reader
   (scripted or button-driven is fine) that admits utilities through the
   kernel and shows exact output.

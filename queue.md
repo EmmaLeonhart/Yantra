@@ -42,10 +42,11 @@ via execution; we are NOT chasing video / screen-frame generation
 Shipped: (a) the Stage-1 **symbol-fidelity harness** —
 `tests/test_symbol_fidelity.py`, 1024/1024 symbols bit-exact through a
 real Sutra service + the kernel router, zero drift; (b) the **CLI
-calculator** — `apps/calc/`, type `5 * 10 =` → `50`, exact `+ - *`
-through real Sutra services + the kernel (`tests/test_calc.py`, 19
-cases); every result is verified exact and refused if not — **never a
-wrong answer**. See `planning/22`. Remaining steps:
+calculator** — `apps/calc/`, type `5 * 10 =` → `50`, exact `+ - * /`
+through real Sutra services + the kernel (division via `complex_div`;
+`tests/test_calc.py`, 28 cases); every result is verified exact and
+refused if not — **never a wrong answer**. See `planning/22`. Remaining
+steps:
 
 1. **Minimal terminal surface.** A Sutra-native command reader
    (scripted or button-driven is fine — need not be keyboard-typed)
@@ -55,11 +56,10 @@ wrong answer**. See `planning/22`. Remaining steps:
    gated on Sutra's string + IO + FS vocabulary; promote from
    `todo.md` § 2 as each unblocks.
 3. **Calculator — finish what the CLI version started.** The CLI calc
-   ships (above). To reach the *optimal* demo: (i) a **division** op —
-   Sutra has no runtime divide yet, a `yantra-driven`-branch Sutra
-   change; (ii) **arbitrary-precision** numbers so big products like
-   4729 × 8831 stay exact past the float32 2²⁴ ceiling (digit-array /
-   make_string encoding); (iii) the **button GUI** (needs the GUI
+   ships with all four operators `+ - * /` (above). To reach the
+   *optimal* demo: (i) **arbitrary-precision** numbers so big results
+   like 4729 × 8831 stay exact past the float32 2²⁴ ceiling (digit-array
+   / make_string encoding); (ii) the **button GUI** (needs the GUI
    layer). See `planning/22` Stage 3.
 4. **Ship a downloadable demo on the site.** A runnable demo script
    ships: `python apps/calc/demo.py` prints the exact-answer transcript
