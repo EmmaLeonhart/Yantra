@@ -112,6 +112,17 @@ Remaining steps:
    - d. **Parse on the substrate** — a Sutra loop over the codepoint string: digit →
      strip char flag → value; place-value assembly (2-digit cap to start); space ends
      an operand; `=` triggers. Host shrinks to read-line / print-float.
+     **FEASIBILITY CHECKED 2026-05-24 (partly green, precise blocker, not faked):**
+     verified on real runs that `string_char_at(s,i)` returns the codepoint as a
+     0-d tensor on the substrate (`'5'`→53), and `cp−48` + place-value reconstructs
+     integers (`"42"`→42.0) at the `_VSA` level — so digit extraction needs NO new
+     Sutra primitive. BLOCKER: composing it inside a `.su` with naive arithmetic
+     returns an empty/0-d tensor (`_VSA.real()` → `IndexError … size 0`); the
+     codepoint scalar doesn't lift into a real-axis 768-vector through bare
+     `*`/`+`/`-`. Correct path (unverified, queued): `make_real(string_char_at(...))`
+     + place-value via the same substrate real-axis arithmetic `switch.su` uses.
+     Stopped rather than host-fake the parse (the §"fake-substrate-work" trap by
+     name). Full finding: `planning/23` Stage-1 note.
    - e. **Extend the exact range — float64 DONE 2026-05-24; arbitrary precision open.**
      **float64 substrate (substrate-pure, no host carries) — LIVE.** The calc now
      compiles `switch.su` in float64 (Sutra **v0.6.2** `runtime_dtype`, merged +
