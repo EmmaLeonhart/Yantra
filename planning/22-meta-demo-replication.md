@@ -139,9 +139,11 @@ Gated on the build sequence (`planning/18`: kernel → CLI → GUI).
   symbol-fidelity-vs-horizon figure is pinned at perfect, for both
   numbers and text. No new Sutra primitives were needed.
 - **Stage 1b — CLI calculator. DONE (2026-05-24).** `apps/calc/` +
-  `tests/test_calc.py` (52 cases): type `5 * 10 =` → `50` — or a full
-  expression like `2 + 3 * 4 = 14` (precedence + parentheses, each
-  sub-op on the substrate) — computed exactly on real Sutra
+  `tests/test_calc.py` (54 cases, incl. a randomized property test that
+  it never returns a wrong answer across 100 fuzzed expressions): type
+  `5 * 10 =` → `50` — or a full expression like `2 + 3 * 4 = 14`
+  (precedence + parentheses, each sub-op on the substrate) — computed
+  exactly on real Sutra
   **`+ - * /`** services through the kernel (division via Sutra's
   `complex_div`). **Never a wrong answer:** every
   result is verified exact against a host oracle and *refused* if it
