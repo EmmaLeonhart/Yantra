@@ -12,6 +12,19 @@ See `CLAUDE.md` § "Workflow Rules" for how this file, planning mode, and the ta
 
 ## Active
 
+### ⚙️ Environment — this machine IS capable (read before doubting hardware)
+
+**Emma's machine has a real, good GPU — an RTX 4070, `torch.cuda.is_available()`
+== True — and ample compute.** Do NOT assume CPU-only, do NOT assume "the GPU
+path won't work," do NOT pre-emptively frame Emma's algorithms/logic as
+unworkable on this hardware. Measured 2026-05-24: admitting a Sutra program
+allocates real GPU memory (+712,704 B for `echo`, `_VSA.device == cuda`); the
+GPU-tier residency tests pass 4/4 in isolation; the calc runs float64 exactly.
+When a GPU-dependent test looks like it "fails," first check whether it's a
+test-isolation / shared-substrate artifact (it usually is) — run it alone before
+concluding a capability is missing. If you catch yourself hedging "probably no
+CUDA / probably won't work," stop: verify by running, the capability is there.
+
 ### Blocker (NARROWED 2026-05-17, not closed) — axon_project no-op across the connectome
 
 The intra-module slice of the real fix shipped (Sutra v0.4.1,
