@@ -21,12 +21,16 @@ parentheses are supported (``2 + 3 * 4 = 14``, ``(10 - 2) * 5 = 40``) — a
 recursive-descent parser on the host evaluates each binary operation on
 the substrate in turn.
 
+The substrate runs in float64 (Sutra v0.6.2 ``runtime_dtype``), so exact
+integers hold to 2**53 (~9.007e15) — not float32's ~2**24; this is the
+substrate computing in higher precision, no host carries.
+
 Known remaining purity gap (planning/23 step c): the result is still
 verified against a host oracle and REFUSED if it can't be confirmed (a
 non-terminating quotient like ``10 / 3``, a divide-by-zero, or a result
-past the float32 exact range) — never approximated. Returning the
+past the float64 exact range, 2**53) — never approximated. Returning the
 substrate's own decoded float (dropping the refuse-gate) is a pending
-product decision. Arbitrary precision is planning/22 Stage 3.
+product decision. True arbitrary precision is planning/22 Stage 3.
 """
 from __future__ import annotations
 
@@ -84,6 +88,11 @@ class Calculator:
         self._service = SutraService(
             source_path=APPS_CALC / "switch.su",
             output_role="R_switch_out",
+            # float64 substrate: exact integers to 2^53 (~9.007e15), not
+            # float32's ~2^24. No host carries — the substrate computes in
+            # higher precision (needs Sutra >= v0.6.2). Past 2^53 the gate
+            # still refuses, so "never a wrong answer" holds.
+            runtime_dtype="float64",
         )
         self.init.admit(
             Manifest(

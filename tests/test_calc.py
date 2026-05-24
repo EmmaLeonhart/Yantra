@@ -112,7 +112,7 @@ def test_calc_multiterm_exact(calc: Calculator, expr: str, expected) -> None:
 
 
 @pytest.mark.parametrize(
-    "expr", ["10 / 3 + 1", "1 + 10 / 3", "99999 * 99999 + 1", "5 / 0 + 1"]
+    "expr", ["10 / 3 + 1", "1 + 10 / 3", "99999999 * 99999999 + 1", "5 / 0 + 1"]
 )
 def test_calc_multiterm_refuses_when_any_step_inexact(
     calc: Calculator, expr: str
@@ -179,24 +179,41 @@ def test_calc_never_returns_a_wrong_answer_fuzz(calc: Calculator) -> None:
     )
 
 
-@pytest.mark.parametrize("expr", ["4729 * 8831", "99999 * 99999", "12345679 * 9"])
+@pytest.mark.parametrize(
+    "expr", ["99999999 * 99999999", "123456789 * 123456789", "94906267 * 94906267"]
+)
 def test_calc_refuses_out_of_exact_range(calc: Calculator, expr: str) -> None:
-    """A result not float32-representable is refused, never guessed.
+    """A result not exactly representable on the substrate is refused.
 
-    The substrate returns an off-by-some value for these (each result
-    is past 2**24 and not exactly representable); the exactness gate
-    verifies against a host oracle and raises rather than printing a
-    wrong answer. This is the "never a wrong answer" guarantee. (Exactly
-    representable large values like 5000*5000=25_000_000 are still
-    returned — the gate checks correctness, not a crude cutoff.)
+    The substrate runs in float64 (Sutra v0.6.2 `runtime_dtype`), so exact
+    integers hold to 2**53 (~9.007e15). Each result here is *past* 2**53 and
+    not exactly representable, so the substrate returns an off-by-some value;
+    the exactness gate verifies against a host oracle and raises rather than
+    printing a wrong answer — the "never a wrong answer" guarantee, now at the
+    float64 ceiling. (Values within 2**53, even big ones, are returned — see
+    test_calc_returns_large_exact_values.)
     """
     with pytest.raises(ValueError):
         calc.evaluate(expr)
 
 
-def test_calc_returns_large_but_exact_value(calc: Calculator) -> None:
-    """A large-but-exactly-representable result is still returned."""
-    assert calc.evaluate("5000 * 5000") == 25_000_000
+@pytest.mark.parametrize(
+    "expr,expected",
+    [
+        ("5000 * 5000", 25_000_000),
+        ("4729 * 8831", 41_761_799),          # was refused under float32
+        ("99999 * 99999", 9_999_800_001),     # ~1e10, exact in float64
+        ("12345679 * 9", 111_111_111),
+        ("94906265 * 94906265", 9_007_199_136_250_225),  # just under 2**53
+    ],
+)
+def test_calc_returns_large_exact_values(
+    calc: Calculator, expr: str, expected: int
+) -> None:
+    """Large-but-exactly-representable results are returned. float64
+    (Sutra v0.6.2) makes products exact through ~9.007e15 — substrate-pure,
+    no host carries; products that were refused under float32 now return."""
+    assert calc.evaluate(expr) == expected
 
 
 def test_calc_demo_transcript_is_exact(calc: Calculator) -> None:
@@ -214,7 +231,11 @@ def test_calc_demo_transcript_is_exact(calc: Calculator) -> None:
         "123 + 877 = 1000",
         "-4 * 6 = -24",
         "4096 * 4096 = 16777216",
+        "4729 * 8831 = 41761799",      # exact in float64 (refused under float32)
+        "99999 * 99999 = 9999800001",  # ~1e10, exact in float64
     ]
     assert lines[: len(expected_prefix)] == expected_prefix
     assert any(line.startswith("10 / 3 = (refused") for line in lines)
-    assert any(line.startswith("99999 * 99999 = (refused") for line in lines)
+    assert any(
+        line.startswith("99999999 * 99999999 = (refused") for line in lines
+    )

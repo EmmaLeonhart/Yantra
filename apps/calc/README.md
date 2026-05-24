@@ -28,17 +28,17 @@ operation runs** — happens on the substrate:
   primitive made exact by softmax saturation. The host passes an operator
   code (`0=+ 1=- 2=* 3=/`); `dot(op - make_real(t), make_real(1))` reads
   the real-axis coordinate `op - t` as a clean scalar, and scores
-  `-120*(op-t)^2` push `select`'s softmax past the float32 underflow point
-  (`exp(-120)` = exactly 0), so it is a TRUE one-hot — the matched branch
-  passes through, the others are killed by exact-zero weights. A second
-  `select` guards the division denominator so `b=0` can't nan a killed
-  branch. This replaced host `OPS[op]` dispatch (the host no longer picks
-  which operation runs — the substrate does). Needs Sutra **v0.6.1** (the
-  `dot` builtin). Verified 18/18 bit-exact incl. `b=0` and the `2**24`
-  ceiling — see `planning/23-calc-substrate-purity.md`. (Naive
-  unsharpened `select` blends all four branches; saturation is what makes
-  it exact. An interim Lagrange-polynomial-mask switch was retired when
-  v0.6.1 landed.)
+  `-1000*(op-t)^2` push `select`'s softmax past the float underflow point
+  (`exp(-1000)` = exactly 0 in float32 *and* float64), so it is a TRUE
+  one-hot — the matched branch passes through, the others are killed by
+  exact-zero weights. A second `select` guards the division denominator so
+  `b=0` can't nan a killed branch. This replaced host `OPS[op]` dispatch
+  (the host no longer picks which operation runs — the substrate does).
+  Needs Sutra **v0.6.1** (`dot`); the calc compiles it in **float64**
+  (Sutra **v0.6.2** `runtime_dtype`) for exact integers to `2**53`. See
+  `planning/23-calc-substrate-purity.md`. (Naive unsharpened `select`
+  blends all four branches; saturation is what makes it exact. An interim
+  Lagrange-polynomial-mask switch was retired when v0.6.1 landed.)
 - `calc.py` — the host driver: `Calculator.evaluate("5 * 10 =")` parses
   the expression, encodes the operands + operator code into an axon,
   routes it through the kernel to `switch.su`, and decodes the real-axis
@@ -48,10 +48,10 @@ operation runs** — happens on the substrate:
 
 - **Never a wrong answer.** Every result is verified exact against a
   host oracle before it is returned; anything the substrate can't
-  compute exactly is **refused**, not guessed. Integers up to `2**24`
-  are always exact, and some larger ones too — the gate checks each
-  result's correctness, not a crude cutoff (`5000 * 5000` is returned;
-  `4729 * 8831` is refused). Extending the exact range to arbitrarily
+  compute exactly is **refused**, not guessed. On the float64 substrate
+  (Sutra v0.6.2) integers up to `2**53` (~9.007e15) are exact — `4729 *
+  8831` and `99999 * 99999` return exact; results past `2**53` are
+  refused. Extending the exact range to arbitrarily
   large products needs an arbitrary-precision digit encoding —
   `planning/22-meta-demo-replication.md` Stage 3.
 - **All four operators** (`+ - * /`). Division uses Sutra's
@@ -63,5 +63,5 @@ operation runs** — happens on the substrate:
 ## Run the tests
 
 ```bash
-pytest tests/test_calc.py -v   # 53 cases, all exact-or-refused
+pytest tests/test_calc.py -v   # 57 cases, all exact-or-refused
 ```

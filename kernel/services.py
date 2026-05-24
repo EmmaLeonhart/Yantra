@@ -149,11 +149,17 @@ class SutraService(Service):
         llm_model: str = "nomic-embed-text",
         runtime: Any = None,
         runtime_program_name: str | None = None,
+        runtime_dtype: str = "float32",
     ) -> None:
         self._source_path = pathlib.Path(source_path)
         self._entry_point = entry_point
         self._output_role = output_role
         self._llm_model = llm_model
+        # Substrate float dtype for the per-service compile path. "float64"
+        # extends the exact-integer range from float32's ~2^24 to 2^53 on
+        # the real/synthetic axis (needs Sutra >= v0.6.2). Ignored on the
+        # shared-runtime path (the runtime owns its dtype).
+        self._runtime_dtype = runtime_dtype
         # Optional shared MultiProcessRuntime (Sutra v0.4.0+).
         # When provided, `bind()` skips per-service compilation and
         # pulls handles + key sets from the shared runtime instead.
@@ -312,6 +318,7 @@ class SutraService(Service):
                 self._source_path,
                 llm_model=self._llm_model,
                 runtime_dim=manifest.axon_width,
+                runtime_dtype=self._runtime_dtype,
             )
             if not hasattr(self._compiled_module, self._entry_point):
                 raise AttributeError(
@@ -388,6 +395,7 @@ class SutraService(Service):
 
 def _compile_su_to_module(
     src_path: pathlib.Path, *, llm_model: str, runtime_dim: int,
+    runtime_dtype: str = "float32",
 ) -> types.ModuleType:
     """Compile a .su file via the PyTorch backend.
 
@@ -412,7 +420,10 @@ def _compile_su_to_module(
     tokens = lexer.tokenize()
     parser = Parser(tokens, file=str(src_path), diagnostics=lexer.diagnostics)
     module_ast = parser.parse_module()
-    py_src = torch_translate(module_ast, llm_model=llm_model, runtime_dim=runtime_dim)
+    py_src = torch_translate(
+        module_ast, llm_model=llm_model, runtime_dim=runtime_dim,
+        runtime_dtype=runtime_dtype,
+    )
 
     mod = types.ModuleType(src_path.stem)
     mod.__file__ = f"<compiled from {src_path}>"
