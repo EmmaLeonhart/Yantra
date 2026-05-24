@@ -59,3 +59,21 @@ def test_calc_division_is_unsupported_not_wrong(calc: Calculator) -> None:
     """Division has no Sutra runtime op yet — it must error, not guess."""
     with pytest.raises(ValueError):
         calc.evaluate("10 / 2")
+
+
+def test_calc_demo_transcript_is_exact(calc: Calculator) -> None:
+    """The runnable demo (apps/calc/demo.py) prints exact results."""
+    from demo import run_demo
+
+    lines = run_demo(calc)
+    expected_prefix = [
+        "5 * 10 = 50",
+        "12 + 30 = 42",
+        "100 - 7 = 93",
+        "9 * 9 = 81",
+        "123 + 877 = 1000",
+        "-4 * 6 = -24",
+        "4096 * 4096 = 16777216",
+    ]
+    assert lines[: len(expected_prefix)] == expected_prefix
+    assert lines[-1].startswith("10 / 2 = (refused")
