@@ -171,7 +171,7 @@ when you treat that as the *floor*, not the ceiling.
 
 ## Why this position is defensible
 
-The honest summary of where Yantra fits:
+In short, where Yantra fits:
 
 - **Vision papers** (Meta NCs, classic DNC papers) staked out the
   ambition without delivering an execution substrate. Yantra is the

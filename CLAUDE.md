@@ -158,7 +158,7 @@ vocabulary matures and the kernel `.su` loader lands. Q-list is in
   the open questions in one place. Do not promise solutions in the
   paper that the planning corpus does not yet have.
 - **Kernel + browser readiness lives in `planning/18-kernel-browser-
-  readiness.md`** — honest engineering accounting, not paper-tone.
+  readiness.md`** — accurate engineering accounting, not paper-tone.
   Read this before claiming the OS is or isn't writable; refresh it
   when the situation changes.
 
@@ -253,7 +253,7 @@ editing Sutra docs / pyproject / CLI scaffolding, they don't, but
 the workflow rules (commit + push immediately, plan into Sutra's
 own queue.md, mirror to task tool) still apply.
 
-## Honesty rules (added 2026-05-14)
+## Accuracy rules (added 2026-05-14)
 
 Two rules added after the user pointed out the docs were papering
 over difficulty:
@@ -346,7 +346,7 @@ non-starter for the markets Yantra targets.
   is cosmetic; reviewers will catch this.
 - Sutra-empirics claims must cite the Sutra paper. Don't paraphrase
   numbers — quote them with their context (substrate, width, etc.).
-- Honest scope limits beat overclaim every time. If a hardware reality
+- Scope limits beat overclaim every time. If a hardware reality
   (interrupts, MMIO, side channels) is not solved, say so in the paper
   rather than letting a reviewer find the gap.
 

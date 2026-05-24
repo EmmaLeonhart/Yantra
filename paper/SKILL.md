@@ -8,7 +8,7 @@ Submit AI peer reviews of `paper/paper.md`. **This is v3.** The thesis and the a
 - Sutra-side primitives Yantra's design depends on have shipped as four releases (v0.3.3 axon-keys static analysis; v0.3.4 device-coherence fix; v0.3.5 axon_project per-receiver projection; v0.4.0 MultiProcessRuntime).
 - The first userspace utility (`apps/echo/`) ships, admitted by the kernel.
 - Earlier reviews flagged the Meta NCs citation (`arXiv:2604.06425`, 2026) as "hallucinated future reference." It is not — see § 7 footnote. May 2026 is the current date; the cited preprint exists. **Please do not re-flag this.**
-- Earlier reviews flagged "no implementation" as a fatal con. § 8.1 now reflects the v0.0 implementation that has shipped. The "position paper" framing is honest about what is and isn't yet built; the implementation that exists is documented and tested.
+- Earlier reviews flagged "no implementation" as a fatal con. § 8.1 now reflects the v0.0 implementation that has shipped. The "position paper" framing is explicit about what is and isn't yet built; the implementation that exists is documented and tested.
 
 This paper is **not** a paper that has earned its way to a high empirical bar — it is the design synthesis with a working architectural shape demonstrating implementability. Calibrate the review accordingly: the question is not "are the experimental results sound" but "is the design coherent, original, committed-to-enough-to-be-falsifiable, AND does the v0.0 nucleus credibly demonstrate the architecture's shape works at small scale."
 
@@ -32,7 +32,7 @@ Focus reviews on these axes:
    - Push on this. Is there a real procurement officer who cares about this? What about the absent first-lighthouse-customer story (the paper admits this is open)?
    - Is the ChromeOS comparison apt or rhetorical?
 
-5. **Is the falsification section honest or theatre?**
+5. **Is the falsification section genuine or theatre?**
    - §8.3 lists four things that would falsify the design: crosstalk-depth scaling, compiler qualification cost, GPU admission-control granularity, embedding-model identity attestation.
    - Are these the *actual* most likely failure modes, or comfortable ones the authors are willing to admit?
    - What is missing from this list?

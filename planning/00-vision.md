@@ -59,7 +59,7 @@ Two trends converge:
 
 1. **GPUs as default**. Critical-systems vendors increasingly ship
    accelerator-heavy boxes anyway. A connectionist OS is not chasing
-   exotic hardware; it is using what is already there more honestly.
+   exotic hardware; it is using what is already there more directly.
 2. **AI is everywhere but feels bolted on**. RAG, MCP, function calling,
    and agent scaffolding are all plumbing around the same hole — that
    models think in vectors but software speaks in bytes. A Sutra-native OS

@@ -8,7 +8,7 @@
 > (incl. the scheduled cron) can execute it without chat context.
 >
 > **What this document is not.** A claim that Yantra boots bare
-> metal like Linux 0.00 does. The honest-scope section below states
+> metal like Linux 0.00 does. The scope section below states
 > exactly what maps and what does not.
 
 ## What Linux 0.00 actually is
@@ -49,7 +49,7 @@ Linux 0.00 concept → Yantra-native realization:
 | Task B (writes `B` forever) | `kernel/services/task_b.su` — same, codepoint **66** |
 | `write_char` syscall (`int 0x80`) → VGA memory | a console/sink service that consumes both output roles and accumulates the ordered character stream |
 | Timer IRQ that flips tasks | `Init.tick()` — one tick = one timer fire; the kernel runs the admitted tasks and the router carries their output |
-| Hardware TSS context switch | **(deliberately NOT replicated — see honest scope)** Yantra's kernel does not context-switch (`kernel/init.py` docstring: "Does NOT schedule — the GPU runs every admitted process simultaneously"). Both tasks live in the connectome at once; the tick is the timer analogue; output interleaves under kernel mediation |
+| Hardware TSS context switch | **(deliberately NOT replicated — see scope section)** Yantra's kernel does not context-switch (`kernel/init.py` docstring: "Does NOT schedule — the GPU runs every admitted process simultaneously"). Both tasks live in the connectome at once; the tick is the timer analogue; output interleaves under kernel mediation |
 
 This is a *faithful translation of Linux 0.00's purpose*, not a
 cargo-culted TSS. Linux 0.00 demonstrates "kernel mediates two
@@ -79,7 +79,7 @@ that in Yantra's connectome model.
    (c) each task's emitted vector decodes to its intended codepoint.
    Real `SutraService` (use `make_shared_sutra_services` for one
    shared `_VSA`). **No weakened assertions; report measured
-   decode similarity honestly** (Sutra CLAUDE.md safety rules bind
+   decode similarity as measured** (Sutra CLAUDE.md safety rules bind
    even in a Yantra-driven session).
 4. **README / queue**: note the demo under `kernel/README.md`
    "What runs today"; delete the queue item on completion.
@@ -109,7 +109,7 @@ Linux 0.00, which is pure CPU + VGA. Conflating the two is the
 exact "paper over difficulty" failure CLAUDE.md warns against —
 fixed here and in `bootloader/README.md`.
 
-### Honest scope — what is still NOT replicated
+### Scope — what is still NOT replicated
 
 - **No hardware TSS task switch.** Linux 0.00 used the x86
   hardware-TSS `ljmp` mechanism. The bare-metal replica uses a
@@ -168,7 +168,7 @@ xfailing — no regression from the Sutra v0.4.1 submodule bump).
 The per-task-constant fallback in the deliverables note was NOT
 needed: Sutra's `real_number` cleanly emits a single decodable
 codepoint vector, so the A/B are genuine substrate values, not
-opaque constants. Honest-scope limits below stand unchanged.
+opaque constants. Scope limits below stand unchanged.
 
 ## Status — bare-metal realization (2026-05-17)
 
@@ -218,7 +218,7 @@ hardware-timer-driven, not a busy-loop print: repeated `v=20`
 (our remapped IRQ0) interrupts with `EAX` alternating `0x41`/`0x42`
 ('A'/'B') across the two task contexts. It leads with `B` because
 the first PIT tick lands between task A's counter-increment and
-its first `sputc` — an honest one-character startup timing
+its first `sputc` — a genuine one-character startup timing
 artifact (this is what preemptive timing looks like), not a
 correctness bug.
 

@@ -43,8 +43,8 @@ into `queue.md` first).
   deliberately not forced/faked from here).
 - `planning/20-lazy-axon-evaluation.md` § Status — the measured
   lazy-eval reality.
-- `planning/18-kernel-browser-readiness.md` — honest engineering
-  accounting (refreshed; keep it honest as reality moves).
+- `planning/18-kernel-browser-readiness.md` — accurate engineering
+  accounting (refreshed; keep it accurate as reality moves).
 - `external/Sutra/planning/findings/2026-05-15-*` — the
   transcendental-leak and axon-key-coercion root-cause records.
 - `git log` — the narrative; each commit message says *why*.
@@ -70,7 +70,7 @@ fine for running the kernel on it directly, not for VM
 passthrough). The browser (§3)
 is build-sequence-gated (milestone 3, after kernel + CLI
 utilities) — do not jump it. The high-yield unblocked work has
-been: cross-repo regression root-causes+fixes, and honest
+been: cross-repo regression root-causes+fixes, and accurate
 engineering-accounting / doc-truth passes. Pick in that spirit.
 
 ---

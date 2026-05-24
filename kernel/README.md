@@ -84,7 +84,7 @@ timer-IRQ analogue); `console.su` is the fan-in VGA-memory
 analogue. Measured: `real(task_a)==65.0`, `real(task_b)==66.0`,
 kernel-mediated interleaved stream `'AB'*8` — Linux 0.00's "kernel
 alternates two trivial output tasks" realized in Yantra's
-connectome model. Faithful-mapping rationale + honest scope (no
+connectome model. Faithful-mapping rationale + scope (no
 bare-metal boot / TSS — a separate gated bootloader item) in
 `planning/21-linux-0.00.md`.
 
@@ -127,7 +127,7 @@ the unit tests don't pay the Sutra compile cost.
 - `tick()` scheduler that drains every service's inbox once per tick
   and reports per-process processed counts.
 
-**Honestly out of scope** in v0.0 — these all require upstream
+**Out of scope** in v0.0 — these all require upstream
 Sutra-side work that hasn't shipped:
 
 - **Real per-process GPU memory arenas.** `compute_units` is
@@ -231,5 +231,5 @@ harness code that doesn't need real Sutra compute.
   `.su` loader landing.
 
 These aren't oversights; they're problems the architecture defers to
-specific other documents and other layers, and v0.0 is honest about
+specific other documents and other layers, and v0.0 is explicit about
 where its contribution ends.

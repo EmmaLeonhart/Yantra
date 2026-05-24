@@ -69,7 +69,7 @@ malware". The incompatibility is the feature.
 
 ## Where Yantra is *not* a fit
 
-It is helpful to be honest about this so we don't waste time on the
+It is helpful to be clear about this so we don't waste time on the
 wrong sales conversations:
 
 - **Consumer general-purpose desktops.** The "you can't open 100 tabs"

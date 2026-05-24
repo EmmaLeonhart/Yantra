@@ -130,7 +130,7 @@ BABABABABABABABABABABABABABABABABABABABA
 ```
 
 Full design, the two real bugs fixed (json-target-spec; `.code32`/
-`iretw`), and the honest-scope limits: `planning/21-linux-0.00.md`.
+`iretw`), and the scope limits: `planning/21-linux-0.00.md`.
 
 ## Prerequisites
 

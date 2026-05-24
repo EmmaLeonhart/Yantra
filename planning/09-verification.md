@@ -15,7 +15,7 @@ A blunt division of the system:
   They get bounded behavior guarantees (input/output type contracts,
   norm bounds, capability discipline) and runtime monitoring.
 
-This is the honest version of the pitch. It is also enough to be
+This is the accurate version of the pitch. It is also enough to be
 attractive to defense and aerospace, because most of what they
 critically depend on lives on the verifiable side, and the AI side is
 quarantined behind axon-typed contracts.

@@ -1,6 +1,6 @@
 # Readiness assessment — kernel and browser
 
-> **What this document is.** An honest accounting of what we have *now* versus what we need to actually start writing (a) the kernel and (b) the browser. Originally written 2026-05-13 vs Sutra v0.3.1.
+> **What this document is.** An accurate accounting of what we have *now* versus what we need to actually start writing (a) the kernel and (b) the browser. Originally written 2026-05-13 vs Sutra v0.3.1.
 >
 > **Refreshed 2026-05-16** (autonomous loop) against the current submodule, **`external/Sutra` @ `v0.4.0-27-gdd448b47`** — every "v0.3.1" / "the multi-process runtime hasn't landed" / "TS CLI is an unwired skeleton" claim below was stale or internally contradictory and is corrected inline, each correction measured (test run / CLI run / `git describe`), not asserted. The original-tone paragraphs are kept where still true.
 >
@@ -35,8 +35,8 @@ Pinned at `external/Sutra` @ **`v0.4.0-27-gdd448b47`** (refreshed 2026-05-16; wa
 ### Working today
 
 - **The Sutra compiler (`sutrac`).** Validate, `--emit` to self-contained PyTorch Python, `--run` end-to-end. Runs on Python 3.11+. Substrate-purity audit landed in v0.3.1 (the bug it fixed: complex `+`/`-`/`/` were silently host-Python instead of substrate-pure — bad enough that it warranted a same-day patch release).
-- **Multi-program axon passing.** Two separately-compiled `.su` programs exchange a 5-key axon via a numpy `.npy` wire. **Honest history:** this regressed (a compiler bug — `axon_item` string-key was `make_string`-coerced while the producer kept it a host str, so producer/consumer keyed on different role vectors → cross-module decode collapsed to ~0.04). Root-caused + fixed this loop (Sutra `eb0ce93e`); `examples/multi_program_axon/_run.py` is back to **PASS at +0.40 / margin +0.20** (measured, untuned). **This is the kernel-side IPC primitive**, shippable nucleus of the router — but note it round-trips the *full* bundle: lazy per-receiver slimming via `axon_project` is a no-op for embedding fillers (see the kernel TL;DR caveat + `planning/20-lazy-axon-evaluation.md`), so true bandwidth/isolation needs producer-side pruning, not the wire as-is.
-- **Stdlib transcendentals — substrate-pure (after a real leak was found and fixed).** `Math.exp/log/sin/cos/tan/sinh/cosh/tanh/pow/sqrt` all native. **Honest history (do not paper over):** the "interpolated lookup table, no host-Python fall-throughs" claim was *false* as of 2026-05-15 — `exp`/`log`/etc. did `float(x)` in, host `if`/`raise`, `float(...)` out (a substrate leak that had been labelled "substrate-pure" in a comment). Fixed in Sutra `21a9ff77`: one `_st()` host→substrate boundary, eigenrotation/`cexp` for trig, real `exp` = `cexp(x,0)` beta-reduced, out-of-range **saturates** (no host raise — the no-runtime-errors rule). Now genuinely substrate-pure; verified by `test_transcendentals` (20 subtests) at the time of the fix.
+- **Multi-program axon passing.** Two separately-compiled `.su` programs exchange a 5-key axon via a numpy `.npy` wire. **History:** this regressed (a compiler bug — `axon_item` string-key was `make_string`-coerced while the producer kept it a host str, so producer/consumer keyed on different role vectors → cross-module decode collapsed to ~0.04). Root-caused + fixed this loop (Sutra `eb0ce93e`); `examples/multi_program_axon/_run.py` is back to **PASS at +0.40 / margin +0.20** (measured, untuned). **This is the kernel-side IPC primitive**, shippable nucleus of the router — but note it round-trips the *full* bundle: lazy per-receiver slimming via `axon_project` is a no-op for embedding fillers (see the kernel TL;DR caveat + `planning/20-lazy-axon-evaluation.md`), so true bandwidth/isolation needs producer-side pruning, not the wire as-is.
+- **Stdlib transcendentals — substrate-pure (after a real leak was found and fixed).** `Math.exp/log/sin/cos/tan/sinh/cosh/tanh/pow/sqrt` all native. **History (do not paper over):** the "interpolated lookup table, no host-Python fall-throughs" claim was *false* as of 2026-05-15 — `exp`/`log`/etc. did `float(x)` in, host `if`/`raise`, `float(...)` out (a substrate leak that had been labelled "substrate-pure" in a comment). Fixed in Sutra `21a9ff77`: one `_st()` host→substrate boundary, eigenrotation/`cexp` for trig, real `exp` = `cexp(x,0)` beta-reduced, out-of-range **saturates** (no host raise — the no-runtime-errors rule). Now genuinely substrate-pure; verified by `test_transcendentals` (20 subtests) at the time of the fix.
 - **Modulus library.** `Math.mod` (eigen-rotation, ~10⁻⁷ max abs error), `Math.fmod` (truncation, JS/C semantics), the `%` operator now substrate-routed.
 - **Async/await/`Promise<T>`** as first-class Sutra vocabulary, two-stage beta-reduction at compile time. This is a load-bearing enabler for the browser stack — async is the only sane way to do event-driven UI.
 
@@ -85,7 +85,7 @@ Three submodules, pinned at their latest stable tags as of 2026-05-13:
 5. **MMIO / interrupt / hardware-boundary path** (paper §3.5). Blocked on having hardware to develop against.
 6. **A worked memory model** (`planning/17-memory-model.md`). Doesn't block first-prototype writing but bites at scale.
 
-### Honest call
+### Assessment
 
 The kernel nucleus is real and tested. v0.1 is the hardening list above. **Correction 2026-05-16:** the multi-process Sutra runtime *itself* shipped (Sutra v0.4.0; shared-`_VSA` services + router axon-passing tests pass — measured). **Correction 2026-05-17:** DISC↔GPU load/unload (item 4's GPU half) now works on a real GPU (RTX 4070, measured). What remains for the "no degradation under load" property is the *specific* slice still missing: per-process GPU memory arenas and GPU-tick-parallel execution (items 1–2), plus the *state-preserving* half of eviction (RAM cold-store of running state — needs Sutra `serialise-process-state`). Those are now the long pole, not "the runtime hasn't landed" and not "no GPU".
 
@@ -110,7 +110,7 @@ The kernel nucleus is real and tested. v0.1 is the hardening list above. **Corre
 - **WebGL bindings.** The plan mentions WebGL; the implementation does not exist.
 - **Network stack / `fetch` / `WebSocket`.** A minimum-viable fetch-shim is several weeks of work even with the language in place.
 
-### Honest call
+### Assessment
 
 **Start writing the Sutra-native renderer now.** This is the part that does not depend on the TS transpiler being polished, and it is the part that is most novel — the layout engine that consumes axons and emits axons is the load-bearing demonstration that "everything is a browser" can be implemented at all. Defer the web-app-loading story until both the renderer and the TS transpiler CLI are ready. A v0.0 browser that displays a hand-written Sutra "page" before it can load any HTML is a perfectly defensible milestone.
 

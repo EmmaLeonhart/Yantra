@@ -137,7 +137,7 @@ binary at a different boot stage that Python cannot participate
 in at all. The Rust orchestrator port reimplements the same shape
 the Python prototype demonstrates; the bootloader is its own
 separate Rust target. See `kernel/README.md` for what the Python
-prototype actually covers and what is honestly out of scope, and
+prototype actually covers and what is out of scope, and
 `19-boot-sequence.md` for the full stage-by-stage flow.
 
 ## Three guiding inversions
