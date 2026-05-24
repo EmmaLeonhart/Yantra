@@ -70,23 +70,30 @@ no Sutra change) was the active switch until v0.6.1 landed; it worked but was an
 arithmetic identity rather than the language's branching primitive, so it was
 replaced by the `select` version. See `git log` for the Lagrange `switch.su`.
 
-### Extending the exact range — float64 (substrate-pure, verified 2026-05-24)
+### Extending the exact range — float64 (LIVE 2026-05-24)
 
-The "2²⁴ ceiling" is float32's exact-integer mantissa, not a fixed property. Running
-the substrate in **float64 extends the exact-integer range to 2⁵³ (~9.007×10¹⁵)**
-with **no host carries** — the same `switch.su`, just higher-precision substrate.
-Measured through the real compile path: `4729*8831 → 41761799` and
-`94906265² → 9007199136250225` (just under 2⁵³) are bit-exact in float64 where
-float32 is off-by-one; past 2⁵³ the substrate is inexact again, so the exactness
-gate still refuses (never-a-wrong-answer holds at the new ceiling). The `select`
-one-hot stays exact: `exp(−120) ≈ 8×10⁻⁵³` is far below float64 ulp at those
-magnitudes. Enabling change: a selectable substrate dtype
-(`Codegen(runtime_dtype="float64")`), additive + default-float32, shipped on Sutra
-`yantra-driven` (`bc2459ca`). **Gated:** Yantra can't switch the calc to float64
-until that param is in *pinned* Sutra (merge to main, like `dot`); then `calc.py`
-requests float64 and the past-range refusal tests move to >2⁵³ values. This is the
-preferred first step over digit-array arbitrary precision precisely because it adds
-no host-side carry arithmetic.
+The "2²⁴ ceiling" is float32's exact-integer mantissa, not a fixed property. The
+calc now runs the substrate in **float64**, extending the exact-integer range to
+**2⁵³ (~9.007×10¹⁵)** with **no host carries** — the same `switch.su`, just
+higher-precision substrate. `4729*8831 → 41761799` and `99999*99999 → 9999800001`
+now return exact (were refused under float32); past 2⁵³ the substrate is inexact
+again, so the gate still refuses (never-a-wrong-answer holds at the new ceiling).
+Verified: 57/57 `test_calc.py` + full gate (114 passed, 1 xfail).
+
+Enabling change: a selectable substrate dtype (`Codegen(runtime_dtype="float64")`),
+additive + default-float32 — Sutra **v0.6.2** (merged to main, submodule pinned).
+`calc.py` requests it; the kernel threads `runtime_dtype` through
+`_compile_su_to_module` / `SutraService`.
+
+**Correction (caught by tests, not a probe):** the `select` one-hot is only exact
+if the off-branch weights underflow to *exactly* 0. The original sharpening
+`−120·(op−t)²` underflows in float32 but **not float64** (`exp(−120) ≈ 8×10⁻⁵³` is
+a normal float64), so a zero result like `1000−1000` picked up off-branch residue
+`≈ 7.7×10⁻⁴⁷` and was refused. Fix: bump the constant to **1000**, so
+`exp(−1000) = 0` in both float32 (underflow ≈ −88) and float64 (≈ −745) and the
+one-hot is exact again. This is the substrate-pure path; digit-array arbitrary
+precision (carry propagation, which must run on the substrate to stay pure) is the
+separate, still-open step.
 
 **Output:** the Sutra program's float goes out to the host, which displays it.
 (Native float→string rendering *on the substrate* is a future want — there's no

@@ -2,18 +2,21 @@
 // `select` primitive, made exact by softmax saturation. This is Emma's
 // approach: defuzzify/sharpen `select` enough and the branches stop
 // blending. It is the intended switch — it uses Sutra's conditional-
-// branching primitive rather than an arithmetic identity. VERIFIED 18/18
-// bit-exact (incl. b=0 and the 2^24 ceiling). Requires Sutra >= v0.6.1
-// (the `dot` builtin); the submodule is pinned there.
+// branching primitive rather than an arithmetic identity. Requires Sutra
+// >= v0.6.1 (the `dot` builtin); the calc compiles it in float64
+// (runtime_dtype, Sutra >= v0.6.2) for exact integers to 2^53.
 //
 // How it stays exact:
-//   score_t = -120 * (op - t)^2, read as a clean scalar via
+//   score_t = -1000 * (op - t)^2, read as a clean scalar via
 //   dot(op - make_real(t), make_real(1)) — the dot with the real unit
 //   zeroes every other axis (incl. axon-recovery noise), so the score is
-//   exactly 0 at op=t and <= -120 elsewhere. exp(-120) underflows to
-//   exactly 0.0 in float32, so select's softmax is a TRUE one-hot: the
-//   matched branch passes through and the others are killed by exact-zero
-//   weights (no blend, unlike unsharpened softmax). A second select picks
+//   exactly 0 at op=t and <= -1000 elsewhere. exp(-1000) underflows to
+//   exactly 0.0 in BOTH float32 (underflow ~ -88) and float64 (~ -745),
+//   so select's softmax is a TRUE one-hot: the matched branch passes
+//   through and the others are killed by exact-zero weights (no blend).
+//   The constant must clear float64's underflow point, or a zero result
+//   (e.g. 1000-1000) picks up off-branch residue ~1e-47 and is refused.
+//   A second select picks
 //   the division denominator (b for op=/, else 1) so a zero denominator in
 //   a killed branch can never produce nan. A genuine /0 (op=/, b=0) is a
 //   domain error caught upstream by the host.
@@ -35,10 +38,10 @@ function vector on_axon(vector input_axon) {
     scalar d2 = dot(op - real_number(2.0), u);
     scalar d3 = dot(op - real_number(3.0), u);
 
-    scalar s0 = 0.0 - 120.0 * d0 * d0;
-    scalar s1 = 0.0 - 120.0 * d1 * d1;
-    scalar s2 = 0.0 - 120.0 * d2 * d2;
-    scalar s3 = 0.0 - 120.0 * d3 * d3;
+    scalar s0 = 0.0 - 1000.0 * d0 * d0;
+    scalar s1 = 0.0 - 1000.0 * d1 * d1;
+    scalar s2 = 0.0 - 1000.0 * d2 * d2;
+    scalar s3 = 0.0 - 1000.0 * d3 * d3;
 
     vector one = real_number(1.0);
     complex denom = select([s0, s1, s2, s3], [one, one, one, b]);

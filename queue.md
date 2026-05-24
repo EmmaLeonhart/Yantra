@@ -84,24 +84,17 @@ not yet substrate-pure. Fix is step 3 below + `planning/23`. See
    - d. **Parse on the substrate** — a Sutra loop over the codepoint string: digit →
      strip char flag → value; place-value assembly (2-digit cap to start); space ends
      an operand; `=` triggers. Host shrinks to read-line / print-float.
-   - e. **Extend the exact range.** Two paths, the first verified:
-     - **float64 substrate (substrate-pure, no host carries) — VERIFIED, gated on
-       a Sutra merge.** Measured: running the calc's `switch.su` in float64
-       extends the exact-integer range from float32's ~2²⁴ to **2⁵³ (~9.007e15)**
-       — `4729*8831` and `94906265²` come out bit-exact, and past 2⁵³ the
-       substrate goes inexact again so the gate still refuses (never a wrong
-       answer holds). Enabling change: a selectable substrate dtype
-       (`Codegen(runtime_dtype=…)`) — shipped on Sutra `yantra-driven`
-       (`bc2459ca`), default float32 so nothing else changes. **Cannot activate
-       in Yantra until it's in pinned Sutra** (merge to main, like `dot` — Emma's
-       call); then `calc.py` requests float64 and the refusal tests move to
-       past-2⁵³ values. This is NOT host-carry digit arithmetic; it is the
-       substrate computing in higher precision.
-     - **Arbitrary precision (digit-array)** — true unbounded exactness; bigger,
-       still open. The honest framing the cron flagged ("the host does the
-       carries") is exactly why float64 is preferred first: it needs no host
-       carries. Digit-array carry propagation would itself have to run on the
-       substrate to stay pure.
+   - e. **Extend the exact range — float64 DONE 2026-05-24; arbitrary precision open.**
+     **float64 substrate (substrate-pure, no host carries) — LIVE.** The calc now
+     compiles `switch.su` in float64 (Sutra **v0.6.2** `runtime_dtype`, merged +
+     pinned), extending exact integers from float32's ~2²⁴ to **2⁵³ (~9.007e15)**:
+     `4729*8831` and `99999*99999` now return exact (were refused), past 2⁵³ still
+     refuses (never-a-wrong-answer holds). 57/57 calc + full gate (114 passed, 1
+     xfail) green. Sharpening bumped 120→1000 so off-weights still underflow to
+     exactly 0 in float64 (else a zero result like 1000−1000 picks up ~1e-47 and
+     gets refused — caught by tests, fixed). NOT host-carry arithmetic.
+     **Still open — arbitrary precision (digit-array):** true unbounded exactness;
+     would need carry propagation on the substrate (not host) to stay pure.
    See `planning/23-calc-substrate-purity.md` (full design + findings) + `planning/22`.
 4. **Demo on the site — DONE.** `site/index.html` has a "See it compute"
    section (the calculator transcript + the symbolic-stability contrast),

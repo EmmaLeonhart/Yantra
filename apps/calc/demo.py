@@ -18,8 +18,10 @@ from __future__ import annotations
 
 from calc import Calculator
 
-# A fixed session. Every result is exact and within the float32
-# exact-integer range (the top entry is 2**24 exactly).
+# A fixed session. Every result is exact. The substrate runs in float64
+# (Sutra v0.6.2), so exact integers hold to 2**53 (~9.007e15) — far past
+# float32's ~2**24. `4729 * 8831` was refused under float32; here it is
+# computed exactly, on the substrate, no host carries.
 SESSION = [
     "5 * 10 =",
     "12 + 30 =",
@@ -30,13 +32,15 @@ SESSION = [
     "123 + 877 =",
     "-4 * 6 =",
     "4096 * 4096 =",
+    "4729 * 8831 =",
+    "99999 * 99999 =",
 ]
 
 # Things the calculator REFUSES rather than answer wrong — the
-# "never a wrong answer" guarantee in action.
+# "never a wrong answer" guarantee in action, now at the float64 ceiling.
 REFUSED = [
     ("10 / 3", "not an exact quotient — refused rather than approximated"),
-    ("99999 * 99999", "result past the float32-exact range, not representable"),
+    ("99999999 * 99999999", "result past the float64-exact range (2**53), not representable"),
 ]
 
 
