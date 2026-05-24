@@ -90,6 +90,10 @@ unreliable and ours is provably exact.
 This rides on the Sutra empirical foundation (100% bundle decoding
 through width k=8; ~1.5×10⁻¹⁵ bind/unbind round-trip) and on what the
 kernel already does today: `apps/echo` round-trips a symbol bit-exact.
+**First real data point (2026-05-23):** the Stage-1 harness
+(`tests/test_symbol_fidelity.py`) measures Yantra at 1024/1024 exact,
+max |err| = 0.0, flat across the horizon — the left end of the figure
+is pinned at perfect.
 
 ## Shipping it — a downloadable demo on the site
 
@@ -106,16 +110,23 @@ Gated on the build sequence (`planning/18`: kernel → CLI → GUI).
 
 - **Stage 0 — already true.** Exact symbol round-trip through the kernel
   router; `apps/echo` preserves text bit-exact. The claim in miniature.
-- **Stage 1 — symbol-fidelity harness (fully unblocked).** A repeatable
-  test pushing a long scripted symbol trace through the kernel,
-  asserting 100% exact match / zero drift. The measured seed of the
-  figure. No new Sutra primitives.
+- **Stage 1 — symbol-fidelity harness. DONE (2026-05-23).**
+  `tests/test_symbol_fidelity.py` pushes 1024 distinct numeric symbols
+  through a real Sutra passthrough service + the kernel router and
+  recovers every one **bit-exact**: 1024/1024, max |err| = 0.0, and
+  zero drift (first-decile max |err| = last-decile max |err| = 0.0).
+  The left end of the symbol-fidelity-vs-horizon figure is pinned at
+  perfect. No new Sutra primitives were needed.
 - **Stage 2 — terminal surface.** A Sutra-native command reader
   (scripted or button-driven is fine) that admits utilities through the
   kernel and shows exact output.
 - **Stage 3 — the calculator app.** A minimal GUI (button grid +
   display) over real Sutra arithmetic. The optimal demo; needs the GUI
-  layer.
+  layer. **Precision note:** the real-axis encoding is float32, so exact
+  integers hold only to 2²⁴ (~16.7M); a headline product like
+  4729 × 8831 = 41,765,099 exceeds that and needs an arbitrary-precision
+  digit-array encoding (make_string-style codepoints), not a single
+  real-axis value. Settle the number representation before the buttons.
 - **Stage 4 — ship + measure.** A downloadable demo on the site, plus
   the contrast figure against a generative baseline.
 
