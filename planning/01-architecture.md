@@ -140,6 +140,29 @@ separate Rust target. See `kernel/README.md` for what the Python
 prototype actually covers and what is out of scope, and
 `19-boot-sequence.md` for the full stage-by-stage flow.
 
+**Build strategy — incremental, many small Rust programs (Emma
+2026-05-24).** The Rust orchestrator is *not* a monolith written in one
+go (the "blocked: no tight spec" framing was wrong). The plan is to write
+**many small, freestanding Rust programs that each do one small task**
+(load a `.su` image, move a tensor disc↔GPU, serialise an axon, check a
+capability, …), verify each against the Python `kernel/` API reference,
+and **merge them into the orchestrator over time** as time allows. This
+suits bare metal: small no-std-friendly Rust units compose toward a
+freestanding image, and it lets the Rust port proceed in verifiable
+increments rather than waiting on a complete spec. `bootloader/` (already
+real Rust) is the first such unit; new units grow alongside it.
+
+**Storage-tier serialisation has two distinct kinds (Emma 2026-05-24),
+do the easy one first.** The orchestrator (Rust preferred; Python is the
+interim) performs the disc↔RAM↔GPU moves via two serialisations: (a)
+**axon-output serialisation** — capture/restore the structured-embedding
+value a program emits (easy; it is already a typed vector at the router);
+(b) **full-process-state serialisation** — snapshot the VRAM slice holding
+a *running* program's weights *and* in-flight memory for bit-exact
+checkpoint/resume (hard; this is what the Sutra `serialise-process-state`
+primitive is for). Ship (a) first; (b) is the long pole. See `todo.md`
+§1 and `17-memory-model.md`.
+
 ## Three guiding inversions
 
 Yantra inverts three things people usually take for granted:

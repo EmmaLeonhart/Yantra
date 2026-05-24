@@ -132,6 +132,19 @@ production form is Rust. Hardening list:
   RAM in Yantra is semantically closer to disc than to traditional
   RAM (`planning/01-architecture.md` § "The kernel is a Connectome
   Manager").
+  - **Emma's direction (2026-05-24): the orchestrator does the
+    serialisation, in two distinct kinds — start with the easy one.**
+    (a) **Serialise an axon's output** — the structured-embedding value a
+    program emits. This is the easy, near-term kind (it's already a
+    well-typed vector through the router; capturing/restoring it is
+    tractable). (b) **Serialise the full process state** — the slice of
+    VRAM holding the program's weights *and* its in-flight memory, so a
+    *running* program can be checkpointed and resumed bit-exact. This is
+    the hard kind (you're snapshotting live device memory + weights), and
+    it's what the Sutra `serialise-process-state` primitive is for. Build
+    (a) first; (b) is the long pole. **Rust preferred** for the
+    orchestrator doing this (Python acceptable as the interim) — see the
+    orchestrator note below.
 - **Real per-process GPU memory arenas.** v0.0's `compute_units`
   is bookkeeping only. Production needs the multi-process Sutra
   runtime (being implemented in the Sutra repo upstream) to carve
@@ -160,6 +173,20 @@ production form is Rust. Hardening list:
   remains here is the *Rust* orchestrator's own `.su` loader (the
   Python `SutraService` is the API reference), not a missing
   Python stub.
+- **Rust orchestrator — built incrementally; NOT "blocked, no spec"
+  (Emma's direction 2026-05-24).** The vision: a Python orchestrator
+  *now*, switching to a **Rust** orchestrator as time allows. Rust is the
+  target because the orchestrator manages GPU memory/processes and Rust
+  gives more granular access + far more potential to run on bare metal —
+  it's the OS-grade piece. The "blocked: no tight spec" framing was wrong;
+  **the spec direction is: write many small Rust programs that each do one
+  small task, then merge them into the orchestrator over time.** This is
+  itself bare-metal-friendly (small freestanding Rust units compose toward
+  a no-std image). Specify this build strategy in
+  `planning/01-architecture.md` § "CPU side" so it's the standing plan,
+  and grow `bootloader/` (already real Rust) along the same lines. The
+  Python `kernel/` stays the behavioural API reference each Rust unit must
+  match.
 - **Rotation-operator-based capability check.** v0.0 trusts the
   sender's name (admission grants identity; capability is checked
   by name). Production's threat model (`paper/paper.md` § 3.3.1)
@@ -173,6 +200,23 @@ production form is Rust. Hardening list:
   Rust** (see `bootloader/`), the same systems language as the
   orchestrator — not a C→Sutra transpile target (that transpiler is
   not planned).
+- **Bare-metal via a VM — open investigation (Emma's question 2026-05-24):
+  "can a VM run on bare metal and simulate a GPU even without a real one?"**
+  Honest current understanding (worth verifying, not asserting): a VM runs
+  fine and we already test the **boot/orchestration path** in QEMU (the
+  bootloader is QEMU-verified). The wall is specifically **CUDA compute**:
+  QEMU's emulated display adapters (stdvga/virtio-gpu) do **not** expose
+  CUDA, and there is no practical CPU-emulated CUDA device — so the
+  real-GPU *compute* path can't be exercised inside an ordinary VM without
+  GPU passthrough (VFIO + a spare GPU). BUT two separable things this
+  unblocks for VM-only dev: (1) the **boot + orchestrator logic** is fully
+  VM-testable today (no GPU needed); (2) **Sutra runs on CPU** (torch CPU
+  fallback) — so a VM can run the *whole stack functionally* (correctness,
+  not GPU performance) by pointing the substrate at CPU. Action: write this
+  up properly in `planning/19-boot-sequence.md` (boot path: VM-OK; GPU
+  compute: needs passthrough or CPU-fallback), and check whether any
+  software CUDA shim / GPU-paravirtualisation (e.g. virtio-gpu venus,
+  vendor vGPU) could give a VM real CUDA — that would change the answer.
 
 ## ~~Investigate: bundle-decoding regression~~ — RESOLVED 2026-05-15
 
