@@ -55,9 +55,10 @@ compiled and executed through the router; the core paths pass. (Two
 cases are tracked as known gaps rather than green: a GPU-memory
 accounting test, and the cross-program axon-projection case — see
 `planning/18` and `planning/20`.) The Sutra compiler/runtime live in
-the `external/Sutra` submodule (pinned at v0.6.0; ships the TS→Sutra
+the `external/Sutra` submodule (pinned at v0.6.2; ships the TS→Sutra
 transpiler CLI, axon-keys static analysis, the per-receiver
-projection primitive, and `MultiProcessRuntime` — N programs sharing
+projection primitive, the `dot` builtin + selectable `runtime_dtype`
+(float64), and `MultiProcessRuntime` — N programs sharing
 one `_VSA`). Sutra's website: <https://sutralang.dev>. The
 orchestration layer is Python here as the near-term implementation;
 the production target on the CPU side is Rust.

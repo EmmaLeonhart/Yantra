@@ -76,7 +76,7 @@ in adjacent projects.
 - **Kernel implementation.** The `kernel/` directory in this repo
   is the v0.0 Connectome Manager. **Sutra is doing the
   computation** — `SutraService` compiles `.su` source via the
-  Sutra v0.6.0 compiler and runs `on_axon(vector) -> vector` on
+  Sutra v0.6.2 compiler and runs `on_axon(vector) -> vector` on
   real torch tensors routed through the kernel. The
   **orchestration layer** (init/resource-manager + axon router +
   capability check) is in Python here; the production form on the
@@ -135,7 +135,7 @@ vocabulary matures and the kernel `.su` loader lands. Q-list is in
 - **Two core dependencies Yantra rides on, both Sutra-side:**
   1. **Sutra** — the typed functional language with rotation-binding +
      polynomial Kleene logic + tail-recursive RNN-cell loops. Pinned
-     in this repo at `external/Sutra` (submodule, currently v0.4.0).
+     in this repo at `external/Sutra` (submodule, currently v0.6.2).
      Language website: [sutralang.dev](https://sutralang.dev). The
      Sutra paper at `external/Sutra/paper/paper.md` is the canonical
      reference for empirical claims Yantra makes (100% bundle
@@ -393,7 +393,7 @@ session lost to agent-invented detours; full write-up + the Sutra-side rule in
 
 Submodules pinned at known-good releases. Layout:
 
-- `external/Sutra` (tag `v0.6.0`) — the language, compiler, runtime,
+- `external/Sutra` (tag `v0.6.2`) — the language, compiler, runtime,
   and Sutra paper Yantra depends on. Website: <https://sutralang.dev>
   (canonical, built from `external/Sutra/docs/`).
 The Linux userspace submodules (`coreutils`, `util-linux`,
