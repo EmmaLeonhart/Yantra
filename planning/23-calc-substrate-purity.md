@@ -38,6 +38,32 @@ Walk the codepoint string:
 - The **operator char** is recorded (kept as a vector for Stage 3).
 - **`=` is the trigger** — both operands assembled + operator known → fire.
 
+> **Feasibility checked on the substrate (2026-05-24) — partly green, one precise
+> blocker, NOT faked.**
+>
+> *Verified working at the `_VSA` level (real runs):* `string_char_at(s, i)`
+> returns the **codepoint as a 0-d tensor** directly on the substrate
+> (`'5'`→`53.0`, `'0'`→`48.0`, …), and `string_length` works. Digit value is
+> `codepoint − 48`; `"42"` reconstructs to `42.0` via `4×10 + 2` — confirmed by
+> measurement. So the conceptual core of Stage 1 ("can we get digit values on the
+> substrate at all?") is **YES**, with existing ops (`string_char_at`,
+> arithmetic) — no new Sutra primitive needed for digit extraction.
+>
+> *Blocker (precise):* composing this **inside a `.su`** with naive arithmetic
+> does not yet produce a real-axis-decodable result. A function
+> `parse_two_digits(string s) { return (s.string_char_at(0) - 48) * 10 +
+> (s.string_char_at(1) - 48); }` compiles and runs but returns an **empty / 0-d
+> tensor**, so `_VSA.real(result)` raises `IndexError: index 768 out of bounds …
+> size 0`. The 0-d codepoint scalar does not lift into a real-axis-encoded
+> 768-vector through bare `*`/`+`/`-`. The correct composition (lift each
+> codepoint with `make_real`, and do place-value with the SAME substrate
+> real-axis arithmetic `switch.su` uses — not raw operators) is the open detail;
+> it was not nailed and is **not shipped** rather than host-faked. Candidate next
+> step: `make_real(s.string_char_at(i))` then place-value via the substrate
+> add/mul path, verified end-to-end before wiring into `calc.py`. (This is the
+> §"fake-substrate-work" trap by name — do the real composition or queue it,
+> never a host stand-in.)
+
 **Stage 2 — compute all four ops at once:** `a+b`, `a−b`, `a×b`, `a÷b`.
 
 **Stage 3 — exact one-hot switch. SHIPPED (Emma's `select` approach, active).**
