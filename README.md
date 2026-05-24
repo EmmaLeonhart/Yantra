@@ -48,16 +48,19 @@ code" beat "it runs my favourite app."
 ## Status
 
 This repo holds **planning documents** plus a v0.0 **Connectome
-Manager** under `kernel/` — Python orchestration layer + real Sutra
-compute (44 passing tests, including 6 that compile and execute real
-`.su` programs through the kernel router). The Sutra compiler/runtime
-live in the `external/Sutra` submodule (pinned at v0.4.0; ships the
-working TS→Sutra transpiler CLI, axon-keys static analysis,
-per-receiver projection primitive, and `MultiProcessRuntime` —
-N programs sharing one `_VSA`). Sutra's website: <https://sutralang.dev>.
-The orchestration layer is in
-Python in this repo as the near-term implementation; the production
-target on the CPU side is Rust.
+Manager** under `kernel/` — a Python orchestration layer over real
+Sutra compute. The kernel test suite is ~56 tests covering admission
+control, the axon router, capability checks, and real `.su` programs
+compiled and executed through the router; the core paths pass. (Two
+cases are tracked as known gaps rather than green: a GPU-memory
+accounting test, and the cross-program axon-projection case — see
+`planning/18` and `planning/20`.) The Sutra compiler/runtime live in
+the `external/Sutra` submodule (pinned at v0.6.0; ships the TS→Sutra
+transpiler CLI, axon-keys static analysis, the per-receiver
+projection primitive, and `MultiProcessRuntime` — N programs sharing
+one `_VSA`). Sutra's website: <https://sutralang.dev>. The
+orchestration layer is Python here as the near-term implementation;
+the production target on the CPU side is Rust.
 
 Yantra is being designed (and now early-prototyped) here so that when
 the upstream Sutra-side multi-process runtime + the production Rust
@@ -70,11 +73,11 @@ Three modes, pick one:
 **1. Host Python** — the path the existing CI runs on.
 
 ```bash
-# Python 3.13 + git submodule init for Sutra
-pip install pytest
+# Python 3.13 + the Sutra submodule
+pip install pytest numpy
 pip install torch --index-url https://download.pytorch.org/whl/cpu
 git submodule update --init external/Sutra
-pytest tests/ -v          # 44 tests, including 6 real-Sutra integration
+pytest tests/ -v          # kernel suite + real-Sutra integration
 ```
 
 **2. Docker dev container** — reproducible across machines, no host deps beyond Docker. First run builds the image (~5–10 min, dominated by torch CPU wheel); subsequent runs reuse layers.

@@ -4,6 +4,8 @@
 >
 > **Refreshed 2026-05-16** (autonomous loop) against the current submodule, **`external/Sutra` @ `v0.4.0-27-gdd448b47`** — every "v0.3.1" / "the multi-process runtime hasn't landed" / "TS CLI is an unwired skeleton" claim below was stale or internally contradictory and is corrected inline, each correction measured (test run / CLI run / `git describe`), not asserted. The original-tone paragraphs are kept where still true.
 >
+> **Refreshed 2026-05-23:** submodule now pinned at `external/Sutra` **v0.6.0**; the kernel suite is **~56 tests** (54 pass / 1 fail / 1 xfail, measured 2026-05-23 — the failure is the GPU-memory-accounting assertion in `test_kernel_gpu_tiers.py`, the xfail is the cross-program `axon_project` no-op). The dated 2026-05-16 measurements below stand as their own snapshot; read them as of that date.
+>
 > **What this document is not.** A roadmap commitment. The "should we start" calls at the end are recommendations; the user picks.
 
 ## Build sequence

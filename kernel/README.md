@@ -69,7 +69,7 @@ job, for real.
 
 **`tests/test_kernel_sutra.py` is the one that proves Sutra is
 running.** It admits two real `SutraService`s — `echo.su` and
-`sink.su` compiled by the Sutra v0.4.1 compiler — and routes a
+`sink.su` compiled by the Sutra v0.6.0 compiler — and routes a
 real `torch.randn(768)` tensor through the chain
 producer → echo (Sutra compute) → sink (Sutra compute), verifying
 the receive end gets a real torch tensor back. The first test in
@@ -101,14 +101,14 @@ the unit tests don't pay the Sutra compile cost.
 | `init.py`     | Resource manager: admission against a fixed pool budget; tick scheduler. |
 | `services.py` | `Service` base + `SutraService` (compiles + runs `.su` programs) + `PythonService` (test/harness only). |
 | `manifests/`  | `echo.toml`, `sink.toml` — declarative process descriptors. |
-| `services/`   | `echo.su`, `sink.su` — real Sutra source executed by the Sutra v0.4.0 compiler at admission time. |
+| `services/`   | `echo.su`, `sink.su` — real Sutra source executed by the Sutra v0.6.0 compiler at admission time. |
 
 ## What is real, what is stubbed
 
 **Real** in v0.0:
 
 - **Real Sutra compute.** `SutraService` compiles a `.su` source
-  at admission time via the Sutra v0.4.0 compiler in
+  at admission time via the Sutra v0.6.0 compiler in
   `external/Sutra/sdk/sutra-compiler/`, exposes its `on_axon`
   function, and invokes it on every inbound axon. Inputs and
   outputs are real torch tensors of shape `(axon_width,)`. Tested
