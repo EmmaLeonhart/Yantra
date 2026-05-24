@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Yantra — a neuro-symbolic, GPU-native operating system written in Sutra.">
+  <meta name="description" content="Yantra — a neuro-symbolic, GPU-native operating system written in Sutra. The whole running system is one differentiable tensor-op graph.">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Yantra">
-  <meta property="og:description" content="A neuro-symbolic, GPU-native operating system written in Sutra.">
+  <meta property="og:title" content="Yantra — a GPU-native operating system">
+  <meta property="og:description" content="A neuro-symbolic, GPU-native OS written in Sutra. Kernel, processes, IPC, and GUI all live in one differentiable tensor space.">
   <meta property="og:url" content="https://yantra.emmaleonhart.com/">
-  <title>Yantra</title>
+  <title>Yantra — a GPU-native operating system</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -26,33 +26,99 @@
       text-decoration:none;transition:color .2s}
     .topbar .home{color:var(--text-mute)}
     .topbar .home:hover{color:var(--accent-bright)}
-    main{position:relative;z-index:2;flex:1;display:flex;flex-direction:column;
-      justify-content:center;max-width:680px;width:100%;margin:0 auto;
-      padding:80px 28px 96px}
-    /* identity.css owns .eyebrow + its pulsing dot; page only adds spacing */
+
+    main{position:relative;z-index:2;flex:1;width:100%;max-width:780px;
+      margin:0 auto;padding:0 28px}
+    section{padding:64px 0;border-bottom:1px solid var(--border)}
+    section:last-of-type{border-bottom:none}
+
+    /* Hero */
+    .hero{padding-top:88px;padding-bottom:72px}
     .eyebrow{align-self:flex-start;margin-bottom:26px}
-    h1{font-size:clamp(2.6rem,7vw,3.8rem);font-weight:700;letter-spacing:-1.4px;
-      line-height:1.02;margin-bottom:22px;
+    h1{font-size:clamp(2.6rem,7vw,3.9rem);font-weight:700;letter-spacing:-1.4px;
+      line-height:1.02;margin-bottom:24px;
       background:linear-gradient(120deg,var(--text-strong) 0%,var(--accent-bright) 60%,var(--accent) 100%);
       -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-    .lede{font-size:1.18rem;line-height:1.65;color:var(--text);max-width:600px;
+    .lede{font-size:1.22rem;line-height:1.6;color:var(--text);max-width:640px;
       margin-bottom:20px}
-    .lede em{font-family:var(--serif);font-style:italic;font-size:1.1em;color:var(--text-strong)}
-    .note{font-size:.98rem;line-height:1.7;color:var(--text-mute);max-width:600px;
-      margin-bottom:38px}
-    .links{display:flex;flex-wrap:wrap;gap:12px}
+    .lede em{font-family:var(--serif);font-style:italic;font-size:1.08em;color:var(--text-strong)}
+    .note{font-size:1rem;line-height:1.7;color:var(--text-mute);max-width:640px;
+      margin-bottom:34px}
+
+    /* Section headings */
+    h2{font-family:var(--mono);font-size:.78rem;font-weight:500;letter-spacing:2px;
+      text-transform:uppercase;color:var(--accent);margin-bottom:22px}
+    h3{font-size:1.18rem;font-weight:600;color:var(--text-strong);letter-spacing:-.3px;
+      margin-bottom:8px}
+    p.body{font-size:1.02rem;line-height:1.72;color:var(--text);max-width:660px;margin-bottom:16px}
+    p.body em{font-family:var(--serif);font-style:italic;font-size:1.06em;color:var(--text-strong)}
+    p.body strong{color:var(--text-strong);font-weight:600}
+
+    /* The loop-collapse diagram */
+    .loop{font-family:var(--mono);font-size:.82rem;line-height:1.5;
+      background:var(--accent-soft);border:1px solid var(--border);border-radius:10px;
+      padding:18px 20px;margin:6px 0 18px;color:var(--text-mute);overflow-x:auto}
+    .loop .new{color:var(--accent-bright)}
+    .loop .lbl{display:block;font-size:.68rem;letter-spacing:1px;text-transform:uppercase;
+      color:var(--text-faint);margin-bottom:6px}
+    .loop .lbl+.lbl{margin-top:14px}
+
+    /* Cards (architecture / build sequence) */
+    .cards{display:grid;gap:14px;margin-top:8px}
+    .card{border:1px solid var(--border);border-radius:10px;padding:18px 20px;
+      background:var(--accent-soft)}
+    .card .k{font-family:var(--mono);font-size:.7rem;letter-spacing:1.5px;
+      text-transform:uppercase;color:var(--text-faint);margin-bottom:8px}
+    .card p{font-size:.96rem;line-height:1.6;color:var(--text-mute);margin:0}
+    .steps{counter-reset:step;display:grid;gap:14px;margin-top:8px}
+    .step{position:relative;border:1px solid var(--border);border-radius:10px;
+      padding:18px 20px 18px 56px;background:var(--accent-soft)}
+    .step::before{counter-increment:step;content:counter(step);position:absolute;
+      left:18px;top:18px;width:26px;height:26px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      font-family:var(--mono);font-size:.82rem;font-weight:500;
+      color:var(--accent-bright);border:1px solid var(--border-hover);background:var(--bg)}
+    .step p{font-size:.96rem;line-height:1.6;color:var(--text-mute);margin:0}
+
+    /* Status: two columns */
+    .status{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:8px}
+    .status .col h3{display:flex;align-items:center;gap:8px;font-family:var(--mono);
+      font-size:.74rem;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;
+      margin-bottom:14px}
+    .status ul{list-style:none;display:grid;gap:10px}
+    .status li{font-size:.94rem;line-height:1.5;color:var(--text-mute);
+      padding-left:18px;position:relative}
+    .status li::before{position:absolute;left:0;top:0}
+    .status .have li::before{content:"\2713";color:var(--accent-bright)}
+    .status .have h3{color:var(--accent-bright)}
+    .status .todo li::before{content:"\2192";color:var(--text-faint)}
+    .status .todo h3{color:var(--text-mute)}
+    .status li b{color:var(--text);font-weight:600}
+    .caveat{font-size:.9rem;line-height:1.65;color:var(--text-faint);
+      margin-top:22px;max-width:660px;font-style:italic}
+
+    /* Links / CTA */
+    .links{display:flex;flex-wrap:wrap;gap:12px;margin-top:6px}
     .links a{font-family:var(--mono);font-size:.84rem;font-weight:500;
       text-decoration:none;color:var(--accent);padding:10px 18px;
       border:1px solid var(--border-hover);border-radius:8px;
       background:var(--accent-soft);transition:all .2s}
     .links a:hover{color:var(--accent-bright);border-color:var(--accent);
       transform:translateY(-1px)}
-    footer{position:relative;z-index:2;padding:24px 28px;
+    .links a.primary{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+    .links a.primary:hover{filter:brightness(1.08);color:var(--bg)}
+    .cta p.body{margin-bottom:22px}
+
+    footer{position:relative;z-index:2;padding:28px;
       border-top:1px solid var(--border);font-family:var(--mono);
-      font-size:.72rem;letter-spacing:1px;color:var(--text-faint)}
-    @media(max-width:600px){
-      .topbar{padding:16px 18px}main{padding:56px 20px 72px}
-      h1{font-size:2.3rem;letter-spacing:-.8px}.lede{font-size:1.05rem}
+      font-size:.72rem;letter-spacing:1px;color:var(--text-faint);
+      display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+
+    @media(max-width:640px){
+      .topbar{padding:16px 18px}main{padding:0 20px}
+      .hero{padding-top:56px}section{padding:48px 0}
+      h1{font-size:2.4rem;letter-spacing:-.8px}.lede{font-size:1.08rem}
+      .status{grid-template-columns:1fr}
     }
   </style>
   <!-- Canonical identity: theme before first paint (dark default). See emmaleonhart.com/_identity/. -->
@@ -77,17 +143,112 @@
   </header>
 
   <main>
-    <span class="eyebrow">Yantra &mdash; early development</span>
-    <h1>Yantra</h1>
-    <p class="lede">A neuro-symbolic, GPU-native operating system written in <em>Sutra</em>. The whole running system &mdash; kernel, processes, IPC, GUI &mdash; is one differentiable tensor-op graph.</p>
-    <p class="note">Processes exchange <em>axons</em> (structured embeddings produced by rotation binding), so local AI integrates without a translation layer. Early development; the repository has the current build sequence and status.</p>
-    <div class="links">
-      <a href="https://github.com/EmmaLeonhart/Yantra">View source on GitHub</a>
-      <a href="https://emmaleonhart.com/projects/">All projects</a>
-    </div>
+    <section class="hero">
+      <span class="eyebrow">Yantra &mdash; early development</span>
+      <h1>The OS where the symbol <em style="font-family:var(--serif);font-style:italic;-webkit-text-fill-color:initial;background:none;color:var(--accent-bright)">is</em> the computation.</h1>
+      <p class="lede">Yantra is a neuro-symbolic, GPU-native operating system written in <em>Sutra</em>. Kernel, processes, IPC, and GUI are not programs that run on a substrate &mdash; together they <em>are</em> one differentiable tensor-op graph.</p>
+      <p class="note">The CPU shrinks to a sequencer that boots the machine and shuffles inactive work between GPU and RAM. Everything that matters happens as Sutra programs exchanging <em>axons</em> &mdash; structured embeddings produced by rotation binding &mdash; so local AI plugs in with no translation layer between thought and action.</p>
+      <div class="links">
+        <a class="primary" href="https://github.com/EmmaLeonhart/Yantra">View source on GitHub</a>
+        <a href="#status">What actually runs today</a>
+      </div>
+    </section>
+
+    <section id="why">
+      <h2>Why it exists</h2>
+      <p class="body">Today's stacks were fitted around scarce serial compute and disembodied language models. As GPUs become the default substrate and AI systems want to <em>reason continuously</em> rather than emit strings, the same impedance mismatch shows up everywhere: models think in vectors, but software speaks in bytes. Every round trip pays a translation tax.</p>
+      <div class="loop">
+        <span class="lbl">Today</span>
+        model thought &rarr; text &rarr; parse &rarr; execute &rarr; output &rarr; re-embed &rarr; model thought
+        <span class="lbl">On Yantra</span>
+        <span class="new">model activation &rarr; Sutra program &rarr; tensor output &rarr; directly consumable</span>
+      </div>
+      <p class="body">Because every Sutra program already lives in the embedding space the model is thinking in, perception, reasoning, and action are first-class operations on one representation. There is no translation layer because there is nothing to translate to. This is the substrate <em>beneath</em> tool-use and agents &mdash; not an LLM that calls tools.</p>
+    </section>
+
+    <section id="architecture">
+      <h2>The architecture</h2>
+      <p class="body">The kernel is a <strong>Connectome Manager</strong>, not a traditional scheduler. Its job is deciding <em>what is connected to what</em> &mdash; moving programs between three tiers rather than context-switching them.</p>
+      <div class="cards">
+        <div class="card">
+          <div class="k">Axons</div>
+          <p>The universal data type. Processes exchange structured embeddings bound by rotation, so a capability is just a role and IPC is just vector algebra &mdash; no serialization boundary.</p>
+        </div>
+        <div class="card">
+          <div class="k">Three tiers</div>
+          <p><b style="color:var(--text)">Disc</b> holds programs at rest, <b style="color:var(--text)">RAM</b> holds them loaded but idle, <b style="color:var(--text)">GPU</b> holds the live connectome. The kernel decides which programs are wired in right now.</p>
+        </div>
+        <div class="card">
+          <div class="k">CPU as orchestrator</div>
+          <p>A small Rust orchestrator boots the system and routes axons. The heavy computation is Sutra running on the GPU &mdash; the CPU never pretends to be the runtime.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="build">
+      <h2>The build sequence</h2>
+      <p class="body">Deliberately ordered. Each phase ships before the next begins.</p>
+      <div class="steps">
+        <div class="step"><h3>Connectome Manager</h3><p>The runtime that decides what runs on the GPU vs. sits in RAM vs. on disc. A tested v0.0 nucleus exists in Sutra + a Python orchestration shim; the production form is Rust.</p></div>
+        <div class="step"><h3>Command-line userspace</h3><p>Linux-shaped file utilities (cat, ls, grep&hellip;) written natively in Sutra. First access is command-line only, over SSH or serial from a host. No GUI in this phase.</p></div>
+        <div class="step"><h3>Browser &amp; GUI</h3><p>Only after the first two ship. Every UI surface &mdash; start menu, cursor, login, file manager &mdash; is a browser-rendered HTML page. One framework: HTML5 + CSS + TypeScript + WebGL, no WASM.</p></div>
+      </div>
+    </section>
+
+    <section id="status">
+      <h2>What's real, and what isn't</h2>
+      <p class="body">This repository is mostly planning, plus a working v0.0 kernel nucleus. Naming the gaps plainly matters more than the pitch:</p>
+      <div class="status">
+        <div class="col have">
+          <h3>Working today</h3>
+          <ul>
+            <li><b>Sutra v0.4.0</b> &mdash; the typed, differentiable language, compiler, and runtime Yantra is built in.</li>
+            <li><b>v0.0 kernel nucleus</b> &mdash; compiles <code>.su</code> services and routes axons producer&rarr;&hellip;&rarr;sink through a capability-checked router (~48 tests).</li>
+            <li><b>Multi-process Sutra runtime</b> &mdash; shared-state services running through the router.</li>
+            <li><b>Disc&harr;GPU load/unload</b> &mdash; GPU memory genuinely reclaimed, measured on a real RTX 4070.</li>
+            <li><b>TypeScript&rarr;Sutra</b> &mdash; lowering engine + <code>ts2su</code> CLI, 17 fixtures passing.</li>
+          </ul>
+        </div>
+        <div class="col todo">
+          <h3>Not built yet</h3>
+          <ul>
+            <li><b>The bootloader</b> &mdash; bare-metal CPU + GPU init. Does not exist.</li>
+            <li><b>The Rust orchestrator</b> &mdash; the Python prototype is its behavioural reference, not a smaller version of it.</li>
+            <li><b>Per-process GPU memory arenas</b> + GPU-tick-parallel scheduling.</li>
+            <li><b>State-preserving eviction</b> to RAM &mdash; needs a Sutra serialise-process-state primitive.</li>
+            <li><b>The browser layer</b> &mdash; HTML/CSS layout engine and WebGL bindings.</li>
+            <li><b>MMIO / interrupt path</b> and the C&rarr;Sutra transpiler.</li>
+          </ul>
+        </div>
+      </div>
+      <p class="caveat">Yantra targets critical systems &mdash; defense, aerospace, industrial, medical, autonomous &mdash; where predictable latency, formal verifiability, and a small attack surface matter more than mass-market compatibility. It is not a consumer desktop, and the hard problems above are real, named, and tracked rather than waved past.</p>
+    </section>
+
+    <section id="read">
+      <h2>Read further</h2>
+      <p class="body">The design grew up in the open. The fastest entry is the position paper; the planning notes carry the reasoning behind each decision.</p>
+      <div class="links">
+        <a href="https://github.com/EmmaLeonhart/Yantra/blob/main/paper/paper.md">Position paper</a>
+        <a href="https://github.com/EmmaLeonhart/Yantra/tree/main/planning">Design notes</a>
+        <a href="https://github.com/EmmaLeonhart/Yantra/blob/main/planning/18-kernel-browser-readiness.md">Readiness audit</a>
+        <a href="https://sutralang.dev">Sutra, the language</a>
+      </div>
+    </section>
+
+    <section id="contact" class="cta">
+      <h2>Get in touch</h2>
+      <p class="body">Yantra is built for partners and customers in critical-systems markets, and is open to research collaboration and funding conversations. If the substrate-is-the-architecture bet resonates, reach out.</p>
+      <div class="links">
+        <a class="primary" href="mailto:immanuelleleonhart@gmail.com?subject=Yantra">Email Emma Leonhart</a>
+        <a href="https://emmaleonhart.com/projects/">All projects</a>
+      </div>
+    </section>
   </main>
 
-  <footer>yantra.emmaleonhart.com</footer>
+  <footer>
+    <span>yantra.emmaleonhart.com</span>
+    <span>built in Sutra</span>
+  </footer>
   <!-- GitHub repo facts: live star count + latest release/tag from the public API. -->
   <script>
   (function(){
