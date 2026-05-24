@@ -84,6 +84,52 @@ def test_calc_division_by_zero(calc: Calculator) -> None:
         calc.evaluate("5 / 0")
 
 
+@pytest.mark.parametrize(
+    "expr,expected",
+    [
+        ("2 + 3 * 4", 14),            # precedence: * before +
+        ("2 * 3 + 4", 10),
+        ("100 - 5 * 4", 80),
+        ("(10 - 2) * 5", 40),         # parentheses
+        ("(2 + 3) * (4 + 1)", 25),
+        ("2 * 3 + 4 * 5", 26),
+        ("1 + 2 + 3 + 4 + 5", 15),
+        ("10 - 2 - 3", 5),            # left-associative
+        ("100 / 10 / 2", 5),          # left-associative division
+        ("3 + -2", 1),                # unary minus on a literal
+        ("-(2 + 3)", -5),             # unary minus on a sub-expression
+        ("7 / 2 + 1", 4.5),           # fractional intermediate, exact
+        ("(7 - 3) / 2", 2),
+        ("2 * 2 * 2 * 2 =", 16),      # trailing '=' still optional
+    ],
+)
+def test_calc_multiterm_exact(calc: Calculator, expr: str, expected) -> None:
+    """Multi-term expressions: precedence, parens, unary minus — each
+    binary op computed on the substrate, composed to the exact result."""
+    assert calc.evaluate(expr) == expected
+
+
+@pytest.mark.parametrize(
+    "expr", ["10 / 3 + 1", "1 + 10 / 3", "99999 * 99999 + 1", "5 / 0 + 1"]
+)
+def test_calc_multiterm_refuses_when_any_step_inexact(
+    calc: Calculator, expr: str
+) -> None:
+    """If any sub-operation can't be computed exactly, the whole
+    expression is refused — never a partially-wrong answer."""
+    with pytest.raises(ValueError):
+        calc.evaluate(expr)
+
+
+@pytest.mark.parametrize(
+    "expr", ["2 +", "(2 + 3", "2 3", "2 ** 3", ")", ""]
+)
+def test_calc_rejects_malformed(calc: Calculator, expr: str) -> None:
+    """Malformed expressions raise rather than producing a result."""
+    with pytest.raises(ValueError):
+        calc.evaluate(expr)
+
+
 @pytest.mark.parametrize("expr", ["4729 * 8831", "99999 * 99999", "12345679 * 9"])
 def test_calc_refuses_out_of_exact_range(calc: Calculator, expr: str) -> None:
     """A result not float32-representable is refused, never guessed.
@@ -114,6 +160,7 @@ def test_calc_demo_transcript_is_exact(calc: Calculator) -> None:
         "12 + 30 = 42",
         "100 - 7 = 93",
         "10 / 2 = 5",
+        "2 + 3 * 4 = 14",
         "9 * 9 = 81",
         "123 + 877 = 1000",
         "-4 * 6 = -24",

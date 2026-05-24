@@ -42,9 +42,10 @@ via execution; we are NOT chasing video / screen-frame generation
 Shipped: (a) the Stage-1 **symbol-fidelity harness** —
 `tests/test_symbol_fidelity.py`, 1024/1024 symbols bit-exact through a
 real Sutra service + the kernel router, zero drift; (b) the **CLI
-calculator** — `apps/calc/`, type `5 * 10 =` → `50`, exact `+ - * /`
-through real Sutra services + the kernel (division via `complex_div`;
-`tests/test_calc.py`, 28 cases); every result is verified exact and
+calculator** — `apps/calc/`, full expressions (`2 + 3 * 4 = 14`,
+precedence + parens), exact `+ - * /` with each sub-op on real Sutra
+services through the kernel (division via `complex_div`;
+`tests/test_calc.py`, 52 cases); every result is verified exact and
 refused if not — **never a wrong answer**. See `planning/22`. Remaining
 steps:
 
