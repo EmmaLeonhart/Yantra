@@ -1,0 +1,9 @@
+// sub.su — calculator subtraction service.
+//
+// Reads operands "a" and "b" and returns a - b on the real axis.
+// Componentwise vector subtraction on real-axis numbers is exactly
+// real(a) - real(b). Exact through the kernel for operands within the
+// float32 exact-integer range.
+function vector on_axon(vector input_axon) {
+    return axon_item(input_axon, "a") - axon_item(input_axon, "b");
+}
