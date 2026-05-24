@@ -177,3 +177,48 @@ def test_symbol_fidelity_runs_through_real_sutra_and_router(passthrough_harness)
     from kernel.router import CapabilityError
     with pytest.raises(CapabilityError):
         producer.emit("R_out", vsa.make_real(1.0))
+
+
+def test_text_symbol_fidelity_exact_over_long_horizon(passthrough_harness):
+    """Long run of distinct TEXT lines, each recovered exactly.
+
+    The numeric harness above proves number-symbol stability; this proves
+    the same for **text**, which is the axis Meta's NCCLIGen (a video
+    model that generates terminal frames) lists as unsolved. Each line is
+    encoded on the substrate (`make_string`), carried through a real Sutra
+    service + the kernel router, and decoded host-side (`string_to_python`,
+    monitoring). Where a generative terminal model drifts as the session
+    grows, an executing substrate carries the text verbatim.
+    """
+    init, producer, received, vsa = passthrough_harness
+
+    maxlen = vsa.string_max_length()
+    base = "the quick brown fox jumps over the lazy dog 0123456789"
+    # Distinct terminal-shaped lines, each within the string capacity
+    # (the distinguishing index is at the front, so it survives the cap).
+    lines = [f"line {i:04d}: {base}"[:maxlen] for i in range(N_SYMBOLS)]
+    assert len(set(lines)) == len(lines), "test lines must be distinct"
+
+    mismatches: list[tuple[int, str, str]] = []
+    for step, text in enumerate(lines):
+        received.clear()
+        producer.emit("R_in", vsa.make_string(text))
+        init.tick()
+        init.tick()
+        assert len(received) == 1, (
+            f"step {step}: expected one delivered axon, got {len(received)}"
+        )
+        back = vsa.string_to_python(received[0].payload)  # monitoring decode
+        if back != text:
+            mismatches.append((step, text, back))
+
+    n = len(lines)
+    print(
+        f"\n[text fidelity] N={n}  exact={n - len(mismatches)}/{n} "
+        f"({100.0 * (n - len(mismatches)) / n:.2f}%)  "
+        f"max line length={max(len(s) for s in lines)} (cap {maxlen})"
+    )
+    assert not mismatches, (
+        f"text drift: {len(mismatches)} of {n} lines misrecovered; "
+        f"first few: {mismatches[:3]}"
+    )

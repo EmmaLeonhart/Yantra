@@ -41,7 +41,9 @@ via execution; we are NOT chasing video / screen-frame generation
 
 Shipped: (a) the Stage-1 **symbol-fidelity harness** —
 `tests/test_symbol_fidelity.py`, 1024/1024 symbols bit-exact through a
-real Sutra service + the kernel router, zero drift; (b) the **CLI
+real Sutra service + the kernel router, zero drift — for both numeric
+and **text** symbols (text is the axis Meta's NCCLIGen drifts on);
+(b) the **CLI
 calculator** — `apps/calc/`, full expressions (`2 + 3 * 4 = 14`,
 precedence + parens), exact `+ - * /` with each sub-op on real Sutra
 services through the kernel (division via `complex_div`;
