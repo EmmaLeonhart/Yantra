@@ -1,6 +1,6 @@
 # Debugging and observability
 
-## The problem stated honestly
+## The problem, stated plainly
 
 A running Yantra system is, from the outside, a giant fused tensor-op
 graph. When something goes wrong, the conventional debugging instincts

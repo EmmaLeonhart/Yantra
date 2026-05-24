@@ -131,7 +131,7 @@ memory the long pole:
 
 This file is the inventory, not the answer. None of the leans above
 should be cited in `paper/paper.md` as committed design. The paper's
-job is to be honest about which of these are open. If a question
+job is to be explicit about which of these are open. If a question
 moves from open to committed, it moves out of this file and into
 the relevant numbered planning doc, with a one-line note in
 `15-open-questions.md`.

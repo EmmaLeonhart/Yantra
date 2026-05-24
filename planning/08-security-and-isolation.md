@@ -125,7 +125,7 @@ us."
 
 - **Process restart and replay.** When the kernel restarts a crashed
   service, does it inherit any state, or is that always a clean boot?
-  The honest answer is "it depends on the service" but we need a
+  The accurate answer is "it depends on the service" but we need a
   defensible default.
 - **Sandboxing untrusted apps.** Defense customers will eventually want
   to run third-party code in restricted environments. The capability

@@ -160,5 +160,5 @@ boundary wrapping. This is the running-OS state.
 - `20-lazy-axon-evaluation.md` — the axon-routing requirement that
   makes the connectome scale.
 - `kernel/README.md` — what the Python prototype actually
-  implements vs. what is honestly stubbed.
+  implements vs. what is stubbed.
 - `paper/paper.md` § 3.5 — hardware boundary (interrupts, MMIO).
