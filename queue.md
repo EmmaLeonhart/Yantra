@@ -12,16 +12,15 @@ See `CLAUDE.md` § "Workflow Rules" for how this file, planning mode, and the ta
 
 ## Active
 
-### Public-site revamp (2026-05-23)
+### Paper refresh (low priority, 2026-05-23)
 
-The repo + site are now public. Revamp `site/index.html` as a rich
-single-page narrative, balanced vision + honest status, keeping
-`/identity.css`, the theme toggle, aurora, and the live GitHub pill.
-Sections: hero (the bet) → what it is / why → architecture
-(connectome, axons, disc/RAM/GPU tiers) → build sequence (kernel →
-CLI → browser) → honest status (real vs not, per `planning/18` +
-CLAUDE.md honesty rules) → paper & links → contact CTA → footer.
-No overclaiming.
+Update `paper/paper.md` to describe what exists now — Sutra v0.4.0,
+the v0.0 kernel nucleus (axon router + capability check), the
+multi-process runtime, disc↔GPU load/unload measured on a real GPU,
+the TS→Sutra lowering engine + CLI — and state plainly what is not
+built yet (bootloader, Rust orchestrator, per-process GPU arenas,
+state-preserving eviction, browser layer, C transpiler). Match
+`planning/18`. No overclaiming; do not chase paper-CI runs.
 
 ### Blocker (NARROWED 2026-05-17, not closed) — axon_project no-op across the connectome
 
