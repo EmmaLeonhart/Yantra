@@ -72,14 +72,23 @@ anywhere. It is a stretch — it needs a minimal GUI (a button grid + a
 display) — but it is the demo that makes the contrast undeniable to a
 non-expert: *press the buttons, get the right answer, every time.*
 
-**Update (2026-05-24):** the *compute core* of this already ships as a
-**CLI calculator** (`apps/calc/`, `tests/test_calc.py`, 28 cases): type
-`5 * 10 =` → `50`, computed exactly on real Sutra **`+ - * /`** services
-through the kernel (division via Sutra's `complex_div`). Every result is
-verified exact and refused if not — never a wrong answer. Text parsing
-is host orchestration; the math is substrate. What remains for the
-*optimal* version: the button GUI, and arbitrary-precision numbers for
-results past the float32 2²⁴ ceiling.
+**Update (2026-05-24):** this already ships, in two forms, both over the
+real substrate: a **CLI calculator** (`apps/calc/calc.py`) and a
+**button GUI** (`apps/calc/gui.py`, `!runCalculatorGUI.bat`) — a host
+Tkinter window where you press buttons (or type) and `=` computes the
+answer on real Sutra **`+ - * /`** services through the kernel (division
+via `complex_div`), full expressions with precedence. Every result is
+verified exact and refused if not — never a wrong answer
+(`tests/test_calc.py`, 53 cases). The window and parsing are host
+orchestration; the math is substrate. The button GUI is the
+"press-buttons-get-the-right-answer" demo that exceeds Meta's
+frame-generation.
+
+**Not** the Yantra-OS-native GUI: that "everything is a browser" layer
+(Sutra-native renderer + HTML/CSS + WebGL) is build-sequence milestone 3
+and unbuilt — this Tkinter window is a demo frontend, not that. What
+remains for the *optimal* version: arbitrary-precision numbers past the
+float32 2²⁴ ceiling, and eventually the OS-native GUI.
 
 ### 3. Frame / desktop work — deferred, optional
 
