@@ -119,13 +119,16 @@ Gated on the build sequence (`planning/18`: kernel → CLI → GUI).
 
 - **Stage 0 — already true.** Exact symbol round-trip through the kernel
   router; `apps/echo` preserves text bit-exact. The claim in miniature.
-- **Stage 1 — symbol-fidelity harness. DONE (2026-05-23).**
-  `tests/test_symbol_fidelity.py` pushes 1024 distinct numeric symbols
-  through a real Sutra passthrough service + the kernel router and
-  recovers every one **bit-exact**: 1024/1024, max |err| = 0.0, and
-  zero drift (first-decile max |err| = last-decile max |err| = 0.0).
-  The left end of the symbol-fidelity-vs-horizon figure is pinned at
-  perfect. No new Sutra primitives were needed.
+- **Stage 1 — symbol-fidelity harness. DONE (2026-05-23; text added
+  2026-05-24).** `tests/test_symbol_fidelity.py` pushes 1024 distinct
+  **numeric** symbols through a real Sutra passthrough service + the
+  kernel router and recovers every one **bit-exact** (1024/1024, max
+  |err| = 0.0, zero drift first-decile vs last-decile), **and** 1024
+  distinct **text** lines, each recovered verbatim via
+  `make_string`/`string_to_python` — the terminal-text stability axis
+  Meta's NCCLIGen lists as unsolved. The left end of the
+  symbol-fidelity-vs-horizon figure is pinned at perfect, for both
+  numbers and text. No new Sutra primitives were needed.
 - **Stage 1b — CLI calculator. DONE (2026-05-24).** `apps/calc/` +
   `tests/test_calc.py` (52 cases): type `5 * 10 =` → `50` — or a full
   expression like `2 + 3 * 4 = 14` (precedence + parentheses, each
