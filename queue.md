@@ -62,12 +62,12 @@ steps:
    like 4729 × 8831 stay exact past the float32 2²⁴ ceiling (digit-array
    / make_string encoding); (ii) the **button GUI** (needs the GUI
    layer). See `planning/22` Stage 3.
-4. **Ship a downloadable demo on the site.** A runnable demo script
-   ships: `python apps/calc/demo.py` prints the exact-answer transcript
-   (guarded by `tests/test_calc.py`). Remaining: surface it on
-   yantra.emmaleonhart.com (a clone-and-run note + recorded transcript —
-   true one-click packaging is limited by the torch/Sutra/Ollama deps),
-   plus the contrast figure vs a generative baseline.
+4. **Demo on the site — DONE.** `site/index.html` has a "See it compute"
+   section (the calculator transcript + the symbolic-stability contrast),
+   live at yantra.emmaleonhart.com; `!runCalculator.bat` at the repo root
+   opens the REPL locally, and `python apps/calc/demo.py` prints the
+   transcript. Remaining: the contrast figure vs a generative baseline
+   (a CLIGen-shaped model or Meta's published degradation numbers).
 
 Not in scope: replicating their *video / screen-frame generation*
 (NCGUIWorld-style) — deferred, optional, only if the GUI layer matures.
