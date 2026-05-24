@@ -23,6 +23,7 @@ Sutra has no runtime real/complex division yet (docs/numeric-math.md
 """
 from __future__ import annotations
 
+import operator
 import pathlib
 import re
 import sys
@@ -43,6 +44,8 @@ AXON_WIDTH = 768
 
 # operator symbol -> service name (matching the .su files).
 OPS = {"+": "add", "-": "sub", "*": "mul"}
+# Host oracle for the exactness gate in evaluate() (monitoring only).
+_HOST_OP = {"+": operator.add, "-": operator.sub, "*": operator.mul}
 # Parse ``a op b`` with an optional trailing ``=``. We accept ``/`` in
 # the grammar only so we can give a clear "unsupported" error instead
 # of a parse error.
@@ -135,7 +138,25 @@ class Calculator:
                 f"{line!r} (expected 1)"
             )
         result = float(vsa.real(self._received[0].payload))  # decode real axis
-        return int(round(result))
+        got = int(round(result))
+        # Exactness gate. The real axis is float32: integers up to 2**24
+        # are all exactly representable, and some larger ones still are
+        # (e.g. even values), but most integers past 2**24 are not. So
+        # rather than assume a cutoff, verify each result against a host
+        # oracle (monitoring, allowed) and REFUSE any we can't confirm
+        # exact — returning a value only when it is genuinely correct.
+        # "Never a wrong answer" is the whole point versus a model that
+        # hallucinates; arbitrary precision to extend the exact range is
+        # planning/22 Stage 3.
+        exact = _HOST_OP[op](a, b)
+        if got != exact:
+            raise ValueError(
+                f"{a} {op} {b} is outside the substrate's exact range "
+                f"(float32 integers to 2**24); refusing the inexact result "
+                f"rather than printing a wrong answer "
+                f"(arbitrary precision: planning/22 Stage 3)"
+            )
+        return got
 
 
 def main() -> None:  # pragma: no cover - interactive REPL

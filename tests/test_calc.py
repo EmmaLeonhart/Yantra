@@ -61,6 +61,26 @@ def test_calc_division_is_unsupported_not_wrong(calc: Calculator) -> None:
         calc.evaluate("10 / 2")
 
 
+@pytest.mark.parametrize("expr", ["4729 * 8831", "99999 * 99999", "12345679 * 9"])
+def test_calc_refuses_out_of_exact_range(calc: Calculator, expr: str) -> None:
+    """A result not float32-representable is refused, never guessed.
+
+    The substrate returns an off-by-some value for these (each result
+    is past 2**24 and not exactly representable); the exactness gate
+    verifies against a host oracle and raises rather than printing a
+    wrong answer. This is the "never a wrong answer" guarantee. (Exactly
+    representable large values like 5000*5000=25_000_000 are still
+    returned — the gate checks correctness, not a crude cutoff.)
+    """
+    with pytest.raises(ValueError):
+        calc.evaluate(expr)
+
+
+def test_calc_returns_large_but_exact_value(calc: Calculator) -> None:
+    """A large-but-exactly-representable result is still returned."""
+    assert calc.evaluate("5000 * 5000") == 25_000_000
+
+
 def test_calc_demo_transcript_is_exact(calc: Calculator) -> None:
     """The runnable demo (apps/calc/demo.py) prints exact results."""
     from demo import run_demo
@@ -76,4 +96,5 @@ def test_calc_demo_transcript_is_exact(calc: Calculator) -> None:
         "4096 * 4096 = 16777216",
     ]
     assert lines[: len(expected_prefix)] == expected_prefix
-    assert lines[-1].startswith("10 / 2 = (refused")
+    assert any(line.startswith("10 / 2 = (refused") for line in lines)
+    assert any(line.startswith("99999 * 99999 = (refused") for line in lines)

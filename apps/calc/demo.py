@@ -29,6 +29,13 @@ SESSION = [
     "4096 * 4096 =",
 ]
 
+# Things the calculator REFUSES rather than answer wrong — the
+# "never a wrong answer" guarantee in action.
+REFUSED = [
+    ("10 / 2", "no Sutra divide op yet"),
+    ("99999 * 99999", "result past the float32-exact range, not representable"),
+]
+
 
 def run_demo(calc: Calculator | None = None) -> list[str]:
     """Run the fixed session; return transcript lines ``"<expr> <result>"``.
@@ -40,11 +47,12 @@ def run_demo(calc: Calculator | None = None) -> list[str]:
     lines: list[str] = []
     for expr in SESSION:
         lines.append(f"{expr} {calc.evaluate(expr)}")
-    try:
-        calc.evaluate("10 / 2")
-        lines.append("10 / 2 = <<unexpected: division should be refused>>")
-    except ValueError:
-        lines.append("10 / 2 = (refused — no Sutra divide op yet; never a wrong answer)")
+    for expr, why in REFUSED:
+        try:
+            calc.evaluate(expr)
+            lines.append(f"{expr} = <<unexpected: should be refused>>")
+        except ValueError:
+            lines.append(f"{expr} = (refused — {why}; never a wrong answer)")
     return lines
 
 

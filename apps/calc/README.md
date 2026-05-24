@@ -27,9 +27,13 @@ orchestration** (the CPU side's job); the `+ - *` operators are real
 
 ## Scope
 
-- Exact for integer operands and results within the float32
-  exact-integer range (`|value| < 2**24`). Bigger products (e.g.
-  `4729 * 8831`) need an arbitrary-precision digit encoding —
+- **Never a wrong answer.** Every result is verified exact against a
+  host oracle before it is returned; anything the substrate can't
+  compute exactly is **refused**, not guessed. Integers up to `2**24`
+  are always exact, and some larger ones too — the gate checks each
+  result's correctness, not a crude cutoff (`5000 * 5000` is returned;
+  `4729 * 8831` is refused). Extending the exact range to arbitrarily
+  large products needs an arbitrary-precision digit encoding —
   `planning/22-meta-demo-replication.md` Stage 3.
 - **Division is not supported yet**: Sutra has no runtime real/complex
   division op (`docs/numeric-math.md` "Pending"). A `/` expression
