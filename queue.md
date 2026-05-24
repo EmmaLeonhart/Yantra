@@ -47,8 +47,9 @@ and **text** symbols (text is the axis Meta's NCCLIGen drifts on);
 calculator** — `apps/calc/`, full expressions (`2 + 3 * 4 = 14`,
 precedence + parens), exact `+ - * /` with each sub-op on real Sutra
 services through the kernel (division via `complex_div`;
-`tests/test_calc.py`, 52 cases); every result is verified exact and
-refused if not — **never a wrong answer**. See `planning/22`. Remaining
+`tests/test_calc.py`, 54 cases incl. a randomized never-a-wrong-answer
+property test); every result is verified exact and refused if not —
+**never a wrong answer**. See `planning/22`. Remaining
 steps:
 
 1. **Minimal terminal surface.** A Sutra-native command reader

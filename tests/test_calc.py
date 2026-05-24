@@ -12,7 +12,9 @@ Torch-gated like the other real-Sutra tests.
 from __future__ import annotations
 
 import pathlib
+import random
 import sys
+from fractions import Fraction
 
 import pytest
 
@@ -128,6 +130,53 @@ def test_calc_rejects_malformed(calc: Calculator, expr: str) -> None:
     """Malformed expressions raise rather than producing a result."""
     with pytest.raises(ValueError):
         calc.evaluate(expr)
+
+
+def _random_expr(rng: random.Random, depth: int):
+    """Return (expr_string, exact_value): value is a Fraction, or None if
+    the expression divides by zero. Fully parenthesised so the string's
+    evaluation order matches the computed value exactly."""
+    if depth <= 0 or rng.random() < 0.4:
+        n = rng.randint(-50, 50)
+        return (f"({n})" if n < 0 else str(n)), Fraction(n)
+    op = rng.choice("+-*/")
+    ls, lv = _random_expr(rng, depth - 1)
+    rs, rv = _random_expr(rng, depth - 1)
+    if lv is None or rv is None:
+        val = None
+    elif op == "+":
+        val = lv + rv
+    elif op == "-":
+        val = lv - rv
+    elif op == "*":
+        val = lv * rv
+    else:
+        val = None if rv == 0 else lv / rv
+    return f"({ls} {op} {rs})", val
+
+
+def test_calc_never_returns_a_wrong_answer_fuzz(calc: Calculator) -> None:
+    """Property test: across many random expressions the calculator NEVER
+    returns a wrong answer — it returns the exact value or refuses.
+
+    This is the whole pitch versus a model that hallucinates. The oracle
+    is exact rational arithmetic; a refusal (ValueError) is always
+    acceptable, but a *returned* value must equal the oracle exactly.
+    """
+    rng = random.Random(20260524)
+    wrong: list[tuple[str, object, object]] = []
+    for _ in range(100):
+        expr, exact = _random_expr(rng, depth=rng.randint(1, 3))
+        try:
+            got = calc.evaluate(expr)
+        except (ValueError, RuntimeError):
+            continue  # refused — always allowed
+        if exact is None or Fraction(got) != exact:
+            wrong.append((expr, got, exact))
+    assert not wrong, (
+        f"calculator returned WRONG answers (must be exact or refused): "
+        f"{wrong[:5]}"
+    )
 
 
 @pytest.mark.parametrize("expr", ["4729 * 8831", "99999 * 99999", "12345679 * 9"])
