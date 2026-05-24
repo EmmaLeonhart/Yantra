@@ -43,8 +43,9 @@ Shipped: (a) the Stage-1 **symbol-fidelity harness** —
 `tests/test_symbol_fidelity.py`, 1024/1024 symbols bit-exact through a
 real Sutra service + the kernel router, zero drift; (b) the **CLI
 calculator** — `apps/calc/`, type `5 * 10 =` → `50`, exact `+ - *`
-through real Sutra services + the kernel (`tests/test_calc.py`, 14
-cases incl. 4096×4096 = 2²⁴). See `planning/22`. Remaining steps:
+through real Sutra services + the kernel (`tests/test_calc.py`, 19
+cases); every result is verified exact and refused if not — **never a
+wrong answer**. See `planning/22`. Remaining steps:
 
 1. **Minimal terminal surface.** A Sutra-native command reader
    (scripted or button-driven is fine — need not be keyboard-typed)

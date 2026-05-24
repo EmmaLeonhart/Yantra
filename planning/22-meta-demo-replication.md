@@ -127,11 +127,13 @@ Gated on the build sequence (`planning/18`: kernel → CLI → GUI).
   The left end of the symbol-fidelity-vs-horizon figure is pinned at
   perfect. No new Sutra primitives were needed.
 - **Stage 1b — CLI calculator. DONE (2026-05-23).** `apps/calc/` +
-  `tests/test_calc.py`: type `5 * 10 =` → `50`, computed exactly on real
-  Sutra `+ - *` services through the kernel (14 cases, incl.
-  4096 × 4096 = 2²⁴ exact; division correctly refused as unsupported).
-  The "text parsing + reliable math" proof — the calculator's compute
-  core, minus the buttons.
+  `tests/test_calc.py` (19 cases): type `5 * 10 =` → `50`, computed
+  exactly on real Sutra `+ - *` services through the kernel. **Never a
+  wrong answer:** every result is verified exact against a host oracle
+  and *refused* if it can't be confirmed — past float32's exact range
+  (and for division, which has no Sutra op yet) it refuses rather than
+  guessing. The "text parsing + reliable math" proof — the calculator's
+  compute core, minus the buttons.
 - **Stage 2 — terminal surface.** A Sutra-native command reader
   (scripted or button-driven is fine) that admits utilities through the
   kernel and shows exact output.
