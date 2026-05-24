@@ -12,7 +12,7 @@ stdin/stdout vocabulary that doesn't go through axon-passing.
 
 | Utility | Status | Notes |
 |---|---|---|
-| `echo/` | First v0 (2026-05-14) | Routes input axon's `stdin_text` key to the output's `stdout_text`. Real Sutra service, real `.su` source, real manifest, admitted by the kernel via the same `Init.admit_from_path` path the kernel-services use. The smallest end-to-end demonstration that `apps/` works as a milestone. |
+| `echo/` | First v0 (2026-05-14); content-verified 2026-05-24 | Routes input axon's `stdin_text` key to the output's `stdout_text`. Real Sutra service, real `.su` source, real manifest, admitted by the kernel via the same `Init.admit_from_path` path the kernel-services use. The smallest end-to-end demonstration that `apps/` works as a milestone. **Now content-verified:** `test_echo_echoes_string_content_exactly` binds `make_string(text)` under `stdin_text`, routes through the kernel, and recovers the line verbatim (bit-exact across 46 varied strings under the current pinned Sutra — the earlier 2026-05-14 bundle-decoding regression is stale for this `make_string` path). |
 
 ## What's coming (not started)
 

@@ -68,7 +68,19 @@ passed, 1 xfail (measured 2026-05-24). **Remaining purity gap (step c
 only):** the returned value is still a host `Fraction` behind a
 host-oracle refuse-gate — closing it is a product decision (drop "never a
 wrong answer"), flagged for Emma, not done autonomously. Dispatch is no
-longer host-side. See `planning/23`, `planning/22`. Remaining steps:
+longer host-side. See `planning/23`, `planning/22`.
+
+(c) **echo content-verified (2026-05-24).** The `apps/echo` smoke test now
+asserts the echoed STRING is recovered verbatim, not just that an axon is
+delivered: `test_echo_echoes_string_content_exactly` binds `make_string(text)`
+under `stdin_text`, routes through the kernel, unbinds `stdout_text`, and decodes
+— bit-exact across 46 varied strings (incl. empty/punctuation/spaces) under the
+current pinned Sutra (main 6cdca94b). The 2026-05-14 bundle-decoding regression
+the old test cited is stale for this `make_string` path (NB: that finding tracked
+codebook-cleanup *cosine margins* — a different decode path not re-measured here).
+This de-risks step 1 below: a terminal can rely on echo carrying text verbatim.
+
+Remaining steps:
 
 1. **Minimal terminal surface.** A Sutra-native command reader
    (scripted or button-driven is fine — need not be keyboard-typed)
