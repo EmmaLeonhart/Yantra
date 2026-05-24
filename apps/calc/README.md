@@ -24,16 +24,21 @@ orchestration** (the CPU side's job); the arithmetic — **including which
 operation runs** — happens on the substrate:
 
 - `switch.su` — one service computes all four operations and selects the
-  requested one **on the substrate**, using exact Lagrange one-hot masks
-  over the integer operator grid (`0=+ 1=- 2=* 3=/`). This replaced host
-  `OPS[op]` dispatch (the host no longer picks which `.su` runs — it
-  passes an operator code and the substrate decides). Operands are
-  `complex` so `/` routes through Sutra's `complex_div`; the division
-  branch is self-guarding so a zero denominator in an unselected branch
-  can't poison the result. Verified 18/18 bit-exact incl. `b=0` and the
-  `2**24` ceiling; the softmax `select` primitive was measured 13/13
-  wrong for this (it is never a hard one-hot) — see
-  `planning/23-calc-substrate-purity.md`.
+  requested one **on the substrate**, through Sutra's own `select`
+  primitive made exact by softmax saturation. The host passes an operator
+  code (`0=+ 1=- 2=* 3=/`); `dot(op - make_real(t), make_real(1))` reads
+  the real-axis coordinate `op - t` as a clean scalar, and scores
+  `-120*(op-t)^2` push `select`'s softmax past the float32 underflow point
+  (`exp(-120)` = exactly 0), so it is a TRUE one-hot — the matched branch
+  passes through, the others are killed by exact-zero weights. A second
+  `select` guards the division denominator so `b=0` can't nan a killed
+  branch. This replaced host `OPS[op]` dispatch (the host no longer picks
+  which operation runs — the substrate does). Needs Sutra **v0.6.1** (the
+  `dot` builtin). Verified 18/18 bit-exact incl. `b=0` and the `2**24`
+  ceiling — see `planning/23-calc-substrate-purity.md`. (Naive
+  unsharpened `select` blends all four branches; saturation is what makes
+  it exact. An interim Lagrange-polynomial-mask switch was retired when
+  v0.6.1 landed.)
 - `calc.py` — the host driver: `Calculator.evaluate("5 * 10 =")` parses
   the expression, encodes the operands + operator code into an axon,
   routes it through the kernel to `switch.su`, and decodes the real-axis

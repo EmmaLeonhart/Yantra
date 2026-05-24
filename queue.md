@@ -66,18 +66,15 @@ not yet substrate-pure. Fix is step 3 below + `planning/23`. See
    operation runs (`OPS[op]`) and returns a host `Fraction` answer (the substrate is
    used only as a pass/refuse gate). That defeats "computes on the substrate." Full
    redesign + measured findings in `planning/23-calc-substrate-purity.md`. Steps:
-   - b. **Operator dispatch on the substrate — DONE 2026-05-24, verified.** Host
-     `OPS[op]` removed; the substrate selects. Active switch: **Lagrange one-hot
-     masks** (`apps/calc/switch.su`, 18/18 bit-exact, no Sutra change). INTENDED
-     switch (Emma's idea, verified 18/18): **`select` + softmax saturation** scored
-     by `dot(op−t, make_real(1))` — `apps/calc/switch_select.su`. The earlier
-     "select can't be one-hot" finding was incomplete: select saturates to an EXACT
-     one-hot once scores are sharpened past `exp(−120)=0` with clean `dot` scores.
-     Needs the Sutra `dot` builtin (shipped on Sutra `yantra-driven` d17feaf4).
-   - b2. **Promote the `select` switch when Sutra `dot` reaches master.** Merge
-     `dot` (Sutra `yantra-driven` → master, Emma's manual call), bump the Yantra
-     submodule, then promote `switch_select.su` → `switch.su`, point `calc.py` at it,
-     and confirm `tests/test_calc.py` green against the new pin.
+   - b. **Operator dispatch on the substrate — DONE 2026-05-24, shipped via `select`.**
+     Host `OPS[op]` removed; the substrate selects through the language's own
+     `select` primitive (Emma's idea), made exact by softmax saturation: scores
+     `−120·(op−t)²` (read with `dot(op−t, make_real(1))`) push `exp(−120)` to exactly
+     0, so softmax is a true one-hot. `apps/calc/switch.su`; needs Sutra **v0.6.1**
+     (`dot` builtin), submodule pinned there. 18/18 bit-exact, 53/53 calc tests +
+     full kernel gate (110 passed, 1 xfail) green. (The earlier "select can't be
+     one-hot" finding was incomplete; a Lagrange-mask interim switch was retired when
+     v0.6.1 landed — see `planning/23`.)
    - c. **Return the substrate float (OPEN — needs a product decision).** The host
      still returns a `Fraction` verified by a host oracle that REFUSES inexact /
      out-of-range results. Returning the substrate's decoded float instead means

@@ -1,61 +1,52 @@
-// switch.su — calculator operator dispatch ON THE SUBSTRATE.
+// switch.su — calculator operator dispatch via the LANGUAGE'S OWN
+// `select` primitive, made exact by softmax saturation. This is Emma's
+// approach: defuzzify/sharpen `select` enough and the branches stop
+// blending. It is the intended switch — it uses Sutra's conditional-
+// branching primitive rather than an arithmetic identity. VERIFIED 18/18
+// bit-exact (incl. b=0 and the 2^24 ceiling). Requires Sutra >= v0.6.1
+// (the `dot` builtin); the submodule is pinned there.
 //
-// One service computes all four operations and selects the requested one
-// using EXACT Lagrange one-hot masks over the integer operator grid
-// {0=+, 1=-, 2=*, 3=/}. This replaces host-side `OPS[op]` selection:
-// the host passes the operator as a real-axis code, and the substrate —
-// not a host `if`/dict — decides which arithmetic result survives.
+// How it stays exact:
+//   score_t = -120 * (op - t)^2, read as a clean scalar via
+//   dot(op - make_real(t), make_real(1)) — the dot with the real unit
+//   zeroes every other axis (incl. axon-recovery noise), so the score is
+//   exactly 0 at op=t and <= -120 elsewhere. exp(-120) underflows to
+//   exactly 0.0 in float32, so select's softmax is a TRUE one-hot: the
+//   matched branch passes through and the others are killed by exact-zero
+//   weights (no blend, unlike unsharpened softmax). A second select picks
+//   the division denominator (b for op=/, else 1) so a zero denominator in
+//   a killed branch can never produce nan. A genuine /0 (op=/, b=0) is a
+//   domain error caught upstream by the host.
 //
-// Why Lagrange masks and not `select`: Sutra's `select(scores, options)`
-// is a softmax-weighted superposition (never a hard one-hot), so for a
-// numeric (non-argmax-decodable) result it returns a blend of all four
-// branches — measured 13/13 wrong, worst error 1.26e7. The Lagrange
-// basis polynomial m_t(op) = prod_{j!=t} (op-j)/(t-j) is EXACTLY 1 at
-// op=t and EXACTLY 0 at every other integer grid point, using only real
-// arithmetic. Measured 18/18 bit-exact (incl. b=0 and the 2^24 ceiling).
-//
-//   result = m0*(a+b) + m1*(a-b) + m2*(a*b) + quot
-//
-// The division branch is self-guarding: quot = (m3*a)/(m3*b + (1-m3)).
-// When op=/ (m3=1) it is a/b; otherwise (m3=0) it is 0/1 = 0, so a zero
-// denominator in an unselected branch can never poison the sum with nan.
-// A genuine division by zero (op=/, b=0) still yields nan and must be
-// caught upstream by the host (a domain error, not an arithmetic result).
-//
-// Operands are `complex` so `/` routes through Sutra's complex_div; for
-// real inputs (imag=0) every result lands back on the real axis. Exact
-// for operands and result within the float32 exact-integer range
-// (|value| < 2^24); bigger values need an arbitrary-precision digit
-// encoding (planning/22 Stage 3, planning/23 step e).
+// Operators arrive as a real-axis code (0=+ 1=- 2=* 3=/) the host injects;
+// which operation runs is decided HERE, on the substrate, not by a host
+// `if`/dict. Operands are `complex` so `/` routes through complex_div; for
+// real inputs every result lands on the real axis. Exact within the
+// float32 exact-integer range (|value| < 2^24); bigger values need an
+// arbitrary-precision digit encoding (planning/22 Stage 3, planning/23).
 function vector on_axon(vector input_axon) {
     complex a = axon_item(input_axon, "a");
     complex b = axon_item(input_axon, "b");
-    complex op = axon_item(input_axon, "op");
+    vector op = axon_item(input_axon, "op");
+
+    vector u = real_number(1.0);
+    scalar d0 = dot(op - real_number(0.0), u);
+    scalar d1 = dot(op - real_number(1.0), u);
+    scalar d2 = dot(op - real_number(2.0), u);
+    scalar d3 = dot(op - real_number(3.0), u);
+
+    scalar s0 = 0.0 - 120.0 * d0 * d0;
+    scalar s1 = 0.0 - 120.0 * d1 * d1;
+    scalar s2 = 0.0 - 120.0 * d2 * d2;
+    scalar s3 = 0.0 - 120.0 * d3 * d3;
+
+    vector one = real_number(1.0);
+    complex denom = select([s0, s1, s2, s3], [one, one, one, b]);
+    complex quot = a / denom;
 
     complex sum  = a + b;
     complex diff = a - b;
     complex prod = a * b;
 
-    complex k1 = real_number(1.0);
-    complex k2 = real_number(2.0);
-    complex k3 = real_number(3.0);
-    complex n6 = real_number(-6.0);
-    complex p2 = real_number(2.0);
-    complex n2 = real_number(-2.0);
-    complex p6 = real_number(6.0);
-    complex one = real_number(1.0);
-
-    complex d0 = op;
-    complex d1 = op - k1;
-    complex d2 = op - k2;
-    complex d3 = op - k3;
-
-    complex m0 = (d1 * d2 * d3) / n6;
-    complex m1 = (d0 * d2 * d3) / p2;
-    complex m2 = (d0 * d1 * d3) / n2;
-    complex m3 = (d0 * d1 * d2) / p6;
-
-    complex quot = (m3 * a) / (m3 * b + (one - m3));
-
-    return m0 * sum + m1 * diff + m2 * prod + quot;
+    return select([s0, s1, s2, s3], [sum, diff, prod, quot]);
 }

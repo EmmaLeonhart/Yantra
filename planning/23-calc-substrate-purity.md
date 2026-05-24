@@ -40,12 +40,10 @@ Walk the codepoint string:
 
 **Stage 2 — compute all four ops at once:** `a+b`, `a−b`, `a×b`, `a÷b`.
 
-**Stage 3 — exact one-hot switch.** Two approaches, both measured. The
-**`select`-based one is the intended design** (it uses the language's own
-conditional primitive); the **Lagrange one is the interim active switch** because
-it needs no Sutra change.
+**Stage 3 — exact one-hot switch. SHIPPED (Emma's `select` approach, active).**
 
-**(A) `select` + saturation — Emma's approach, VERIFIED 18/18 bit-exact, intended.**
+`apps/calc/switch.su` selects the operation through the language's own
+conditional-branching primitive, `select`, made exact by softmax saturation.
 Emma's point: defuzzify/sharpen `select` enough and the branches stop blending. I
 was wrong to first call this impossible. `select(scores, options)` is a
 softmax-weighted superposition; it is not one-hot *at small score scale*, but
@@ -59,25 +57,18 @@ elementwise `tanh` masks failed: they act on that noise). Then
 `score_t = −120·(op−t)²` is `0` at the match and `≤ −120` elsewhere → softmax →
 exact `[…,1,…]`. A second `select` over `[1,1,1,b]` picks the division denominator
 (`b` for `op=÷`, else `1`) so `b=0` can't nan a killed branch. Measured **18/18
-bit-exact incl. `b=0` and the 2²⁴ ceiling.** Requires the `dot` builtin — shipped
-on Sutra `yantra-driven` (commit `d17feaf4`), **not yet on master**, so it cannot
-be the *pinned* switch until `dot` merges to Sutra master (Emma's manual call; see
-`queue.md`). The earlier "select is softmax, never one-hot, 13/13 wrong" finding
-was real but *incomplete*: it used barely-separated LLM-embedding scores and crude
-×K scaling (max weight 0.82), not `dot`-clean scores at saturating scale.
+bit-exact incl. `b=0` and the 2²⁴ ceiling**; all 53 `tests/test_calc.py` green.
+`calc.py` passes the op-code, host `OPS[op]` is gone — **leak 1 closed**.
 
-**(B) Lagrange one-hot masks — interim active switch, no Sutra change, 18/18 exact.**
-Over the integer op-grid {0=+,1=−,2=×,3=÷}, the basis polynomial
-`m_t(op) = Π_{j≠t} (op−j)/(t−j)` is exactly 1 at `op=t` and exactly 0 at the other
-grid points, pure real `+ − × ÷`. `result = m0·(a+b)+m1·(a−b)+m2·(a×b)+quot`, with
-the self-guarding division branch `quot=(m3·a)/(m3·b+(1−m3))`. Shipped as
-`apps/calc/switch.su`; `calc.py` passes the op-code, host `OPS[op]` is gone, **leak
-1 closed**, all 53 `tests/test_calc.py` green against pinned Sutra. This is correct
-and exact, but it is an arithmetic identity rather than the language's branching
-primitive — so it is the interim until (A) can be pinned.
+Needs the `dot` builtin (Sutra **v0.6.1**, merged to main + submodule pinned there).
 
-The verified `select` switch (`apps/calc/switch_select.su`, inert until `dot` is in
-pinned Sutra) is the file to promote to `switch.su` the moment that merge lands.
+The earlier "select is softmax, never one-hot, 13/13 wrong" finding was real but
+*incomplete*: it used barely-separated LLM-embedding scores and crude ×K scaling
+(max weight 0.82), not `dot`-clean scores at saturating scale. **Retired interim:**
+a Lagrange-polynomial-mask switch (`m_t(op)=Π_{j≠t}(op−j)/(t−j)`, also 18/18 exact,
+no Sutra change) was the active switch until v0.6.1 landed; it worked but was an
+arithmetic identity rather than the language's branching primitive, so it was
+replaced by the `select` version. See `git log` for the Lagrange `switch.su`.
 
 **Output:** the Sutra program's float goes out to the host, which displays it.
 (Native float→string rendering *on the substrate* is a future want — there's no
