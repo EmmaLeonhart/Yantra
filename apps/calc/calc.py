@@ -25,9 +25,18 @@ from __future__ import annotations
 
 import pathlib
 import re
+import sys
 
-from kernel import Init, Manifest, PythonService, SutraService
-from kernel.router import Axon
+# Allow running standalone (`python apps/calc/calc.py`, `demo.py`): put
+# the repo root on sys.path so `from kernel import ...` resolves even
+# when this file is the script entry point (pytest already does this via
+# pyproject's pythonpath; a bare `python` invocation does not).
+_REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from kernel import Init, Manifest, PythonService, SutraService  # noqa: E402
+from kernel.router import Axon  # noqa: E402
 
 APPS_CALC = pathlib.Path(__file__).resolve().parent
 AXON_WIDTH = 768
