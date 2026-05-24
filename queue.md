@@ -12,16 +12,6 @@ See `CLAUDE.md` § "Workflow Rules" for how this file, planning mode, and the ta
 
 ## Active
 
-### Paper refresh (low priority, 2026-05-23)
-
-Update `paper/paper.md` to describe what exists now — Sutra v0.4.0,
-the v0.0 kernel nucleus (axon router + capability check), the
-multi-process runtime, disc↔GPU load/unload measured on a real GPU,
-the TS→Sutra lowering engine + CLI — and state plainly what is not
-built yet (bootloader, Rust orchestrator, per-process GPU arenas,
-state-preserving eviction, browser layer, C transpiler). Match
-`planning/18`. No overclaiming; do not chase paper-CI runs.
-
 ### Blocker (NARROWED 2026-05-17, not closed) — axon_project no-op across the connectome
 
 The intra-module slice of the real fix shipped (Sutra v0.4.1,
