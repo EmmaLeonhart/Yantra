@@ -1,141 +1,146 @@
 # Meta-demo replication — the symbol-stable Neural Computer demo
 
-## Why this is the demo that matters
+## What Meta actually built (arXiv:2604.06425, *Neural Computers*, 2026)
 
-Meta's *Neural Computers* (Schmidhuber et al., arXiv:2604.06425, 2026)
-shipped two prototypes:
+Meta AI + KAUST (authors incl. Mingchen Zhuge, Yuandong Tian, Vikas
+Chandra, Jürgen Schmidhuber), submitted April 2026. They fold
+computation, memory, and I/O into a single learned runtime state, with
+the **Completely Neural Computer (CNC)** — "stable execution, explicit
+reprogramming, durable capability reuse" — as the long-term goal.
+Their instantiation is **video generation of screen frames**:
 
-- **CLIGen** — a generative (video-diffusion-style) model of a
-  terminal: given a prompt + user keystrokes, it rolls out *plausible
-  terminal screen frames*.
-- **GUIWorld** — the same idea for a desktop: it rolls out plausible
-  desktop GUI frames from user actions.
+- **NCCLIGen (CLIGen) — terminal.** Treats CLI use as
+  *text-and-image-to-video*: a CLIP image encoder on the first frame +
+  a T5 text encoder on the prompt feed a **DiT (Diffusion
+  Transformer)** that rolls out terminal frames. Trained on ~1,100 h
+  of asciinema terminal recordings (~824k streams).
+- **NCGUIWorld (GUIWorld) — desktop.** The same idea for a GUI, trained
+  on ~1,510 h of Ubuntu desktop recordings.
+- Headline finding: 110 h of goal-directed data beat 1,400 h of random
+  data — quality over volume.
+- Stated open problems, in their own words: routine reuse, controlled
+  updates, and **symbolic stability**.
 
-Their own paper enumerates the failure modes: **poor symbolic
-stability** (text and symbols drift / garble over time), weak
-long-horizon reasoning, no robust reuse of routines, behaviour drift.
+That last one is the crack we drive a wedge into.
 
-Yantra's posture is the opposite: **neural execution, not neural
-simulation.** A terminal on Yantra is a real Sutra program whose
-output is *computed*, not *generated*; a desktop is a real
-browser-rendered UI whose state is *maintained*, not *diffused*. So
-the decisive demonstration is to reproduce both Meta prototypes on
-Yantra and show the one thing their approach structurally cannot give:
-**the symbols stay exact, indefinitely.**
+## What we compete on — and what we don't
 
-Done definitively — the same surface (a terminal, a desktop), their
-approach drifting and losing symbols while ours stays bit-exact over a
-long horizon — this is the single strongest piece of external evidence
-that the design works. It is competence made visible.
+**We are not chasing the video.** Generating plausible screen *frames*
+is their game, not ours — a diffusion model painting pixels of a
+terminal is a fundamentally different (and, for exactness, worse) thing
+than *running* the terminal. We could do frame-/video-style work
+*later, if and when the GUI layer is up*, but it is explicitly **not
+the focus**.
 
-## The two target demos
+**We compete on symbolic stability — the axis their own paper concedes
+is unsolved.** On Yantra a terminal *executes*: the text it shows is
+*computed*, not *generated*, so it is exact by construction and does
+not drift however long the session runs. Same surface as theirs,
+opposite engineering, and we win precisely where they say they are
+weak.
 
-### Demo 1 — Terminal (the answer to CLIGen)
+**Different architecture is the point, not a liability.** Yantra is not
+video diffusion — it is a compiled, differentiable tensor-graph
+substrate (Sutra). But it is *still a trainable neural network*: every
+Yantra program is differentiable and backprop-trainable, so we sit in
+the same "neural computer" design space they opened while taking the
+opposite posture (execution, not simulation). "We do it differently"
+is a feature — we are not trading away the trainable-NN property to get
+exactness; we get both.
 
-A real terminal where typed commands actually execute as Sutra
-userspace programs and the rendered text is exact. Where CLIGen
-*hallucinates* plausible output, Yantra *computes* it; symbol
-stability is perfect by construction.
+## The demos, in order of ambition
 
-### Demo 2 — Desktop / GUI (the answer to GUIWorld)
+### 1. Symbol-stable terminal — the near-term core (answers CLIGen)
 
-A browser-rendered desktop (the GUI build-sequence layer) whose widget
-state, labels, and on-screen text are maintained exactly across
-arbitrary interaction. Where GUIWorld diffuses frames, Yantra renders
-real UI state.
+A real terminal whose output is computed exactly. It need not even be
+keyboard-driven — a scripted or button-driven command sequence is
+enough to make the point. Where CLIGen's DiT *hallucinates* plausible
+terminal text that drifts, Yantra's terminal prints the exact bytes the
+program produced.
 
-## "Maintaining the symbols", made measurable
+### 2. A visible calculator app — the optimal demo (exceeds what Meta did)
 
-The claim is not vibes — it is exact-match symbol fidelity over a long
-horizon. The protocol:
+The strongest single thing we can show: a calculator with **buttons you
+press**, where the displayed result is *actually computed* on the
+substrate and is exact every time. This exceeds Meta outright — their
+GUIWorld would *generate a plausible-looking frame* of a calculator and
+the arithmetic would be approximate or wrong (a diffusion model does
+not compute 4729 × 8831), while ours runs real arithmetic in Sutra
+(whose paper measures exact substrate arithmetic) and shows the true
+result. It is interactive and visual with no video generation
+anywhere. It is a stretch — it needs a minimal GUI (a button grid + a
+display) — but it is the demo that makes the contrast undeniable to a
+non-expert: *press the buttons, get the right answer, every time.*
 
-1. Define a scripted interaction trace of N steps (commands / UI
-   actions), N large.
-2. Record every symbol that *should* appear: command output text, file
-   names, numeric results, widget labels.
-3. **Yantra target: 100% exact match at every step, with zero drift as
-   N grows** — because it is executing the program, not predicting
-   frames.
-4. Contrast baseline: a generative screen-frame model (the
-   CLIGen / GUIWorld posture) degrades in symbol fidelity as N grows.
-   The plot of *symbol-fidelity vs. horizon* — Yantra flat at 100%,
-   the generative baseline decaying — is the figure that tells the
-   whole story.
+### 3. Frame / desktop work — deferred, optional
 
-This rides on the Sutra empirical foundation: exact symbol round-trips
-are already what the substrate does (100% bundle decoding through
-width k=8; ~1.5×10⁻¹⁵ bind/unbind round-trip — Sutra paper). The
-kernel already round-trips a symbol exactly today (`apps/echo`:
-`stdin_text` → `stdout_text`, bit-exact). The demos scale that
-guarantee up to a terminal and a desktop.
+Only if and when the GUI layer is mature. Not the focus; recorded so
+the option is on the books, not as a commitment.
 
-## Roadmap — current state → the two demos
+## Making it measurable
 
-Gated on the existing build sequence (`planning/18` § Build sequence:
-kernel → CLI → GUI). What each stage unlocks:
+A scripted interaction trace of N steps; record every symbol that
+should appear (output text, numbers, labels). Yantra target: **100%
+exact match at every step, zero drift as N grows.** The contrast
+figure — Yantra flat at 100%, a generative (DiT-frame) baseline
+decaying with horizon — is the headline result. For the calculator: a
+battery of arithmetic where the generative posture is provably
+unreliable and ours is provably exact.
 
-**Stage 0 — already true (the proof in miniature).** The Connectome
-Manager round-trips symbols exactly through the axon router;
-`apps/echo` is a real Sutra program that preserves text bit-exact.
-This is the symbol-stability claim in the small.
+This rides on the Sutra empirical foundation (100% bundle decoding
+through width k=8; ~1.5×10⁻¹⁵ bind/unbind round-trip) and on what the
+kernel already does today: `apps/echo` round-trips a symbol bit-exact.
 
-**Stage 1 — exact-symbol terminal (Demo 1).** Needs:
-- The CLI userspace utilities (`todo.md` § 2: cat, ls, wc, grep, …) as
-  native Sutra programs.
-- A terminal / shell surface — a Sutra-native REPL or minimal shell
-  that reads a command line, admits/runs the utility through the
-  kernel, and prints exact output.
-- Real stdin/stdout streams (blocked on Sutra's string + IO + FS
-  vocabulary maturing).
-- Deliverable: a recorded terminal session running a long scripted
-  command trace with 100% exact output, framed against CLIGen's drift.
+## Shipping it — a downloadable demo on the site
 
-**Stage 2 — exact-symbol desktop (Demo 2).** Needs the GUI layer
-(`planning/06`, build-sequence milestone 3):
-- The Sutra-native renderer (layout engine + display server consuming
-  / emitting framebuffer axons) — writable in Sutra, sequenced third.
-- A minimal browser-rendered desktop with a few stateful widgets.
-- Deliverable: a long UI interaction trace where widget state +
-  on-screen symbols stay exact, framed against GUIWorld's drift.
+Once enough of a demo exists, put a **downloadable, runnable artifact
+on the Yantra website** (yantra.emmaleonhart.com) so anyone can run it
+and watch the symbol stability for themselves — the terminal first, the
+calculator when it lands. A thing people can download and run beats any
+screenshot, and it is the natural place to host the contrast against a
+drifting generative baseline.
 
-**Stage 3 — the figure.** The symbol-fidelity-vs-horizon plot: Yantra
-flat at 100%, the generative baseline degrading. The headline result.
+## Roadmap — current state → the demos
+
+Gated on the build sequence (`planning/18`: kernel → CLI → GUI).
+
+- **Stage 0 — already true.** Exact symbol round-trip through the kernel
+  router; `apps/echo` preserves text bit-exact. The claim in miniature.
+- **Stage 1 — symbol-fidelity harness (fully unblocked).** A repeatable
+  test pushing a long scripted symbol trace through the kernel,
+  asserting 100% exact match / zero drift. The measured seed of the
+  figure. No new Sutra primitives.
+- **Stage 2 — terminal surface.** A Sutra-native command reader
+  (scripted or button-driven is fine) that admits utilities through the
+  kernel and shows exact output.
+- **Stage 3 — the calculator app.** A minimal GUI (button grid +
+  display) over real Sutra arithmetic. The optimal demo; needs the GUI
+  layer.
+- **Stage 4 — ship + measure.** A downloadable demo on the site, plus
+  the contrast figure against a generative baseline.
 
 ## Dependencies — what is not built
 
-- Stage 1 is blocked on Sutra's string / IO / FS vocabulary and the
-  kernel `.su` loader maturing, plus the CLI utilities themselves
+- CLI utilities + Sutra string / IO / FS vocabulary for the terminal
   (only `echo` exists).
-- Stage 2 is blocked on the entire GUI layer: the Sutra-native
-  renderer, an HTML/CSS layout engine (not built in any form), and
-  WebGL bindings (planned, not implemented). See `planning/18`
-  § Browser.
-- The contrast baseline has to be obtained or reproduced — re-run a
-  CLIGen / GUIWorld-shaped generative model, or cite Meta's own
-  reported degradation.
-
-None of this is near-term; it is the headline *application* milestone
-that rides on the build sequence. But Stage 0 already holds and the
-contrast is conceptually decided — the roadmap scales an existing
-exact-round-trip guarantee up to a terminal and a desktop, it does not
-invent a new capability.
+- The GUI layer (renderer, layout engine, WebGL) for the calculator —
+  not started.
+- A generative baseline to plot against (reproduce a CLIGen-shaped
+  model or cite Meta's reported degradation).
 
 ## Open questions
 
-- **How large must N be** for the contrast to be unanswerable? Pick a
-  horizon long enough that any generative model has visibly drifted.
-- **Which generative baseline** to measure against — a re-implemented
-  CLIGen/GUIWorld stand-in, an off-the-shelf screen-frame diffusion
-  model, or Meta's own published numbers.
-- **Cheapest convincing Stage 1** — can a minimal shell + three or
-  four utilities already carry the terminal demo, before the full
-  Q-list in `todo.md` § 2 lands?
+- How large must N be for the contrast to be unanswerable?
+- Which baseline — a re-implemented DiT-frame stand-in, an off-the-shelf
+  model, or Meta's published numbers?
+- Cheapest convincing Stage 1/2 (a minimal shell + a few utilities)
+  before the full Q-list in `todo.md` § 2 lands?
+- Can the calculator be a small carve-out (a button grid + display)
+  ahead of the full GUI layer, since it needs far less than a browser?
 
 ## Cross-references
 
-- `planning/16-related-work.md` — the Meta *Neural Computers* contrast.
-- `paper/paper.md` § 7 — related-work framing (simulation vs.
-  execution).
-- `planning/18-kernel-browser-readiness.md` — build-sequence gating and
-  what is built.
+- `planning/16-related-work.md`, `paper/paper.md` § 7 — the Meta
+  contrast.
+- `planning/18-kernel-browser-readiness.md` — build-sequence gating.
 - `todo.md` § 5 — this as a tracked ambition.
