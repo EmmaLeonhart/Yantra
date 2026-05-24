@@ -31,8 +31,5 @@ external/busybox
 .DS_Store
 Thumbs.db
 
-# Saved chat history — useful in the repo, useless in a container.
-chats/
-
 # Local Claude project state if someone has it.
 .claude/

@@ -39,7 +39,6 @@ blocker for a future Sutra+kernel design session.
 - Boot sequence: `planning/19-boot-sequence.md`
 - Lazy axon evaluation: `planning/20-lazy-axon-evaluation.md`
 - Kernel + browser readiness audit: `planning/18-kernel-browser-readiness.md`
-- Chat history the design grew out of: `chats/`
 - Paper + AI peer review pipeline: `paper/` (see `paper/README.md`)
 - External dependencies: `external/` (submodules)
 - Cross-repo workflow (Yantra ↔ Sutra): `CLAUDE.md` § "Cross-repo workflow"

@@ -38,9 +38,6 @@ adjacent projects.
 - All design notes live in [`planning/`](planning/README.md), numbered for
   reading order. Treat them as planning, not specification — they reflect
   current best thinking, not committed APIs.
-- The chats the design grew out of are preserved as readable Markdown
-  under [`chats/`](chats/). Re-extractable from saved HTML via
-  `scripts/extract_chats.py`.
 - New architectural decisions go into the relevant `planning/NN-*.md`
   file, with a one-line update in `planning/15-open-questions.md` if
   something there moved from open to resolved (or vice versa).
