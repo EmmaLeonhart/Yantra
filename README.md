@@ -53,11 +53,11 @@ Sutra compute. The kernel + apps test gate is ~119 cases covering
 admission control, the axon router, capability checks, real `.su`
 programs compiled and executed through the router (on the real GPU —
 admit allocates GPU memory, `_VSA.device == cuda`), and the calculator;
-the core paths pass (117 passed, measured 2026-05-24). One whole-suite
-failure is a known **test-isolation artifact** (a GPU-memory-accounting
-test that passes 4/4 in isolation but reads ~0 admit-delta after earlier
-modules already warmed the shared substrate), and one strict `xfail` is
-the cross-program axon-projection case — see `planning/18`, `planning/20`.
+the core paths pass (**118 passed, 1 xfailed**, measured 2026-05-24, on
+the real GPU). The one strict `xfail` is the cross-program axon-projection
+case — see `planning/18`, `planning/20`. (The GPU-residency test that used
+to read a false +0 admit-delta in the full suite now proves residency
+baseline-independently via the unload-delta — fixed 2026-05-24.)
 The Sutra compiler/runtime live in
 the `external/Sutra` submodule (pinned at v0.6.2; ships the TS→Sutra
 transpiler CLI, axon-keys static analysis, the per-receiver

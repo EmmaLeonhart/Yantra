@@ -121,11 +121,8 @@ def test_admit_makes_program_gpu_resident(loaded_echo):
     assert vsa.device.type == "cuda", (
         f"Sutra runtime not on the GPU: device={vsa.device}"
     )
-    mem_loaded = _mem()
-    print(f"\n[gpu-tiers] base={base}  loaded={mem_loaded} "
-          f"(+{mem_loaded - base} B on GPU for echo)")
-    assert mem_loaded > base, "admitting echo allocated no GPU memory"
 
+    # echo runs correctly while GPU-resident
     out = _run_echo_once(init, echo, 0.25)
     assert out is not None, "echo produced no output while GPU-resident"
     oc = out.detach().cpu().float()
@@ -133,6 +130,27 @@ def test_admit_makes_program_gpu_resident(loaded_echo):
         f"echo did not faithfully echo its input while GPU-resident; "
         f"mean={oc.mean().item():.4f}"
     )
+
+    # Residency = a real, attributable GPU footprint. The admit-vs-`base`
+    # delta is NOT a reliable measure of it: in the full test suite earlier
+    # modules warm the shared per-process substrate, so admitting echo reuses
+    # it and `loaded == base` (+0) even though echo IS resident (measured
+    # +712,704 B at admit in a fresh process). The baseline-INDEPENDENT proof
+    # is the footprint that *unloading* frees — robust to a warm substrate
+    # (this is the same delta `test_unload_frees_gpu_and_stops_the_program`
+    # checks, which passes in the full suite). Reload to restore state for the
+    # rest of the module. See queue.md "gpu_tiers test-isolation".
+    mem_loaded = _mem()
+    init.unload("echo")
+    freed = mem_loaded - _mem()
+    print(f"\n[gpu-tiers] base={base} loaded={mem_loaded} "
+          f"freed_on_unload={freed} B")
+    assert freed > 0, (
+        "echo held no freeable GPU memory while admitted — not GPU-resident"
+    )
+    init.load("echo")
+    assert init.tier("echo") is Tier.GPU
+    assert echo.is_loaded is True
 
 
 def test_unload_frees_gpu_and_stops_the_program(loaded_echo):
