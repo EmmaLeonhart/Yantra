@@ -58,12 +58,14 @@ steps:
 2. **First CLI utilities beyond echo** (cat, ls, wc) — native Sutra,
    gated on Sutra's string + IO + FS vocabulary; promote from
    `todo.md` § 2 as each unblocks.
-3. **Calculator — finish what the CLI version started.** The CLI calc
-   ships with all four operators `+ - * /` (above). To reach the
-   *optimal* demo: (i) **arbitrary-precision** numbers so big results
-   like 4729 × 8831 stay exact past the float32 2²⁴ ceiling (digit-array
-   / make_string encoding); (ii) the **button GUI** (needs the GUI
-   layer). See `planning/22` Stage 3.
+3. **Calculator — finish what the CLI version started.** Shipped: all
+   four operators `+ - * /`, full expressions, AND a **button GUI**
+   (`apps/calc/gui.py` + `!runCalculatorGUI.bat`) — a host Tkinter
+   frontend whose math runs on the substrate (NOT the OS-native browser
+   GUI, which stays build-sequence-gated). Remaining for the *optimal*
+   demo: **arbitrary-precision** numbers so big results like 4729 × 8831
+   stay exact past the float32 2²⁴ ceiling (digit-array / make_string
+   encoding). See `planning/22` Stage 3.
 4. **Demo on the site — DONE.** `site/index.html` has a "See it compute"
    section (the calculator transcript + the symbolic-stability contrast),
    live at yantra.emmaleonhart.com; `!runCalculator.bat` at the repo root

@@ -150,6 +150,35 @@ def test_calc_returns_large_but_exact_value(calc: Calculator) -> None:
     assert calc.evaluate("5000 * 5000") == 25_000_000
 
 
+def test_calc_gui_controller_drives_substrate(calc: Calculator) -> None:
+    """The GUI's (Tk-free) button controller drives the real substrate
+    calculator: presses build an expression, '=' computes it exactly,
+    and an inexact result shows 'refused' rather than a wrong number."""
+    from gui import CalcController
+
+    c = CalcController(calc)
+    for k in "2+3*4":
+        c.press(k)
+    assert c.press("=") == "14"            # precedence, on the substrate
+    c.press("C")
+    assert c.display == "0"
+    for k in "10/3":
+        c.press(k)
+    assert c.press("=") == "refused"       # never a wrong answer
+    c.press("C")
+    for k in "7/2":
+        c.press(k)
+    assert c.press("=") == "3.5"
+    # a digit after a result starts fresh; an operator chains from it
+    c.press("C")
+    for k in "5*10":
+        c.press(k)
+    c.press("=")                            # display "50", expr "50"
+    c.press("+")
+    c.press("5")
+    assert c.press("=") == "55"
+
+
 def test_calc_demo_transcript_is_exact(calc: Calculator) -> None:
     """The runnable demo (apps/calc/demo.py) prints exact results."""
     from demo import run_demo
