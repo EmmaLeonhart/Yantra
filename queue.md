@@ -66,9 +66,6 @@ not yet substrate-pure. Fix is step 3 below + `planning/23`. See
    operation runs (`OPS[op]`) and returns a host `Fraction` answer (the substrate is
    used only as a pass/refuse gate). That defeats "computes on the substrate." Full
    redesign in `planning/23-calc-substrate-purity.md`. Barrel-through steps:
-   - a. **Remove the fake GUI** — delete `apps/calc/gui.py`, `!runCalculatorGUI.bat`,
-     and the `from gui import CalcController` test in `tests/test_calc.py` (host
-     Tkinter frontend, not real Yantra GUI). The OS-native GUI is build-sequence-gated.
    - b. **Operator dispatch on the substrate** — a `.su` defuzzified switch: compute
      all four ops on (a,b), one-hot select by operator (`is_true`/`select`), ×0 the
      rest. Replaces host `OPS[op]`.
