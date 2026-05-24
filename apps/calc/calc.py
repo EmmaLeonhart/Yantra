@@ -27,6 +27,7 @@ import operator
 import pathlib
 import re
 import sys
+from fractions import Fraction
 
 # Allow running standalone (`python apps/calc/calc.py`, `demo.py`): put
 # the repo root on sys.path so `from kernel import ...` resolves even
@@ -43,8 +44,9 @@ APPS_CALC = pathlib.Path(__file__).resolve().parent
 AXON_WIDTH = 768
 
 # operator symbol -> service name (matching the .su files).
-OPS = {"+": "add", "-": "sub", "*": "mul"}
+OPS = {"+": "add", "-": "sub", "*": "mul", "/": "div"}
 # Host oracle for the exactness gate in evaluate() (monitoring only).
+# Division is handled separately (exact-rational check) in evaluate().
 _HOST_OP = {"+": operator.add, "-": operator.sub, "*": operator.mul}
 # Parse ``a op b`` with an optional trailing ``=``. We accept ``/`` in
 # the grammar only so we can give a clear "unsupported" error instead
@@ -106,21 +108,22 @@ class Calculator:
             sink,
         )
 
-    def evaluate(self, line: str) -> int:
+    def evaluate(self, line: str) -> int | float:
         """Parse ``a op b`` (optional trailing ``=``); compute on substrate.
 
-        Returns the integer result. Raises ``ValueError`` on an
-        unparseable expression or an unsupported operator.
+        Returns the exact result — an ``int``, or a ``float`` for exact
+        fractional division like ``7 / 2``. Raises ``ValueError`` on an
+        unparseable expression, division by zero, or a result the
+        substrate cannot compute exactly (refused, never approximated).
         """
         m = _EXPR.match(line)
         if not m:
             raise ValueError(f"cannot parse expression: {line!r}")
         a, op, b = int(m.group(1)), m.group(2), int(m.group(3))
         if op not in OPS:
-            raise ValueError(
-                f"operator {op!r} is not supported — Sutra has no runtime "
-                f"division op yet (docs/numeric-math.md)"
-            )
+            raise ValueError(f"operator {op!r} is not supported")
+        if op == "/" and b == 0:
+            raise ValueError("division by zero")
         name = OPS[op]
         vsa = self.services[name]._compiled_module._VSA  # noqa: SLF001
         # Encode the operands into a two-key axon on the substrate.
@@ -138,18 +141,29 @@ class Calculator:
                 f"{line!r} (expected 1)"
             )
         result = float(vsa.real(self._received[0].payload))  # decode real axis
+
+        # Exactness gate (monitoring, allowed): the real axis is float32,
+        # so verify each substrate result against a host oracle and REFUSE
+        # anything we can't confirm exact rather than print a wrong
+        # answer. "Never a wrong answer" is the whole point versus a model
+        # that hallucinates.
+        if op == "/":
+            # Division (Sutra complex_div). Accept only results that are
+            # the EXACT rational a / b; non-terminating quotients (10/3)
+            # and any float32-inexact result are refused, not rounded.
+            true = Fraction(a, b)
+            if Fraction(result) != true:
+                raise ValueError(
+                    f"{a} / {b} is not exactly representable on the substrate "
+                    f"(~ {result:g}); refusing rather than printing an "
+                    f"approximation"
+                )
+            return int(result) if true.denominator == 1 else result
+
+        # +, -, *: integer-exact. Float32 holds integers to 2**24 exactly
+        # (and some larger ones); refuse anything that doesn't verify.
         got = int(round(result))
-        # Exactness gate. The real axis is float32: integers up to 2**24
-        # are all exactly representable, and some larger ones still are
-        # (e.g. even values), but most integers past 2**24 are not. So
-        # rather than assume a cutoff, verify each result against a host
-        # oracle (monitoring, allowed) and REFUSE any we can't confirm
-        # exact — returning a value only when it is genuinely correct.
-        # "Never a wrong answer" is the whole point versus a model that
-        # hallucinates; arbitrary precision to extend the exact range is
-        # planning/22 Stage 3.
-        exact = _HOST_OP[op](a, b)
-        if got != exact:
+        if got != _HOST_OP[op](a, b):
             raise ValueError(
                 f"{a} {op} {b} is outside the substrate's exact range "
                 f"(float32 integers to 2**24); refusing the inexact result "

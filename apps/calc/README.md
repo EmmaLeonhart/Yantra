@@ -14,12 +14,13 @@ lists symbolic stability as unsolved). Two things it shows:
 ## Layering
 
 Per `planning/01-architecture.md`, text I/O + parsing is **host
-orchestration** (the CPU side's job); the `+ - *` operators are real
+orchestration** (the CPU side's job); the `+ - * /` operators are real
 `.su` programs the kernel admits and runs on the substrate:
 
-- `add.su`, `sub.su`, `mul.su` — each reads operands `a`/`b` from the
-  input axon and returns the result on the real axis. Verified exact
-  through the kernel (`tests/test_calc.py`).
+- `add.su`, `sub.su`, `mul.su`, `div.su` — each reads operands `a`/`b`
+  from the input axon and returns the result on the real axis (`div.su`
+  routes through Sutra's `complex_div`). Verified exact through the
+  kernel (`tests/test_calc.py`).
 - `calc.py` — the host driver: `Calculator.evaluate("5 * 10 =")` parses
   the expression, encodes the operands into a two-key axon, routes it to
   the right op service through the kernel, and decodes the real-axis
@@ -35,14 +36,14 @@ orchestration** (the CPU side's job); the `+ - *` operators are real
   `4729 * 8831` is refused). Extending the exact range to arbitrarily
   large products needs an arbitrary-precision digit encoding —
   `planning/22-meta-demo-replication.md` Stage 3.
-- **Division is not supported yet**: Sutra has no runtime real/complex
-  division op (`docs/numeric-math.md` "Pending"). A `/` expression
-  errors rather than printing a guess — adding it is a `yantra-driven`
-  Sutra-branch change.
+- **All four operators** (`+ - * /`). Division uses Sutra's
+  `complex_div` runtime and returns exact quotients (`10 / 2 = 5`,
+  `7 / 2 = 3.5`); non-terminating quotients (`10 / 3`) and divide-by-zero
+  are refused, never approximated — same "never a wrong answer" gate.
 - No GUI. The button/grid version is the stretch demo in `planning/22`.
 
 ## Run the tests
 
 ```bash
-pytest tests/test_calc.py -v   # 14 cases, all exact
+pytest tests/test_calc.py -v   # 28 cases, all exact-or-refused
 ```

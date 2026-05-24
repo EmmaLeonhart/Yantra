@@ -7,7 +7,8 @@ on the Sutra substrate through the kernel, not generated.
 The contrast with Meta's *Neural Computers* (NCCLIGen, a DiT video
 model that generates a plausible terminal *frame*, and whose own paper
 lists symbolic stability as unsolved): every number here is computed,
-so it is right every time, and it does not drift. Division is refused
+so it is right every time, and it does not drift. Division works for
+exact quotients; non-exact ones (and out-of-range products) are refused
 rather than guessed — Yantra never prints a wrong answer.
 
 This is the seed of the downloadable demo in
@@ -23,6 +24,7 @@ SESSION = [
     "5 * 10 =",
     "12 + 30 =",
     "100 - 7 =",
+    "10 / 2 =",
     "9 * 9 =",
     "123 + 877 =",
     "-4 * 6 =",
@@ -32,7 +34,7 @@ SESSION = [
 # Things the calculator REFUSES rather than answer wrong — the
 # "never a wrong answer" guarantee in action.
 REFUSED = [
-    ("10 / 2", "no Sutra divide op yet"),
+    ("10 / 3", "not an exact quotient — refused rather than approximated"),
     ("99999 * 99999", "result past the float32-exact range, not representable"),
 ]
 

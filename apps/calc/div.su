@@ -1,0 +1,16 @@
+// div.su — calculator division service.
+//
+// Reads operands "a" and "b" and returns a / b. The operands are
+// declared `complex` so the `/` routes through Sutra's complex_div
+// runtime — ((ac+bd) + (bc-ad)i) / (c²+d²) — which for real inputs
+// (imag = 0) reduces to real(a) / real(b). Verified through the kernel:
+// 10/2 -> 5.0, 7/2 -> 3.5 exact; 10/3 -> a float32 approximation.
+//
+// The calculator only RETURNS results it can verify exact against a
+// host oracle; non-terminating quotients (10/3) and division by zero
+// are refused, never approximated.
+function vector on_axon(vector input_axon) {
+    complex a = axon_item(input_axon, "a");
+    complex b = axon_item(input_axon, "b");
+    return a / b;
+}

@@ -55,10 +55,33 @@ def test_calc_rejects_unparseable(calc: Calculator) -> None:
         calc.evaluate("not an expression")
 
 
-def test_calc_division_is_unsupported_not_wrong(calc: Calculator) -> None:
-    """Division has no Sutra runtime op yet — it must error, not guess."""
+@pytest.mark.parametrize(
+    "expr,expected",
+    [
+        ("10 / 2 =", 5),
+        ("100 / 4", 25),
+        ("81 / 9", 9),
+        ("9 / 3", 3),
+        ("-12 / 4", -3),
+        ("7 / 2", 3.5),  # exact binary fraction -> float
+    ],
+)
+def test_calc_division_exact(calc: Calculator, expr: str, expected) -> None:
+    """Division (Sutra complex_div) returns exact quotients."""
+    assert calc.evaluate(expr) == expected
+
+
+@pytest.mark.parametrize("expr", ["10 / 3", "1 / 3", "22 / 7"])
+def test_calc_division_refuses_inexact(calc: Calculator, expr: str) -> None:
+    """Non-terminating quotients are refused, never approximated."""
     with pytest.raises(ValueError):
-        calc.evaluate("10 / 2")
+        calc.evaluate(expr)
+
+
+def test_calc_division_by_zero(calc: Calculator) -> None:
+    """Division by zero errors, never returns inf/nan."""
+    with pytest.raises(ValueError):
+        calc.evaluate("5 / 0")
 
 
 @pytest.mark.parametrize("expr", ["4729 * 8831", "99999 * 99999", "12345679 * 9"])
@@ -90,11 +113,12 @@ def test_calc_demo_transcript_is_exact(calc: Calculator) -> None:
         "5 * 10 = 50",
         "12 + 30 = 42",
         "100 - 7 = 93",
+        "10 / 2 = 5",
         "9 * 9 = 81",
         "123 + 877 = 1000",
         "-4 * 6 = -24",
         "4096 * 4096 = 16777216",
     ]
     assert lines[: len(expected_prefix)] == expected_prefix
-    assert any(line.startswith("10 / 2 = (refused") for line in lines)
+    assert any(line.startswith("10 / 3 = (refused") for line in lines)
     assert any(line.startswith("99999 * 99999 = (refused") for line in lines)
