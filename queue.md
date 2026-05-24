@@ -25,21 +25,6 @@ test-isolation / shared-substrate artifact (it usually is) — run it alone befo
 concluding a capability is missing. If you catch yourself hedging "probably no
 CUDA / probably won't work," stop: verify by running, the capability is there.
 
-### gpu_tiers test-isolation — false red in the full suite (capability works)
-
-`tests/test_kernel_gpu_tiers.py::test_admit_makes_program_gpu_resident`
-**passes 4/4 in isolation** and a fresh-process probe shows admit allocates
-**+712,704 B** of GPU (`_VSA.device == cuda`) — the DISC↔GPU residency
-capability is real, NOT a gap. In the WHOLE-suite run it reads +0 admit-delta
-(earlier modules warm the shared per-process substrate, so the later admit
-reuses it). Make the residency assertion baseline-robust (e.g. measure the
-unload→reload delta, or `empty_cache` + account for the warm baseline) so the
-full gate is honestly green — **without weakening** the check. Bounded,
-Yantra-side, verifiable. NOT blocked; this is the only remaining "GPU arenas"
-follow-up — the residency move itself works. (RAM cold-store of *running*
-state still needs Sutra `serialise-process-state`; that one is genuinely
-blocked — see `todo.md` § 1 and the continuation marker.)
-
 ### Blocker (NARROWED 2026-05-17, not closed) — axon_project no-op across the connectome
 
 The intra-module slice of the real fix shipped (Sutra v0.4.1,
