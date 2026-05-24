@@ -27,16 +27,39 @@ blocker for a future Sutra+kernel design session.
 
 ### Headline demo — replicate the Meta *Neural Computers* prototypes, symbol-stable
 
-The two things the Meta paper demonstrated — (1) a terminal (their
-CLIGen) and (2) a desktop GUI (their GUIWorld) — reproduced on Yantra
-as real execution so the **symbols stay exact** where their
+Reproduce the two things the Meta paper demonstrated — (1) a terminal
+(their CLIGen) and (2) a desktop GUI (their GUIWorld) — on Yantra as
+real execution, so the **symbols stay exact** where their
 video-diffusion approach drifts. That contrast is the decisive proof
-the design works. **Roadmap drafted: `planning/22-meta-demo-replication.md`**
-(current state → Demo 1 terminal → Demo 2 desktop → the
-symbol-fidelity-vs-horizon figure). Gated on the build sequence; the
-near-term bounded step is Demo 1's exact-symbol terminal once the CLI
-utilities + a shell surface land (`todo.md` § 2). Ambition tracked in
-`todo.md` § 5.
+the design works. Goal + roadmap: `planning/22-meta-demo-replication.md`;
+ambition in `todo.md` § 5.
+
+**Decomposed into ordered, bounded steps. Work top-down; promote each
+into its own active item (and split further) as it is picked up:**
+
+1. **Symbol-fidelity harness — fully unblocked, do this first.** A
+   repeatable test that pushes a long scripted sequence (N ≥ 1000) of
+   distinct symbols (text + numbers) through the kernel router
+   (producer → echo → sink) and asserts **100% exact match, zero
+   drift** as N grows. This turns Stage 0 (the proof-in-miniature)
+   into the measured seed of the headline symbol-fidelity-vs-horizon
+   figure. Needs no new Sutra primitives — extends `apps/echo` +
+   `tests/`. This is the core of the claim; start here.
+2. **Minimal terminal surface (axon-level).** A Sutra-native command
+   reader that takes a command line, admits the named utility through
+   the kernel, and returns its exact output axon — a terminal at the
+   axon level, before real stdin/stdout streams land.
+3. **First CLI utilities beyond echo** (cat, ls, wc) — native Sutra,
+   gated on Sutra's string + IO + FS vocabulary; promote from
+   `todo.md` § 2 as each unblocks.
+4. **Contrast baseline.** Obtain or cite the generative
+   (CLIGen/GUIWorld-shaped) symbol-fidelity degradation to plot
+   against Yantra's flat 100%.
+5. **Desktop / GUI demo (Stage 2).** Gated on the GUI layer — far;
+   tracked in `todo.md` §§ 3, 5.
+
+Start at (1): it is fully unblocked and is the measured heart of the
+demo.
 
 ---
 
