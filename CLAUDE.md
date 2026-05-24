@@ -320,6 +320,39 @@ limitation," **first check whether the underlying difficulty is on
 the list above and name it explicitly**. The user has called this
 out twice; do not let the docs drift back to softer framing.
 
+## Substrate purity — no host shortcuts
+
+Yantra's claim is that computation happens on the Sutra substrate. A host-Python
+result in a substrate costume is a lie about what executed — the same rule Sutra
+enforces (`external/Sutra/CLAUDE.md` § NO MATH SHORTCUTS).
+
+- **Host code is orchestration + monitoring only — never the returned value.**
+  Parsing, I/O, admission live on the CPU side. But a service's returned value must
+  be what the *substrate* computed, not a host re-computation. (The 2026-05-24 calc
+  bug: it computed on the substrate, discarded that, and returned a host `Fraction`
+  — using the substrate only as a gate. Return the substrate's decoded value. See
+  `planning/23-calc-substrate-purity.md`.)
+- **Operation *selection* is computation — run it on the substrate.** Don't let host
+  Python pick which op runs (`OPS[op]` choosing a `.su`). The operator is data;
+  dispatch on it in Sutra via a **defuzzified switch** — compute every branch, build
+  a one-hot selector from the operator (`is_true`/`select`), sum `branch·selector`
+  so unselected branches are ×0.
+- **No host oracle deciding the output.** Don't compute the "true" answer on the
+  host and gate or replace the substrate output with it. Host-oracle verification is
+  allowed as a *test/audit*, never as the runtime value.
+- **Parsing belongs on the substrate too.** Sutra has the string ops (codepoint
+  `String`/`Character` model); host string-parsing is a shortcut to retire, not a
+  permanent boundary. Host stays I/O only (read the line, print the result).
+
+### Don't implement half-understood
+
+Do **not** produce an implementation that merely *looks like* what the user
+described unless you 100% understand it and are building the real thing. A
+plausible-looking wrong implementation (the host-faked calculator is the cautionary
+example) is worse than none — it hides the gap and burns trust. If you don't fully
+understand the design: stop and ask, or write it up as a spec/plan in `planning/`.
+Do not cargo-cult code that resembles the instruction.
+
 ## External dependencies (`external/`)
 
 Submodules pinned at known-good releases. Layout:
