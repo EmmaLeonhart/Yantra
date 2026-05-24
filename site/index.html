@@ -63,6 +63,15 @@
       color:var(--text-faint);margin-bottom:6px}
     .loop .lbl+.lbl{margin-top:14px}
 
+    /* Terminal transcript (the demo) */
+    .term{font-family:var(--mono);font-size:.84rem;line-height:1.85;
+      background:var(--accent-soft);border:1px solid var(--border);border-radius:10px;
+      padding:16px 20px;margin:6px 0 18px;color:var(--text);overflow-x:auto}
+    .term .line{display:block;white-space:pre-wrap}
+    .term .cmd{color:var(--text-faint)}
+    .term .res{color:var(--accent-bright);font-weight:500}
+    .term .ref{color:var(--text-faint);font-style:italic}
+
     /* Cards (architecture / build sequence) */
     .cards{display:grid;gap:14px;margin-top:8px}
     .card{border:1px solid var(--border);border-radius:10px;padding:18px 20px;
@@ -150,7 +159,7 @@
       <p class="note">The CPU shrinks to a sequencer that boots the machine and shuffles inactive work between GPU and RAM. Everything that matters happens as Sutra programs exchanging <em>axons</em> &mdash; structured embeddings produced by rotation binding &mdash; so local AI plugs in with no translation layer between thought and action.</p>
       <div class="links">
         <a class="primary" href="https://github.com/EmmaLeonhart/Yantra">View source on GitHub</a>
-        <a href="#status">What actually runs today</a>
+        <a href="#demo">See it compute &rarr;</a>
       </div>
     </section>
 
@@ -202,8 +211,9 @@
         <div class="col have">
           <h3>Working today</h3>
           <ul>
-            <li><b>Sutra v0.4.0</b> &mdash; the typed, differentiable language, compiler, and runtime Yantra is built in.</li>
-            <li><b>v0.0 kernel nucleus</b> &mdash; compiles <code>.su</code> services and routes axons producer&rarr;&hellip;&rarr;sink through a capability-checked router (~48 tests).</li>
+            <li><b>Sutra v0.6.0</b> &mdash; the typed, differentiable language, compiler, and runtime Yantra is built in.</li>
+            <li><b>v0.0 kernel nucleus</b> &mdash; compiles <code>.su</code> services and routes axons producer&rarr;&hellip;&rarr;sink through a capability-checked router.</li>
+            <li><b>CLI calculator</b> &mdash; type an expression, exact <code>+ &minus; &times; &divide;</code> computed on the substrate; verified exact or refused (52 tests). See the demo below.</li>
             <li><b>Multi-process Sutra runtime</b> &mdash; shared-state services running through the router.</li>
             <li><b>Disc&harr;GPU load/unload</b> &mdash; GPU memory genuinely reclaimed, measured on a real RTX 4070.</li>
             <li><b>TypeScript&rarr;Sutra</b> &mdash; lowering engine + <code>ts2su</code> CLI, 17 fixtures passing.</li>
@@ -222,6 +232,37 @@
         </div>
       </div>
       <p class="caveat">Yantra targets critical systems &mdash; defense, aerospace, industrial, medical, autonomous &mdash; where predictable latency, formal verifiability, and a small attack surface matter more than mass-market compatibility. It is not a consumer desktop, and the hard problems above are real, named, and tracked rather than waved past.</p>
+    </section>
+
+    <section id="demo">
+      <h2>See it compute</h2>
+      <p class="body">The smallest definitive version of the bet: a CLI
+      calculator. You type an expression and it prints the answer &mdash;
+      <strong>computed on the Sutra substrate through the kernel, verified
+      exact</strong>. Where a video model would <em>generate</em> a
+      plausible-looking terminal frame (and the number can drift), Yantra
+      <em>computes</em> it &mdash; and <strong>refuses rather than guess</strong>
+      when it can't be exact.</p>
+      <div class="term">
+        <span class="line"><span class="cmd">$ python apps/calc/calc.py</span></span>
+        <span class="line">5 * 10 = <span class="res">50</span></span>
+        <span class="line">2 + 3 * 4 = <span class="res">14</span></span>
+        <span class="line">(10 - 2) * 5 = <span class="res">40</span></span>
+        <span class="line">10 / 2 = <span class="res">5</span></span>
+        <span class="line">10 / 3 = <span class="ref">(refused &mdash; not an exact quotient; never a wrong answer)</span></span>
+      </div>
+      <p class="body">Full expressions with precedence and parentheses;
+      every result is checked against an exact oracle and refused if it
+      can't be confirmed &mdash; 52 tests, all exact-or-refused. The same
+      property at scale: a fidelity harness pushes <strong>1024 distinct
+      symbols through the kernel and recovers every one bit-exact, with
+      zero drift</strong> &mdash; precisely the axis Meta's own
+      <em>Neural Computers</em> paper lists as unsolved (symbolic
+      stability).</p>
+      <div class="links">
+        <a class="primary" href="https://github.com/EmmaLeonhart/Yantra/tree/main/apps/calc">Calculator source</a>
+        <a href="https://github.com/EmmaLeonhart/Yantra/blob/main/planning/22-meta-demo-replication.md">The roadmap &amp; the contrast</a>
+      </div>
     </section>
 
     <section id="read">
