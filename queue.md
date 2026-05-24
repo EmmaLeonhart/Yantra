@@ -35,31 +35,38 @@ the design works. Goal + roadmap: `planning/22-meta-demo-replication.md`;
 ambition in `todo.md` § 5.
 
 **Decomposed into ordered, bounded steps. Work top-down; promote each
-into its own active item (and split further) as it is picked up:**
+into its own active item as it is picked up. Focus = symbolic stability
+via execution; we are NOT chasing video / screen-frame generation
+(deferred, only if the GUI layer lands):**
 
 1. **Symbol-fidelity harness — fully unblocked, do this first.** A
-   repeatable test that pushes a long scripted sequence (N ≥ 1000) of
+   repeatable test pushing a long scripted sequence (N ≥ 1000) of
    distinct symbols (text + numbers) through the kernel router
-   (producer → echo → sink) and asserts **100% exact match, zero
-   drift** as N grows. This turns Stage 0 (the proof-in-miniature)
-   into the measured seed of the headline symbol-fidelity-vs-horizon
-   figure. Needs no new Sutra primitives — extends `apps/echo` +
-   `tests/`. This is the core of the claim; start here.
-2. **Minimal terminal surface (axon-level).** A Sutra-native command
-   reader that takes a command line, admits the named utility through
-   the kernel, and returns its exact output axon — a terminal at the
-   axon level, before real stdin/stdout streams land.
+   (producer → echo → sink), asserting **100% exact match, zero
+   drift** as N grows. Turns Stage 0 (proof-in-miniature) into the
+   measured seed of the symbol-fidelity-vs-horizon figure. No new
+   Sutra primitives — extends `apps/echo` + `tests/`. The core of the
+   claim; start here.
+2. **Minimal terminal surface.** A Sutra-native command reader
+   (scripted or button-driven is fine — need not be keyboard-typed)
+   that admits a utility through the kernel and shows its exact output.
 3. **First CLI utilities beyond echo** (cat, ls, wc) — native Sutra,
    gated on Sutra's string + IO + FS vocabulary; promote from
    `todo.md` § 2 as each unblocks.
-4. **Contrast baseline.** Obtain or cite the generative
-   (CLIGen/GUIWorld-shaped) symbol-fidelity degradation to plot
-   against Yantra's flat 100%.
-5. **Desktop / GUI demo (Stage 2).** Gated on the GUI layer — far;
-   tracked in `todo.md` §§ 3, 5.
+4. **Calculator app — the optimal demo (stretch).** A visible
+   calculator: press buttons → the result is *actually computed* on
+   the substrate, exact every time. Exceeds Meta (their GUIWorld would
+   generate a plausible-but-wrong frame; a diffusion model can't
+   compute 4729 × 8831 — ours does). Needs a minimal GUI (button grid
+   + display), possibly a small carve-out ahead of the full browser.
+5. **Ship a downloadable demo on the site.** Once the terminal (then
+   the calculator) runs, host a downloadable, runnable artifact on
+   yantra.emmaleonhart.com, plus the contrast figure vs a generative
+   baseline.
 
-Start at (1): it is fully unblocked and is the measured heart of the
-demo.
+Not in scope: replicating their *video / screen-frame generation*
+(NCGUIWorld-style) — deferred, optional, only if the GUI layer matures.
+Start at (1): fully unblocked, the measured heart of the demo.
 
 ---
 
