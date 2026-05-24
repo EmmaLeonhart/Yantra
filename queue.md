@@ -39,30 +39,31 @@ into its own active item as it is picked up. Focus = symbolic stability
 via execution; we are NOT chasing video / screen-frame generation
 (deferred, only if the GUI layer lands).**
 
-Shipped: the Stage-1 **symbol-fidelity harness** —
+Shipped: (a) the Stage-1 **symbol-fidelity harness** —
 `tests/test_symbol_fidelity.py`, 1024/1024 symbols bit-exact through a
-real Sutra service + the kernel router, zero drift (see `planning/22`
-Stage 1). Remaining steps, in order:
+real Sutra service + the kernel router, zero drift; (b) the **CLI
+calculator** — `apps/calc/`, type `5 * 10 =` → `50`, exact `+ - *`
+through real Sutra services + the kernel (`tests/test_calc.py`, 14
+cases incl. 4096×4096 = 2²⁴). See `planning/22`. Remaining steps:
 
 1. **Minimal terminal surface.** A Sutra-native command reader
    (scripted or button-driven is fine — need not be keyboard-typed)
    that admits a utility through the kernel and shows its exact output.
-   Start here.
+   (The calc REPL already proves the text-in → exact-out pattern.)
 2. **First CLI utilities beyond echo** (cat, ls, wc) — native Sutra,
    gated on Sutra's string + IO + FS vocabulary; promote from
    `todo.md` § 2 as each unblocks.
-3. **Calculator app — the optimal demo (stretch).** A visible
-   calculator: press buttons → the result is *actually computed* on
-   the substrate, exact every time. Exceeds Meta (a diffusion model
-   can't compute 4729 × 8831 — ours does). Needs a minimal GUI (button
-   grid + display) AND an arbitrary-precision number representation:
-   the real axis is float32 (exact only to 2²⁴), so big products need a
-   digit-array (make_string-style) encoding — settle that before the
-   buttons. See `planning/22` Stage 3.
-4. **Ship a downloadable demo on the site.** Once the terminal (then
-   the calculator) runs, host a downloadable, runnable artifact on
-   yantra.emmaleonhart.com, plus the contrast figure vs a generative
-   baseline.
+3. **Calculator — finish what the CLI version started.** The CLI calc
+   ships (above). To reach the *optimal* demo: (i) a **division** op —
+   Sutra has no runtime divide yet, a `yantra-driven`-branch Sutra
+   change; (ii) **arbitrary-precision** numbers so big products like
+   4729 × 8831 stay exact past the float32 2²⁴ ceiling (digit-array /
+   make_string encoding); (iii) the **button GUI** (needs the GUI
+   layer). See `planning/22` Stage 3.
+4. **Ship a downloadable demo on the site.** Host a downloadable,
+   runnable artifact on yantra.emmaleonhart.com (the CLI calculator is
+   the first thing worth shipping), plus the contrast figure vs a
+   generative baseline.
 
 Not in scope: replicating their *video / screen-frame generation*
 (NCGUIWorld-style) — deferred, optional, only if the GUI layer matures.

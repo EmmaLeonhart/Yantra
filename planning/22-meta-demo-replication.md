@@ -72,6 +72,15 @@ anywhere. It is a stretch — it needs a minimal GUI (a button grid + a
 display) — but it is the demo that makes the contrast undeniable to a
 non-expert: *press the buttons, get the right answer, every time.*
 
+**Update (2026-05-23):** the *compute core* of this already ships as a
+**CLI calculator** (`apps/calc/`, `tests/test_calc.py`): type
+`5 * 10 =` → `50`, computed exactly on real Sutra `+ - *` services
+through the kernel (14 cases, incl. 4096 × 4096 = 2²⁴, all exact). Text
+parsing is host orchestration; the math is substrate. What remains for
+the *optimal* version: the button GUI, a **division** op (Sutra has no
+runtime divide yet — a `yantra-driven` Sutra-branch change), and
+arbitrary-precision numbers for products past the float32 2²⁴ ceiling.
+
 ### 3. Frame / desktop work — deferred, optional
 
 Only if and when the GUI layer is mature. Not the focus; recorded so
@@ -117,6 +126,12 @@ Gated on the build sequence (`planning/18`: kernel → CLI → GUI).
   zero drift (first-decile max |err| = last-decile max |err| = 0.0).
   The left end of the symbol-fidelity-vs-horizon figure is pinned at
   perfect. No new Sutra primitives were needed.
+- **Stage 1b — CLI calculator. DONE (2026-05-23).** `apps/calc/` +
+  `tests/test_calc.py`: type `5 * 10 =` → `50`, computed exactly on real
+  Sutra `+ - *` services through the kernel (14 cases, incl.
+  4096 × 4096 = 2²⁴ exact; division correctly refused as unsupported).
+  The "text parsing + reliable math" proof — the calculator's compute
+  core, minus the buttons.
 - **Stage 2 — terminal surface.** A Sutra-native command reader
   (scripted or button-driven is fine) that admits utilities through the
   kernel and shows exact output.

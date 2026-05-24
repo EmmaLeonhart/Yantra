@@ -1,0 +1,11 @@
+// mul.su — calculator multiplication service.
+//
+// Reads operands "a" and "b" and returns a * b on the real axis.
+// For real-axis numbers the product lands on the real axis exactly
+// (verified through the kernel: 5 * 10 -> 50.0). Exact for operands
+// and result within the float32 exact-integer range (|value| < 2**24);
+// bigger products need an arbitrary-precision digit encoding
+// (planning/22 Stage 3).
+function vector on_axon(vector input_axon) {
+    return axon_item(input_axon, "a") * axon_item(input_axon, "b");
+}
