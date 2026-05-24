@@ -97,8 +97,8 @@ See `12-target-markets.md` for the longer pitch.
 
 ## Status
 
-This repo is currently a **planning corpus**, not an implementation. The
-existing artifacts that anchor the vision live elsewhere:
+This repo is a **planning corpus** plus a v0.0 kernel nucleus
+(`kernel/`). The other artifacts that anchor the vision live elsewhere:
 
 - The Sutra compiler and runtime (separate project).
 - The JS/TS transpiler (separate project).

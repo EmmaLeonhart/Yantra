@@ -10,13 +10,6 @@
 .git
 .gitignore
 
-# The big Linux source-tree submodules. They're reservation-only
-# per CLAUDE.md (the C transpiler that would consume them is
-# deferred); pulling them into the build context would balloon it.
-external/coreutils
-external/util-linux
-external/busybox
-
 # Scratch / cache dirs.
 .pytest_cache
 **/__pycache__

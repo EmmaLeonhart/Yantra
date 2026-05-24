@@ -29,9 +29,10 @@ Target market is critical systems (defense, aerospace, industrial,
 medical, autonomous) where predictable latency, formal verifiability, and
 a small attack surface matter more than mass-market compatibility.
 
-This repo currently holds **planning documents**, not an implementation.
-The Sutra compiler/runtime and the JS/TS transpiler live in
-adjacent projects.
+This repo holds **planning documents** plus a v0.0 kernel nucleus
+under `kernel/` (a Python orchestration layer over real Sutra
+compute). The Sutra compiler/runtime and the JS/TS transpiler live
+in adjacent projects.
 
 ## Architecture and Conventions
 
@@ -75,7 +76,7 @@ adjacent projects.
 - **Kernel implementation.** The `kernel/` directory in this repo
   is the v0.0 Connectome Manager. **Sutra is doing the
   computation** — `SutraService` compiles `.su` source via the
-  Sutra v0.4.0 compiler and runs `on_axon(vector) -> vector` on
+  Sutra v0.6.0 compiler and runs `on_axon(vector) -> vector` on
   real torch tensors routed through the kernel. The
   **orchestration layer** (init/resource-manager + axon router +
   capability check) is in Python here; the production form on the
@@ -323,7 +324,7 @@ out twice; do not let the docs drift back to softer framing.
 
 Submodules pinned at known-good releases. Layout:
 
-- `external/Sutra` (tag `v0.4.0`) — the language, compiler, runtime,
+- `external/Sutra` (tag `v0.6.0`) — the language, compiler, runtime,
   and Sutra paper Yantra depends on. Website: <https://sutralang.dev>
   (canonical, built from `external/Sutra/docs/`).
 The Linux userspace submodules (`coreutils`, `util-linux`,

@@ -4,7 +4,7 @@ Submit AI peer reviews of `paper/paper.md`. **This is v3.** The thesis and the a
 
 **Most relevant changes from v2 → v3 (please read § 8.1 and § 8.2 carefully):**
 
-- The repository now holds a working v0.0 implementation nucleus. The Python "Connectome Manager" (admission control + axon router + capability check + lazy axon evaluation + per-receiver projection) runs end-to-end with real Sutra-compiled `.su` services. 70 tests pass.
+- The repository now holds a working v0.0 implementation nucleus. The Python "Connectome Manager" (admission control + axon router + capability check + lazy axon evaluation + per-receiver projection) runs end-to-end with real Sutra-compiled `.su` services. The kernel suite is ~56 tests; the core paths pass.
 - Sutra-side primitives Yantra's design depends on have shipped as four releases (v0.3.3 axon-keys static analysis; v0.3.4 device-coherence fix; v0.3.5 axon_project per-receiver projection; v0.4.0 MultiProcessRuntime).
 - The first userspace utility (`apps/echo/`) ships, admitted by the kernel.
 - Earlier reviews flagged the Meta NCs citation (`arXiv:2604.06425`, 2026) as "hallucinated future reference." It is not — see § 7 footnote. May 2026 is the current date; the cited preprint exists. **Please do not re-flag this.**
