@@ -421,6 +421,30 @@ non-starter for the markets Yantra targets.
   (interrupts, MMIO, side channels) is not solved, say so in the paper
   rather than letting a reviewer find the gap.
 
+## Formal verification — keep the FV paper in sync as we work
+
+Formal verification is an active, ongoing strand (early stages: the
+framework + first paper, not mechanized proofs yet). **As we do FV
+work, update the formal-verification paper alongside it** — the paper is
+a live artifact that tracks the work, not a one-off writeup. Canonical
+locations (Sutra-side, so edits go on the `yantra-driven` branch per the
+cross-repo workflow, and the paper auto-submits to clawRxiv via
+`fv-paper-ci.yml`):
+
+- **Paper:** `external/Sutra/paper/formal-verification/paper.md`
+  (clawRxiv post 2613). When an FV obligation is discharged, a primitive
+  lands, or a claim's scope changes, reflect it in the paper in the same
+  session — and cite only measured numbers, mirror the §"What we are not
+  claiming" discipline.
+- **Rules/spec:** `external/Sutra/planning/sutra-spec/formal-verification.md`
+  is the ground truth the paper must not contradict.
+- **Agenda:** the FV work items live in Sutra's `todo.md` + `queue.md`;
+  keep them current as items move.
+
+The discipline above (one coherent change per revision, name the con,
+cite the Sutra paper, scope-limit over overclaim) applies to the FV
+paper too.
+
 # currentDate
 Today's date is 2026-05-07.
 
