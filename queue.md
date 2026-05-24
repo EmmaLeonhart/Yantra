@@ -49,8 +49,10 @@ precedence + parens), exact `+ - * /` with each sub-op on real Sutra
 services through the kernel (division via `complex_div`;
 `tests/test_calc.py`, 54 cases incl. a randomized never-a-wrong-answer
 property test); every result is verified exact and refused if not —
-**never a wrong answer**. See `planning/22`. Remaining
-steps:
+**never a wrong answer**. **Caveat (audit 2026-05-24):** the per-op `.su`
+math is real, but dispatch + the returned value are currently host-side —
+not yet substrate-pure. Fix is step 3 below + `planning/23`. See
+`planning/22`. Remaining steps:
 
 1. **Minimal terminal surface.** A Sutra-native command reader
    (scripted or button-driven is fine — need not be keyboard-typed)
@@ -59,14 +61,26 @@ steps:
 2. **First CLI utilities beyond echo** (cat, ls, wc) — native Sutra,
    gated on Sutra's string + IO + FS vocabulary; promote from
    `todo.md` § 2 as each unblocks.
-3. **Calculator — finish what the CLI version started.** Shipped: all
-   four operators `+ - * /`, full expressions, AND a **button GUI**
-   (`apps/calc/gui.py` + `!runCalculatorGUI.bat`) — a host Tkinter
-   frontend whose math runs on the substrate (NOT the OS-native browser
-   GUI, which stays build-sequence-gated). Remaining for the *optimal*
-   demo: **arbitrary-precision** numbers so big results like 4729 × 8831
-   stay exact past the float32 2²⁴ ceiling (digit-array / make_string
-   encoding). See `planning/22` Stage 3.
+3. **Calculator — make it substrate-pure (PRIORITY), then the optimal demo.**
+   **Substrate-purity gap (audit 2026-05-24):** as built, host Python picks which
+   operation runs (`OPS[op]`) and returns a host `Fraction` answer (the substrate is
+   used only as a pass/refuse gate). That defeats "computes on the substrate." Full
+   redesign in `planning/23-calc-substrate-purity.md`. Barrel-through steps:
+   - a. **Remove the fake GUI** — delete `apps/calc/gui.py`, `!runCalculatorGUI.bat`,
+     and the `from gui import CalcController` test in `tests/test_calc.py` (host
+     Tkinter frontend, not real Yantra GUI). The OS-native GUI is build-sequence-gated.
+   - b. **Operator dispatch on the substrate** — a `.su` defuzzified switch: compute
+     all four ops on (a,b), one-hot select by operator (`is_true`/`select`), ×0 the
+     rest. Replaces host `OPS[op]`.
+   - c. **Return the substrate float** — drop the host `Fraction` oracle / refuse-gate;
+     output is the substrate's decoded float (host only displays it). Keep host-oracle
+     checks as `tests/` only.
+   - d. **Parse on the substrate** — a Sutra loop over the codepoint string: digit →
+     strip char flag → value; place-value assembly (2-digit cap to start); space ends
+     an operand; `=` triggers. Host shrinks to read-line / print-float.
+   - e. **Then the optimal demo:** arbitrary-precision (digit-array) so big products
+     stay exact past the float32 2²⁴ ceiling.
+   See `planning/23-calc-substrate-purity.md` (full design) + `planning/22` Stage 3.
 4. **Demo on the site — DONE.** `site/index.html` has a "See it compute"
    section (the calculator transcript + the symbolic-stability contrast),
    live at yantra.emmaleonhart.com; `!runCalculator.bat` at the repo root
