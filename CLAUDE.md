@@ -344,14 +344,36 @@ enforces (`external/Sutra/CLAUDE.md` § NO MATH SHORTCUTS).
   `String`/`Character` model); host string-parsing is a shortcut to retire, not a
   permanent boundary. Host stays I/O only (read the line, print the result).
 
-### Don't implement half-understood
+### The fake-substrate-work threat (real, recurring — guard against it)
 
-Do **not** produce an implementation that merely *looks like* what the user
-described unless you 100% understand it and are building the real thing. A
-plausible-looking wrong implementation (the host-faked calculator is the cautionary
-example) is worse than none — it hides the gap and burns trust. If you don't fully
-understand the design: stop and ask, or write it up as a spec/plan in `planning/`.
-Do not cargo-cult code that resembles the instruction.
+**This is a real threat that has already occurred, not a hypothetical.** An agent
+(or a person) can produce work that *looks like* the spec but is fake underneath —
+the computation claimed to run on the substrate is actually done by the host.
+
+**Documented instance (2026-05-24):** the calculator (`apps/calc/`) presented as
+"math runs on the Sutra substrate, exact through the kernel," but host Python picked
+which operation ran **and** returned a host-`Fraction` answer, using the substrate
+only as a pass/refuse gate. It passed its tests and read as real — it was not. Full
+write-up: `planning/23-calc-substrate-purity.md`.
+
+**How it happens:** the implementer doesn't 100% understand the substrate mechanism,
+so they write code that *resembles* the instruction and lean on the host for the
+parts they can't express. The result looks correct and is **worse than nothing** —
+it hides the gap and burns trust.
+
+**Guard against it:**
+- **Do not implement what you do not 100% understand.** If you cannot build the real
+  substrate version, do **not** ship a host-faked stand-in. Stop and ask, or write a
+  spec/plan in `planning/` and queue the real work. (That is exactly what
+  `planning/23` is — design + queue, not a rushed half-implementation.)
+- **The returned value must be decoded from the substrate** (see § Substrate purity).
+- **Every decision that affects the result — including *which* operation — is a
+  substrate op, not a host `if`.**
+- **When reviewing "it works," check *what actually executed*,** not just that a
+  number came out right. A passing test against a host oracle proves the *host* is
+  right, not the substrate.
+- **Don't barrel into code surgery in another repo unbidden.** Add the design + queue;
+  let the owner (or a deliberate session) execute. Plausible-looking speed is the trap.
 
 ## External dependencies (`external/`)
 
