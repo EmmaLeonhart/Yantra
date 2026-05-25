@@ -89,6 +89,8 @@ pub enum ParseError {
     Truncated,
     /// A string field (role / from_proc / key) is not valid UTF-8.
     InvalidUtf8,
+    /// A process record carried a storage-tier tag with no known `Tier`.
+    UnknownTier(u8),
 }
 
 /// Why a payload failed to write.
