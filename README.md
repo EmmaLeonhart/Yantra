@@ -59,8 +59,10 @@ echo/calc through the kernel), and **echo**. The kernel + apps test gate
 covers admission control, the axon router, capability checks, real `.su`
 programs compiled and executed through the router (on the real GPU —
 admit allocates GPU memory, `_VSA.device == cuda`), the calculator, the
-GUI render + click, the terminal, echo content round-trip, and
-1024/1024-symbol fidelity; it passes (**167 passed, 1 xfailed**, measured
+GUI render + click, the terminal, echo content round-trip, the
+orchestrator checkpoint + RAM cold-store tier (`Init.cold_store` /
+`restore_from_cold`, bit-exact through the kernel), and
+1024/1024-symbol fidelity; it passes (**207 passed, 1 xfailed**, measured
 2026-05-25, on the real GPU). The one strict `xfail` is the cross-program
 axon-projection case — see `planning/18`, `planning/20`.
 The Sutra compiler/runtime live in the `external/Sutra` submodule
