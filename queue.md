@@ -128,15 +128,29 @@ Remaining steps:
      and `make_real` lifts the final scalar onto the real axis (that lift was the
      blocker — a bare 0-d codepoint scalar didn't decode; `make_real` fixes it).
      `tests/test_calc_parse.py`: exact over all of 0–99 (real run). No host
-     parsing in the path. **Operator detection also DONE 2026-05-25:**
+     parsing in the path. **Operator detection BUILT (standalone) 2026-05-25:**
      `apps/calc/parse_op.su` maps the operator char to its op-code ON THE
      SUBSTRATE ('+'→0 '-'→1 '*'→2 '/'→3) via the switch.su select+saturation
-     pattern — removes the host `CODE[op]` dict (`test_op_code_maps_operator_chars
-     _on_substrate`, 4/4). **Remaining toward full step d:** variable length
-     >2 digits (Sutra accumulator loop / digit array), two-operand expression
-     parse (split "DD OP DD" — find the space/operator positions on the
-     substrate), then wire `parse_int2` + `parse_op` into `calc.py` replacing the
-     host recursive-descent parser. Finding: `planning/23` Stage-1.
+     pattern (`test_op_code_maps_operator_chars_on_substrate`, 4/4). **NOT yet
+     wired into calc.py** — calc.py's `_binop_substrate` still feeds the host
+     `CODE[op]` dict; parse_op is a verified building block, not yet on the calc's
+     live path. **Remaining toward full step d:**
+       - **Wire operator dispatch from the char into the calc (bounded, ~next).**
+         Cleanest: have `switch.su` read the operator as a 1-char string
+         (`op_char`), do `string_char_at(0)`, score the codepoints (43/45/42/47
+         for +−*/) and select — merging parse_op's logic in, so calc.py feeds
+         `make_string(op)` instead of `CODE[op]`. Removes the last host
+         arithmetic-decision. Touches the verified calc core (switch.su +
+         calc.py), so do it deliberately and VERIFY against `tests/test_calc.py`
+         (57 cases + 18/18 dispatch); revert if it regresses. NOT done this fire
+         (declined to rush the showcase core at marathon-tail).
+       - variable length >2 digits (Sutra accumulator loop / digit array);
+       - two-operand "DD OP DD" split — find the operator position on the
+         substrate (needs a scan/loop), then compose parse_int2 + the dispatch;
+       - a FULL substrate parser to replace calc.py's host recursive-descent
+         parser is a big build, NOT a drop-in: the host parser handles precedence,
+         parens, and arbitrary expressions the current pieces do not, so a naive
+         swap would REGRESS the calc. Finding: `planning/23` Stage-1.
    - e. **Extend the exact range — float64 DONE 2026-05-24; arbitrary precision open.**
      **float64 substrate (substrate-pure, no host carries) — LIVE.** The calc now
      compiles `switch.su` in float64 (Sutra **v0.6.2** `runtime_dtype`, merged +
