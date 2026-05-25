@@ -285,10 +285,12 @@ def test_restore_refuses_truncated_data() -> None:
 
 
 def test_restore_refuses_ram_tier() -> None:
-    """A checkpoint with a program on the unimplemented RAM tier is refused
-    (the Tier.RAM enum value doesn't exist in v0.0; restoring would be
-    faking a tier the kernel can't operate). When RAM lands, this test
-    flips to "RAM round-trips."
+    """A whole-kernel checkpoint never legitimately carries a RAM-tier member
+    (serialise_kernel_state refuses one — a cold-stored process's inbox lives
+    in a separate YPRC blob, not the kernel checkpoint). A YKST blob with a
+    RAM tag is therefore malformed/hand-crafted, and restore refuses it rather
+    than rebuild a process with a silently-empty inbox. RAM cold-store has its
+    own round-trip path — see tests/test_kernel_ram_tier.py.
     """
     # Manually craft a minimal checkpoint with tier tag 2 (RAM).
     import struct

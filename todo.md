@@ -208,8 +208,15 @@ production form is Rust. Hardening list:
   2026-05-25 restore-device-faithfulness fix — restore now places each
   process's inbox on its own service's device, not a hard-coded CPU; the
   CPU-only sibling machine didn't surface the GPU device mismatch).
-  Per-process cold-store API + a runtime
-  `Tier.RAM` enum value is the remaining refinement on top.
+  Per-process cold-store API + a runtime `Tier.RAM` enum value —
+  **SHIPPED 2026-05-25.** `Tier.RAM`, `Init.cold_store(name) -> bytes`,
+  and `Init.restore_from_cold(name, blob)` are live (per-process `YPRC`
+  blob via `kernel.checkpoint.serialise_process` / `parse_process`),
+  bit-exact + behaviour-identical through real echo
+  (`tests/test_kernel_ram_tier.py`, 10 tests). Whole-kernel checkpoint
+  refuses a RAM member (its inbox lives in the external cold blob). See
+  `planning/26` § 3. Remaining refinement: pool-budget accounting on
+  tier moves (left untouched, matching `unload`; v0.0 bookkeeping-only).
   - **Emma's direction (2026-05-24): the orchestrator does the
     serialisation, in two distinct kinds — start with the easy one.**
     (a) **Serialise an axon's output — SHIPPED 2026-05-25.** Payload tensor

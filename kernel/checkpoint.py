@@ -48,6 +48,7 @@ checkpoint is the inbox-and-table layer above it.
 """
 from __future__ import annotations
 
+import dataclasses
 import enum
 import json
 import pathlib
@@ -64,12 +65,22 @@ from kernel.serialise import (
 if TYPE_CHECKING:
     from kernel.init import Init
     from kernel.manifest import Manifest
+    from kernel.router import Axon
     from kernel.services import Service
 
 _MAGIC = b"YKST"
 _VERSION = 1
 _HEADER_FMT = "<4sB3sIII"  # magic, version, reserved, pool_total, pool_free, process_count
 _HEADER_SIZE = 20
+
+# Per-process cold-store blob ('YPRC' = Yantra PRocess Cold-store). A single
+# admitted process captured self-contained: manifest + service identity +
+# inbox. This is the RAM-tier unit (Init.cold_store / restore_from_cold),
+# distinct from the whole-kernel YKST checkpoint above.
+_MAGIC_PROC = b"YPRC"
+_VERSION_PROC = 1
+_PROC_HEADER_FMT = "<4sB3s"  # magic, version, 3-byte reserved (pad to 8)
+_PROC_HEADER_SIZE = 8
 
 
 class CheckpointError(ValueError):
@@ -212,6 +223,21 @@ def serialise_kernel_state(init: "Init") -> bytes:
             ap = init._table[name]  # noqa: SLF001
             tier = init._tier.get(name, _default_gpu_tier())  # noqa: SLF001
 
+            # A RAM-tier (cold-stored) process keeps its in-flight inbox in
+            # an EXTERNAL cold blob (Init.cold_store's return value), not in
+            # the router. Capturing it in a whole-kernel checkpoint here would
+            # silently lose that queued work — exactly the fake-success the
+            # substrate-purity rule forbids. Refuse cleanly: restore the
+            # process from its cold blob first, then checkpoint the kernel.
+            if tier.value == "ram":
+                raise CheckpointError(
+                    f"process {name!r} is on tier RAM (cold-stored). Its inbox "
+                    "lives in an external cold blob, not the router, so a "
+                    "whole-kernel checkpoint cannot capture it. Call "
+                    "restore_from_cold(name, blob) to bring it back before "
+                    "checkpointing the kernel."
+                )
+
             parts.append(_pack_section(name.encode("utf-8")))
             parts.append(_pack_section(_manifest_to_json(ap.manifest).encode("utf-8")))
             tier_tag = _TIER_TAGS[tier.value]
@@ -329,16 +355,19 @@ def restore_kernel_state(
         identity_bytes, offset = _unpack_section(data, offset)
         identity = json.loads(identity_bytes.decode("utf-8"))
 
-        # Refuse RAM-tier BEFORE constructing the service. RAM isn't a
-        # runtime tier in v0.0 (planning/03-process-lifecycle.md) and
-        # compiling a fresh service we're about to reject would burn
-        # time + memory for no reason. When RAM lands, this branch
-        # gains its own restoration path.
+        # Defensive: a well-formed YKST blob never carries a RAM-tier
+        # member — serialise_kernel_state refuses one (its inbox lives in an
+        # external cold blob, not the kernel checkpoint). A RAM tag here means
+        # a hand-built or corrupted blob; refuse rather than restore a process
+        # with a silently-empty inbox. Per-process cold-store has its own path
+        # (parse_process / Init.restore_from_cold).
         if tier_name == "ram":
             raise CheckpointError(
-                f"checkpoint has process {name!r} on tier RAM, which is not "
-                "yet a runtime Tier in this kernel (planning/03-process-"
-                "lifecycle.md). Restore is blocked until RAM is implemented."
+                f"checkpoint carries process {name!r} on tier RAM, which "
+                "serialise_kernel_state never emits (a cold-stored process's "
+                "inbox is held in a separate YPRC cold blob, not the kernel "
+                "checkpoint). This blob is malformed; restore is refused. Use "
+                "parse_process / Init.restore_from_cold for cold-stored state."
             )
 
         service = services_factory(name, identity)
@@ -383,8 +412,115 @@ def restore_kernel_state(
     return init
 
 
+@dataclasses.dataclass(frozen=True)
+class ColdProcess:
+    """The parsed contents of a per-process cold-store blob (``YPRC``).
+
+    ``axons`` are already deserialised onto the device requested at parse
+    time. ``identity`` is the raw service-identity dict (``kind``,
+    ``source_path``, …) the factory would consume — but the in-process
+    restore path (:meth:`Init.restore_from_cold`) reloads the existing
+    service rather than rebuilding from identity, so identity is carried
+    for the cross-session / disk-backed case and for the name/manifest
+    consistency check.
+    """
+
+    name: str
+    manifest: "Manifest"
+    identity: dict[str, Any]
+    axons: list["Axon"]
+
+
+def serialise_process(init: "Init", name: str) -> bytes:
+    """Capture ONE admitted process as a self-contained cold-store blob.
+
+    The blob holds the process's manifest, service identity, and current
+    inbox (each axon via :func:`kernel.serialise.serialise_axon`) — enough
+    to resume it bit-exact. This is the RAM-tier capture used by
+    :meth:`Init.cold_store`; the tier itself is not stored (the blob *is*
+    the cold-stored state).
+
+    Raises :class:`CheckpointError` if the process is not admitted or its
+    service is not checkpointable (e.g. PythonService — same refusal as the
+    whole-kernel checkpoint; a faked identity would silently lose behaviour).
+    """
+    with init._lock:  # noqa: SLF001 (orchestrator owns this lock)
+        if name not in init._table:  # noqa: SLF001
+            raise CheckpointError(
+                f"process {name!r} is not admitted; cannot cold-store"
+            )
+        ap = init._table[name]  # noqa: SLF001
+        manifest_json = _manifest_to_json(ap.manifest)
+        identity = _service_identity(ap.service)  # refuses non-checkpointable
+        inbox = init._router._inboxes.get(name, deque())  # noqa: SLF001
+
+        header = struct.pack(
+            _PROC_HEADER_FMT, _MAGIC_PROC, _VERSION_PROC, b"\x00\x00\x00"
+        )
+        parts: list[bytes] = [
+            header,
+            _pack_section(name.encode("utf-8")),
+            _pack_section(manifest_json.encode("utf-8")),
+            _pack_section(json.dumps(identity, sort_keys=True).encode("utf-8")),
+            struct.pack("<I", len(inbox)),
+        ]
+        for axon in inbox:
+            parts.append(_pack_section(serialise_axon(axon)))
+        return b"".join(parts)
+
+
+def parse_process(
+    data: bytes | bytearray | memoryview,
+    *,
+    device: Any = None,
+) -> ColdProcess:
+    """Decode a per-process cold-store blob produced by :func:`serialise_process`.
+
+    ``device`` places the restored inbox axons (default ``None`` → CPU; the
+    caller — :meth:`Init.restore_from_cold` — passes the reloaded service's
+    own device so the round-trip is bit-exact). Raises :class:`CheckpointError`
+    on bad magic / version / truncation.
+    """
+    if len(data) < _PROC_HEADER_SIZE:
+        raise CheckpointError(
+            f"data too short for cold-store header: {len(data)} bytes"
+        )
+    magic, version, _reserved = struct.unpack(
+        _PROC_HEADER_FMT, bytes(data[:_PROC_HEADER_SIZE])
+    )
+    if magic != _MAGIC_PROC:
+        raise CheckpointError(
+            f"bad cold-store magic {magic!r}; expected {_MAGIC_PROC!r}"
+        )
+    if version != _VERSION_PROC:
+        raise CheckpointError(
+            f"unsupported cold-store version {version}; reads {_VERSION_PROC}"
+        )
+    offset = _PROC_HEADER_SIZE
+    name_bytes, offset = _unpack_section(data, offset)
+    name = name_bytes.decode("utf-8")
+    manifest_bytes, offset = _unpack_section(data, offset)
+    manifest = _manifest_from_json(manifest_bytes.decode("utf-8"))
+    identity_bytes, offset = _unpack_section(data, offset)
+    identity = json.loads(identity_bytes.decode("utf-8"))
+
+    if offset + 4 > len(data):
+        raise CheckpointError(f"truncated at inbox count for process {name!r}")
+    (inbox_count,) = struct.unpack_from("<I", data, offset)
+    offset += 4
+    axon_device = device if device is not None else "cpu"
+    axons: list[Axon] = []
+    for _ in range(inbox_count):
+        envelope_bytes, offset = _unpack_section(data, offset)
+        axons.append(deserialise_axon(envelope_bytes, device=axon_device))
+    return ColdProcess(name=name, manifest=manifest, identity=identity, axons=axons)
+
+
 __all__ = [
     "CheckpointError",
-    "serialise_kernel_state",
+    "ColdProcess",
+    "parse_process",
     "restore_kernel_state",
+    "serialise_kernel_state",
+    "serialise_process",
 ]
