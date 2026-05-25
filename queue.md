@@ -112,17 +112,17 @@ Remaining steps:
    - d. **Parse on the substrate** — a Sutra loop over the codepoint string: digit →
      strip char flag → value; place-value assembly (2-digit cap to start); space ends
      an operand; `=` triggers. Host shrinks to read-line / print-float.
-     **FEASIBILITY CHECKED 2026-05-24 (partly green, precise blocker, not faked):**
-     verified on real runs that `string_char_at(s,i)` returns the codepoint as a
-     0-d tensor on the substrate (`'5'`→53), and `cp−48` + place-value reconstructs
-     integers (`"42"`→42.0) at the `_VSA` level — so digit extraction needs NO new
-     Sutra primitive. BLOCKER: composing it inside a `.su` with naive arithmetic
-     returns an empty/0-d tensor (`_VSA.real()` → `IndexError … size 0`); the
-     codepoint scalar doesn't lift into a real-axis 768-vector through bare
-     `*`/`+`/`-`. Correct path (unverified, queued): `make_real(string_char_at(...))`
-     + place-value via the same substrate real-axis arithmetic `switch.su` uses.
-     Stopped rather than host-fake the parse (the §"fake-substrate-work" trap by
-     name). Full finding: `planning/23` Stage-1 note.
+     **FIRST PIECE SHIPPED + VERIFIED 2026-05-24.** `apps/calc/parse_int2.su` parses
+     a 1-or-2 digit non-negative integer ON THE SUBSTRATE: `string_char_at` gives
+     the codepoint (a real number), digit = `cp−48`, length-aware place value
+     without comparisons (`(c0-48)*(1+9*(n-1)) + (c1-48)*(n-1)`, n=`string_length`),
+     and `make_real` lifts the final scalar onto the real axis (that lift was the
+     blocker — a bare 0-d codepoint scalar didn't decode; `make_real` fixes it).
+     `tests/test_calc_parse.py`: **2 passed, exact over all of 0–99** (real run).
+     No host parsing in the path. **Remaining toward full step d:** variable length
+     >2 digits (Sutra accumulator loop / digit array), operator-char detection
+     (codepoint→op-code), two-operand expression parse, then wire into `calc.py`
+     replacing the host recursive-descent parser. Finding: `planning/23` Stage-1.
    - e. **Extend the exact range — float64 DONE 2026-05-24; arbitrary precision open.**
      **float64 substrate (substrate-pure, no host carries) — LIVE.** The calc now
      compiles `switch.su` in float64 (Sutra **v0.6.2** `runtime_dtype`, merged +
