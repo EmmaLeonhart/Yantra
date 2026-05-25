@@ -21,27 +21,30 @@
 //   a killed branch can never produce nan. A genuine /0 (op=/, b=0) is a
 //   domain error caught upstream by the host.
 //
-// Operators arrive as a real-axis code (0=+ 1=- 2=* 3=/) the host injects;
-// which operation runs is decided HERE, on the substrate, not by a host
-// `if`/dict. Operands are `complex` so `/` routes through complex_div; for
+// The operator arrives as a 1-char string ("+"/"-"/"*"/"/") the host injects;
+// switch reads its codepoint and decides which operation runs HERE, on the
+// substrate — no host `if`/dict, and no host operator->code map either (the
+// codepoint scoring below subsumes what a host CODE[op] used to do).
+// Operands are `complex` so `/` routes through complex_div; for
 // real inputs every result lands on the real axis. Exact within the
 // float32 exact-integer range (|value| < 2^24); bigger values need an
 // arbitrary-precision digit encoding (planning/22 Stage 3, planning/23).
 function vector on_axon(vector input_axon) {
     complex a = axon_item(input_axon, "a");
     complex b = axon_item(input_axon, "b");
-    vector op = axon_item(input_axon, "op");
-
-    vector u = real_number(1.0);
-    scalar d0 = dot(op - real_number(0.0), u);
-    scalar d1 = dot(op - real_number(1.0), u);
-    scalar d2 = dot(op - real_number(2.0), u);
-    scalar d3 = dot(op - real_number(3.0), u);
-
-    scalar s0 = 0.0 - 1000.0 * d0 * d0;
-    scalar s1 = 0.0 - 1000.0 * d1 * d1;
-    scalar s2 = 0.0 - 1000.0 * d2 * d2;
-    scalar s3 = 0.0 - 1000.0 * d3 * d3;
+    // The operator arrives as a 1-char string ("+", "-", "*", "/"); read its
+    // codepoint ON THE SUBSTRATE (string_char_at) and score it against the four
+    // operator codepoints. cp is an exact integer (string content round-trips
+    // exactly through the axon), so score_t = -1000*(cp-target)^2 is exactly 0 at
+    // a match and <= -1000 otherwise; exp(-1000) underflows to exact 0, so select
+    // is a true one-hot. No host CODE[op] map remains: the operator -> operation
+    // mapping is decided here, on the substrate, from the character itself.
+    string op_char = axon_item(input_axon, "op_char");
+    scalar cp = op_char.string_char_at(0);
+    scalar s0 = 0.0 - 1000.0 * (cp - 43.0) * (cp - 43.0);  // '+'
+    scalar s1 = 0.0 - 1000.0 * (cp - 45.0) * (cp - 45.0);  // '-'
+    scalar s2 = 0.0 - 1000.0 * (cp - 42.0) * (cp - 42.0);  // '*'
+    scalar s3 = 0.0 - 1000.0 * (cp - 47.0) * (cp - 47.0);  // '/'
 
     vector one = real_number(1.0);
     complex denom = select([s0, s1, s2, s3], [one, one, one, b]);
