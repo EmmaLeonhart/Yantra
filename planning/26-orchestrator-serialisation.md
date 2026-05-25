@@ -37,25 +37,84 @@ This is the right place to start because:
    (IPC, network, checkpoint of a conversation's history, audit log of
    what flowed through the connectome) composes from this.
 
-### (b) Serialise a *running* program's full state — the long pole
+### (b) Serialise a *running* program's full state — finding 2026-05-25
 
-The slice of VRAM holding the program's weights *and* its in-flight
-memory, so a *running* program can be checkpointed and resumed
-bit-exact. This is the hard kind:
+The framing this section originally had — "the slice of VRAM holding the
+program's weights *and* its in-flight memory" — anticipated a Sutra that
+has persistent mutable per-program state. **Audited 2026-05-25 against
+the actual Sutra source: current Sutra is purely functional**, so for
+today's programs (b) has nothing to capture.
 
-1. Weights live on the device, often as multiple tensors at addresses
-   the orchestrator doesn't directly own.
-2. In-flight state (the loop-carrier of a `loop`, the iterator
-   counter, any partially-computed intermediate) is the substrate's
-   business, not the orchestrator's.
-3. Scheduler position — which axon the program was about to consume,
-   what tick we're on — is router state, not program state.
+Evidence:
 
-This is what the Sutra-side `serialise-process-state` primitive is for.
-Until that primitive exists, (b) cannot be built honestly; the
-orchestrator can only see the device addresses, not the semantic
-checkpoint boundary. Out of scope for the easy slice; flagged in
-`todo.md` § 1 and `planning/17-memory-model.md`.
+1. `external/Sutra/planning/sutra-spec/concurrency.md`: spec says plainly
+   *"No shared mutable state, no cross-path."* Sutra is a pure functional
+   language; each `on_axon(input) -> output` call is independent.
+2. `external/Sutra/planning/findings/2026-05-18-differentiable-training-is-a-proxy-not-compiled.md`:
+   training currently runs as a hand-reimplemented PyTorch proxy, NOT
+   through compiled `.su` source. Compiled Sutra programs do not carry
+   trainable weight tensors; there are no weights to checkpoint.
+3. The `_VSA` instance has mutable caches (`_rot_cache`, `_perm_cache`,
+   `_codebook`) — but all three are **deterministic from key strings**:
+   on resume they rebuild lazily, and the codebook is already disk-
+   cached globally per `(LLM, dim)` via `_load_disk_cache` /
+   `_write_disk_cache`. No per-program codebook snapshot is needed for
+   stateless programs.
+4. "In-flight" within a single `on_axon` call is the loop-carrier of a
+   tail-recursive `loop`, but calls are synchronous and run to
+   completion within a tick. There is no paused-mid-call state to
+   serialise.
+
+What this means: **for current Sutra, (b) is the empty set.** Per-program
+state that survives across ticks lives in the next axon (the program
+emits the new state as part of its output; the orchestrator routes it
+back as input on the next tick), which (a) already captures. The
+forward-looking version of (b) — where Sutra grows trained weights, or
+declared cross-tick state — should be revisited when that lands;
+likely shape: a Sutra-side `program_state_bytes()` accessor on the
+compiled module that returns whatever mutable state the program has
+declared. Today that accessor would return zero bytes; introducing the
+no-op accessor now would be dead code per CLAUDE.md "no host shortcuts /
+no fake primitives" — defer until a real consumer exists.
+
+### (c) Orchestrator-level checkpoint — the actual blocker
+
+What the queue/todo called "blocked on `serialise-process-state`" is in
+fact the **orchestrator's** state, not the substrate's. To bring the
+connectome back from a cold restart — a different machine, a power
+cycle, or just an `Init.unload` → `Init.load` cycle for a process whose
+inbox has pending axons — what needs to survive is:
+
+1. **The admission table** (`Init._table`): which programs are admitted,
+   under what manifest, with which service identity (`.su` source path,
+   output role, runtime dtype — enough to rebuild a fresh
+   `SutraService` instance).
+2. **The tier map** (`Init._tier`): which programs are GPU-resident vs
+   DISC (eventually RAM cold-store).
+3. **The router inboxes** (`AxonRouter._inboxes`): per-program queue of
+   axons not yet consumed. Each axon carries `role`, `payload` (tensor —
+   serialised via (a)), `from_proc`, and `keys`.
+4. **The tick number** (when a real scheduler lands; v0.0 has none).
+
+None of this requires a Sutra-side primitive. It's pure
+orchestrator/host work, composable from the (a) primitive that already
+ships. This is the substantive next piece, and it's what unblocks the
+`Tier.RAM` cold-store in `planning/03-process-lifecycle.md`.
+
+The build order for (c):
+
+1. **Axon envelope serialiser** (shipped same-fire as this finding):
+   `serialise_axon(Axon) -> bytes`, `deserialise_axon(bytes) -> Axon`.
+   Composes (a)'s payload serialiser; adds role / from_proc / keys
+   metadata around it. Foundation for inbox capture.
+2. **Kernel checkpoint** (next fire): `serialise_kernel_state(init) ->
+   bytes`, `restore_kernel_state(bytes, services_factory) -> Init`.
+   Composes the axon envelope for each inbox entry plus a manifest /
+   tier table.
+3. **Wire into Init**: a `Tier.RAM` value that means "cold-stored to a
+   blob" rather than "torn down on disc," and `Init.cold_store(name) ->
+   bytes` / `Init.restore_from_cold(name, bytes)` for individual
+   processes.
 
 ## Format for (a): `kernel/serialise.py`
 

@@ -185,38 +185,44 @@ production form is Rust. Hardening list:
   connectome case. Full reasoning: `planning/20` § "Status
   (2026-05-17)".
 - **Storage-tier moves: disc ↔ RAM ↔ GPU — DISC↔GPU DONE
-  2026-05-17.** The DISC↔GPU slice ships: `Init.load`/`unload`
-  instantiate / tear down a program's CUDA-resident Sutra runtime
-  with the GPU memory genuinely reclaimed (real RTX 4070, measured
-  669696→0→669696 B; `tests/test_kernel_gpu_tiers.py`). The old
-  "only admit/deregister against an in-memory pool" + the §44-46
-  "blocked on … evict-from-GPU" are stale: `evict-from-GPU` is now
-  real (proactive `_VSA` device-tensor release). **Still open:**
-  the RAM cold-store of a *running* program's mutated state
-  (checkpoint + bit-exact resume) — that genuinely needs the Sutra
-  `serialise-process-state` primitive. So start/stop-on-GPU is
-  done; pause-and-resume-preserving-state is the remaining piece.
-  RAM in Yantra is semantically closer to disc than to traditional
-  RAM (`planning/01-architecture.md` § "The kernel is a Connectome
-  Manager").
+  2026-05-17; RAM cold-store reframed 2026-05-25.** The DISC↔GPU slice ships:
+  `Init.load`/`unload` instantiate / tear down a program's CUDA-resident
+  Sutra runtime with the GPU memory genuinely reclaimed (real RTX 4070,
+  measured 669696→0→669696 B; `tests/test_kernel_gpu_tiers.py`). The old
+  "only admit/deregister against an in-memory pool" + the §44-46 "blocked
+  on … evict-from-GPU" are stale: `evict-from-GPU` is now real (proactive
+  `_VSA` device-tensor release). **The RAM cold-store framing
+  ("genuinely needs Sutra `serialise-process-state`") was wrong** — see
+  `planning/26-orchestrator-serialisation.md` § "(b) … finding 2026-05-25".
+  Current Sutra is purely functional (`planning/sutra-spec/concurrency.md`:
+  *"No shared mutable state"*), training is a hand-reimplemented PyTorch
+  proxy (not compiled `.su`; 2026-05-18 Sutra finding), and VSA caches
+  are deterministic from key strings — so there is **no per-program
+  mutable substrate state to capture**. The real RAM cold-store gap is
+  (c) orchestrator-level state: admission table + tier map + router
+  inboxes. Pure Yantra-side work, no Sutra primitive needed; foundation
+  (`serialise_axon` envelope) landed 2026-05-25, full
+  `kernel/checkpoint.py` queued.
   - **Emma's direction (2026-05-24): the orchestrator does the
     serialisation, in two distinct kinds — start with the easy one.**
-    (a) **Serialise an axon's output — SHIPPED 2026-05-25.** The structured-
-    embedding value a program emits is captured bit-exact via
-    `kernel/serialise.py` (`serialise_axon_payload` /
-    `deserialise_axon_payload`, Rust-portable wire format — 12-byte header
-    + raw little-endian body, no Python pickle). Round-trip verified across
-    every supported dtype (float32 / float64 / complex64 / complex128) and
-    through the calc's real VSA where every binding still decodes from the
-    restored tensor (`tests/test_axon_serialise.py`, 16 passed + 1 CUDA-
-    gated skip). Design + format spec: `planning/26-orchestrator-serialisation.md`.
-    (b) **Serialise the full process state** — the slice of
-    VRAM holding the program's weights *and* its in-flight memory, so a
-    *running* program can be checkpointed and resumed bit-exact. This is
-    the hard kind (you're snapshotting live device memory + weights), and
-    it's what the Sutra `serialise-process-state` primitive is for. Build
-    (a) first; (b) is the long pole. **Rust preferred** for the
-    orchestrator doing this (Python acceptable as the interim) — see the
+    (a) **Serialise an axon's output — SHIPPED 2026-05-25.** Payload tensor
+    bit-exact via `kernel/serialise.py` (`serialise_axon_payload` /
+    `deserialise_axon_payload`, Rust-portable 12-byte header + raw little-
+    endian body). Foundation extended 2026-05-25 with the full router
+    envelope (`serialise_axon` / `deserialise_axon`: role, payload,
+    from_proc, keys). Verified across every supported dtype and through
+    the calc's real VSA (`tests/test_axon_serialise.py`, 20 passed + 1
+    CUDA-gated skip). Format spec: `planning/26-orchestrator-serialisation.md`.
+    (b) **Serialise the full process state — finding 2026-05-25.** The
+    original framing ("VRAM holding the program's weights + in-flight
+    memory") expected mutable per-program substrate state Sutra does not
+    currently have: spec says *"No shared mutable state"*; training is a
+    hand-reimplemented PyTorch proxy, not compiled `.su`; VSA caches are
+    deterministic from keys; loop carriers don't survive across calls.
+    So **(b) reduces to (a) for current Sutra**. The substantive next
+    piece is (c) below; a Sutra-side `program_state_bytes()` accessor
+    would be a no-op today and is deferred until a real consumer (e.g.
+    trained `.su` programs) exists. **Rust preferred** for the
     orchestrator note below.
 - **Real per-process GPU memory arenas.** v0.0's `compute_units`
   is bookkeeping only. Production needs the multi-process Sutra
