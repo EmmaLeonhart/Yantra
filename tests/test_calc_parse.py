@@ -71,3 +71,28 @@ def test_parse_int2_is_real_sutra_not_a_host_stub(parse_int2) -> None:
     out = fn(vsa.make_string("42"))
     assert torch.is_tensor(out)
     assert abs(float(vsa.real(out)) - 42.0) < 1e-9
+
+
+@pytest.fixture(scope="module")
+def op_code():
+    """Compile apps/calc/parse_op.su and return (fn, vsa)."""
+    src = (APPS_CALC / "parse_op.su").read_text(encoding="utf-8")
+    lexer = Lexer(src, file="parse_op.su")
+    toks = lexer.tokenize()
+    parser = Parser(toks, file="parse_op.su", diagnostics=lexer.diagnostics)
+    module = parser.parse_module()
+    assert not lexer.diagnostics.has_errors(), list(lexer.diagnostics)
+    py = torch_translate(module, llm_model="nomic-embed-text", runtime_dim=768)
+    ns: dict = {}
+    exec(compile(py, "parse_op.su", "exec"), ns)
+    return ns["op_code"], ns["_VSA"]
+
+
+def test_op_code_maps_operator_chars_on_substrate(op_code) -> None:
+    """Operator char -> op-code, decided ON THE SUBSTRATE (select+saturation),
+    matching calc.py's CODE map: '+'=0, '-'=1, '*'=2, '/'=3. This is the host
+    CODE[op] dictionary moved onto the substrate (calc step d)."""
+    fn, vsa = op_code
+    for ch, expect in (("+", 0.0), ("-", 1.0), ("*", 2.0), ("/", 3.0)):
+        got = float(vsa.real(fn(vsa.make_string(ch))))
+        assert abs(got - expect) < 1e-9, f"op_code({ch!r})={got}, expected {expect}"
