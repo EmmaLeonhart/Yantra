@@ -267,23 +267,20 @@ production form is Rust. Hardening list:
   Rust** (see `bootloader/`), the same systems language as the
   orchestrator — not a C→Sutra transpile target (that transpiler is
   not planned).
-- **Bare-metal via a VM — open investigation (Emma's question 2026-05-24):
-  "can a VM run on bare metal and simulate a GPU even without a real one?"**
-  Honest current understanding (worth verifying, not asserting): a VM runs
-  fine and we already test the **boot/orchestration path** in QEMU (the
-  bootloader is QEMU-verified). The wall is specifically **CUDA compute**:
-  QEMU's emulated display adapters (stdvga/virtio-gpu) do **not** expose
-  CUDA, and there is no practical CPU-emulated CUDA device — so the
-  real-GPU *compute* path can't be exercised inside an ordinary VM without
-  GPU passthrough (VFIO + a spare GPU). BUT two separable things this
-  unblocks for VM-only dev: (1) the **boot + orchestrator logic** is fully
-  VM-testable today (no GPU needed); (2) **Sutra runs on CPU** (torch CPU
-  fallback) — so a VM can run the *whole stack functionally* (correctness,
-  not GPU performance) by pointing the substrate at CPU. Action: write this
-  up properly in `planning/19-boot-sequence.md` (boot path: VM-OK; GPU
-  compute: needs passthrough or CPU-fallback), and check whether any
-  software CUDA shim / GPU-paravirtualisation (e.g. virtio-gpu venus,
-  vendor vGPU) could give a VM real CUDA — that would change the answer.
+- **Bare-metal via a VM — write-up DONE 2026-05-25.** Emma asked
+  2026-05-24 *can a VM run on bare metal and simulate a GPU even without a
+  real one?* The answer is documented in
+  `planning/19-boot-sequence.md` § "Running Yantra inside a VM (no real
+  GPU)": the boot/orchestration path is VM-testable on any host (QEMU
+  already exercises it); the substrate is CPU-runnable in any VM
+  (`device='cpu'`); CUDA compute in a VM needs either VFIO passthrough on
+  a Linux host with a spare GPU, or vGPU on supported datacenter silicon.
+  virtio-gpu Venus, NVIDIA vGPU, and CUDA-API-forwarding shims (rCUDA,
+  GVirtuS) are noted as research paths that would change the answer if
+  any matured. **Remaining as a deeper investigation:** characterising
+  whether any of those paravirt paths has become practical enough for
+  a developer-machine setup since they were last surveyed — left as a
+  future-session task, not a near-term blocker.
 
 ## ~~Investigate: bundle-decoding regression~~ — RESOLVED 2026-05-15
 
