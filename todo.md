@@ -200,9 +200,12 @@ production form is Rust. Hardening list:
   are deterministic from key strings — so there is **no per-program
   mutable substrate state to capture**. The real RAM cold-store gap is
   (c) orchestrator-level state: admission table + tier map + router
-  inboxes. Pure Yantra-side work, no Sutra primitive needed; foundation
-  (`serialise_axon` envelope) landed 2026-05-25, full
-  `kernel/checkpoint.py` queued.
+  inboxes. Pure Yantra-side work, no Sutra primitive needed.
+  `kernel/checkpoint.py` (`serialise_kernel_state` /
+  `restore_kernel_state`) SHIPPED 2026-05-25 + verified bit-exact
+  through a real echo round-trip (`tests/test_kernel_checkpoint.py`,
+  9 tests; full gate 192). Per-process cold-store API + a runtime
+  `Tier.RAM` enum value is the remaining refinement on top.
   - **Emma's direction (2026-05-24): the orchestrator does the
     serialisation, in two distinct kinds — start with the easy one.**
     (a) **Serialise an axon's output — SHIPPED 2026-05-25.** Payload tensor

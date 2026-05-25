@@ -70,6 +70,11 @@ from kernel.init import (
     PoolExhaustedError,
     Tier,
 )
+from kernel.checkpoint import (
+    CheckpointError,
+    restore_kernel_state,
+    serialise_kernel_state,
+)
 from kernel.serialise import (
     AxonSerialiseError,
     deserialise_axon,
@@ -90,6 +95,7 @@ __all__ = [
     "AxonRouter",
     "AxonSerialiseError",
     "CapabilityError",
+    "CheckpointError",
     "Init",
     "Manifest",
     "ManifestError",
@@ -103,6 +109,8 @@ __all__ = [
     "deserialise_axon_payload",
     "load_manifest",
     "make_shared_sutra_services",
+    "restore_kernel_state",
     "serialise_axon",
     "serialise_axon_payload",
+    "serialise_kernel_state",
 ]

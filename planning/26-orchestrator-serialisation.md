@@ -103,18 +103,31 @@ ships. This is the substantive next piece, and it's what unblocks the
 
 The build order for (c):
 
-1. **Axon envelope serialiser** (shipped same-fire as this finding):
+1. **Axon envelope serialiser — SHIPPED 2026-05-25.**
    `serialise_axon(Axon) -> bytes`, `deserialise_axon(bytes) -> Axon`.
    Composes (a)'s payload serialiser; adds role / from_proc / keys
    metadata around it. Foundation for inbox capture.
-2. **Kernel checkpoint** (next fire): `serialise_kernel_state(init) ->
-   bytes`, `restore_kernel_state(bytes, services_factory) -> Init`.
-   Composes the axon envelope for each inbox entry plus a manifest /
-   tier table.
-3. **Wire into Init**: a `Tier.RAM` value that means "cold-stored to a
-   blob" rather than "torn down on disc," and `Init.cold_store(name) ->
-   bytes` / `Init.restore_from_cold(name, bytes)` for individual
-   processes.
+2. **Kernel checkpoint — SHIPPED 2026-05-25.**
+   `kernel/checkpoint.py`: `serialise_kernel_state(init) -> bytes`,
+   `restore_kernel_state(bytes, services_factory) -> Init`. Captures
+   manifests + tier + per-program inboxes; uses YKST magic with a
+   binary framing + JSON for the structured (manifest, service-identity)
+   fields. Restore is bit-exact: an integration test admits echo on an
+   Init, pushes axons into its inbox, checkpoints, restores on a fresh
+   Init via the factory, and confirms the restored kernel emits the same
+   bytes for the same queued input (decoded string still recovers
+   verbatim through the substrate). PythonService is REFUSED at
+   checkpoint (not faked) per CLAUDE.md "no fake primitives" — its
+   callable isn't reconstructable from bytes. RAM tier is refused at
+   restore until the `Tier.RAM` enum lands. 9 tests in
+   `tests/test_kernel_checkpoint.py`. Full kernel gate 192/2-skipped/
+   1-xfail.
+3. **Wire `Tier.RAM` into `Init`** (still open): a tier value that means
+   "cold-stored to a blob" rather than "torn down on disc," plus
+   `Init.cold_store(name) -> bytes` / `Init.restore_from_cold(name,
+   bytes)` for individual processes. Today (1)+(2) handle the
+   whole-kernel cold-store; per-process cold-store is a refinement
+   that needs the tier value to land first.
 
 ## Format for (a): `kernel/serialise.py`
 

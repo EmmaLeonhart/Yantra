@@ -25,44 +25,6 @@ test-isolation / shared-substrate artifact (it usually is) — run it alone befo
 concluding a capability is missing. If you catch yourself hedging "probably no
 CUDA / probably won't work," stop: verify by running, the capability is there.
 
-### Orchestrator state checkpoint (c) — the actual blocker for RAM cold-store
-
-**Finding 2026-05-25:** the queue's long-standing "(b) blocked on Sutra-side
-`serialise-process-state`" framing was wrong. Audit against the Sutra source
-(`planning/sutra-spec/concurrency.md` says plainly *"No shared mutable state"*;
-the 2026-05-18 finding confirms training is a hand-reimplemented PyTorch
-proxy, not compiled `.su` with trainable weights; VSA caches are deterministic
-from key strings) shows (b) has **nothing to capture for current Sutra** — it
-is purely functional. The actual blocker for RAM cold-store of the running
-connectome is **(c) orchestrator-level state** (admission table + tier map +
-router inboxes + tick number), which is pure Yantra-side work and needs no
-Sutra primitive. Full reasoning + build order in `planning/26-orchestrator-
-serialisation.md` § "(c) Orchestrator-level checkpoint — the actual blocker".
-
-Foundation landed: `kernel/serialise.py` now exposes both
-`serialise_axon_payload` / `deserialise_axon_payload` (the payload tensor,
-shipped earlier) and `serialise_axon` / `deserialise_axon` (the full router
-envelope — role, payload, from_proc, keys — round-tripping bit-exact).
-Tests pass: 21 in `tests/test_axon_serialise.py` (20 + 1 CUDA-gated skip),
-full kernel gate 183 passed / 2 skipped / 1 xfail.
-
-**Remaining toward (c):**
-- `kernel/checkpoint.py`: `serialise_kernel_state(init) -> bytes`,
-  `restore_kernel_state(bytes, services_factory) -> Init`. Captures
-  manifests + tier + per-program inbox (each axon via `serialise_axon`).
-- Service-identity factory: pass a callable that maps a manifest +
-  service identifier (`.su` source path, output role, runtime dtype) back
-  to a fresh `SutraService`. `PythonService` is testing-only and won't be
-  checkpointable (refused, not faked).
-- Wire into `Init`: `Tier.RAM` plus `Init.cold_store(name) -> bytes` and
-  `Init.restore_from_cold(name, bytes)`.
-- Test: admit two services, push some axons into inboxes, checkpoint,
-  reconstruct, verify the rebuilt kernel processes the queued axons
-  identically to the original.
-
-This is the next bounded item — promote to active and execute in the next
-fire.
-
 ### Blocker (NARROWED 2026-05-17, not closed) — axon_project no-op across the connectome
 
 The intra-module slice of the real fix shipped (Sutra v0.4.1,
