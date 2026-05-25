@@ -1,0 +1,10 @@
+// toggle.su — flip a 0/1 GUI state ON THE SUBSTRATE.
+//
+// flip(s) = 1 - s, computed on the Sutra substrate (make_real lifts the result
+// onto the real axis so the host can read it with real()). flip(0) = 1,
+// flip(1) = 0. The first GUI's click handler calls this on every click, so the
+// red<->blue toggle's STATE transition is a substrate computation, not a host
+// boolean flip — the host only delivers the click event and paints the result.
+function vector flip(scalar s) { return make_real(1.0 - s); }
+
+function vector main() { return flip(0.0); }
