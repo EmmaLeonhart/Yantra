@@ -148,6 +148,102 @@ boundary wrapping. This is the running-OS state.
 | 4 — Rust orchestrator running | Python prototype only (`kernel/` in this repo). Rust port is the TODO. |
 | 5 — Connectome live on GPU | Per-program Sutra compute works (`kernel/services.py` `SutraService`). Multi-process simultaneous execution on a single GPU is now partially shipped via Sutra v0.4.0 `MultiProcessRuntime` (one Python process, N programs sharing one `_VSA`); per-process GPU memory arena carve-outs still upstream. |
 
+## Running Yantra inside a VM (no real GPU)
+
+Emma asked 2026-05-24: *can a VM run on bare metal and simulate a GPU
+even without a real one?* Two separable axes — the boot/orchestration
+path and the GPU compute path — answer that question differently, and
+the practical answer for VM-only development hinges on which path you
+need.
+
+### What works in a VM today
+
+**The whole boot + orchestrator path is VM-testable, no GPU needed.**
+This is what `bootloader/` already exercises: QEMU 11.0.50 boots the
+multiboot1 ELF, runs Stage 3 setup (PCI scan, stub framebuffer write,
+sentinel image copy, long-mode transition). Every artifact described
+in stages 1–4 above is reachable in a vanilla QEMU run on a CPU-only
+host. Multiboot, paging, long-mode, the orchestrator handoff — these
+are all CPU-only mechanisms; the absence of a real GPU does not
+prevent any of them.
+
+**Sutra runs on CPU.** The PyTorch substrate has a CPU fallback
+(`device='cpu'`), and the Sutra compiler emits the same tensor-op
+graph either way. A VM with no GPU can run *the whole stack
+functionally* — every kernel program, the calculator, echo, the
+terminal, the GUI's substrate-side field/flip/tint — by pointing the
+substrate at the CPU. Correctness is preserved; only throughput is
+sacrificed. This is the right configuration for behavioural testing,
+regression gates, and developer iteration on a machine without a
+workstation GPU.
+
+### What does NOT work in a VM today
+
+**CUDA compute inside an ordinary VM.** QEMU's emulated display
+adapters (`stdvga`, `cirrus`, `virtio-gpu` in its default 2D and
+3D-OpenGL configurations) do not expose a CUDA device. There is no
+practical CPU-emulated CUDA backend either — NVIDIA's runtime
+depends on actual NVIDIA silicon. So the real-GPU compute path
+(Sutra programs running on `device='cuda'`, the production
+performance posture) is not reachable inside an ordinary VM.
+
+The standard unblock is **GPU passthrough**: VFIO on a Linux host
+with a spare GPU. The host binds the GPU to VFIO, the VM gets the
+bare device, and CUDA inside the VM is indistinguishable from
+running on the host. The cost is needing a Linux host *and* a spare
+physical GPU — the host can't share its only GPU with itself.
+Emma's current setup doesn't satisfy this (the RTX 4070 is the
+host's, fine for running the kernel directly on the host, not for
+VM passthrough).
+
+### Open: paravirtualised CUDA paths
+
+Three approaches exist in principle that, if any matured into a
+usable shape for our case, would change the answer above. None is
+plug-and-play today; they are noted here so a future session can
+revisit if the situation changes.
+
+- **virtio-gpu Venus / VirGL.** virtio-gpu is QEMU's paravirtualised
+  GPU device. The Venus extension forwards Vulkan calls from the
+  guest to the host's Vulkan stack. This gives the guest
+  hardware-accelerated graphics, but it is **Vulkan, not CUDA**, and
+  CUDA cannot be reached through it. Useful for the eventual
+  browser/WebGL renderer (milestone 3); not useful for the substrate.
+- **NVIDIA vGPU.** NVIDIA's licensed virtual-GPU product partitions
+  a real datacenter GPU into VM-attachable slices. The vGPU does
+  expose CUDA. Requires a vGPU-capable card (datacenter SKUs: A100,
+  H100, etc.; consumer cards including the RTX 4070 are **not**
+  supported) plus an active NVIDIA AI Enterprise / vGPU licence.
+  Practical for a deployed system on hyperscaler infrastructure;
+  not practical for individual developer machines.
+- **CUDA-API forwarding shims (`rCUDA`, GVirtuS, GPU-Shim-style
+  forwarders).** Research artifacts that intercept CUDA API calls
+  in the guest and ship them to a remote-or-host CUDA runtime over
+  RPC. None has shipped a stable consumer-grade story for arbitrary
+  CUDA workloads, and the latency hit makes them inappropriate for
+  the per-tick connectome. Not currently a real option.
+
+The summary that should not drift: **the boot/orchestration path is
+VM-testable on any host; the substrate is CPU-runnable in any VM;
+CUDA compute in a VM needs either passthrough on a Linux host with a
+spare GPU, or vGPU on supported datacenter silicon.**
+
+### Implication for developer setup
+
+| Configuration | Boot/orchestrator | Substrate (functional) | Substrate (CUDA) |
+|---|---|---|---|
+| CPU-only laptop / VM | ✓ (QEMU) | ✓ (`device='cpu'`) | ✗ |
+| Workstation, 1 GPU (Emma) | ✓ (QEMU) on host | ✓ on host | ✓ on host, ✗ in VM |
+| Workstation, 2+ GPUs, Linux | ✓ in VM | ✓ in VM | ✓ in VM (VFIO passthrough) |
+| Datacenter / vGPU instance | ✓ in VM | ✓ in VM | ✓ in VM (licensed vGPU) |
+
+The minimal "real Yantra" target — bare-metal-boot to a working
+connectome on real silicon — sits at the third configuration, not
+the first. A VM-only developer on a CPU-only host can reach
+functional parity but not the production performance posture; that
+is enough for correctness work and regression gates, not enough for
+characterising the OS under real-GPU load.
+
 ## Cross-references
 
 - `01-architecture.md` § "The kernel is a Connectome Manager" and
