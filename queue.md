@@ -118,11 +118,16 @@ Remaining steps:
      without comparisons (`(c0-48)*(1+9*(n-1)) + (c1-48)*(n-1)`, n=`string_length`),
      and `make_real` lifts the final scalar onto the real axis (that lift was the
      blocker — a bare 0-d codepoint scalar didn't decode; `make_real` fixes it).
-     `tests/test_calc_parse.py`: **2 passed, exact over all of 0–99** (real run).
-     No host parsing in the path. **Remaining toward full step d:** variable length
-     >2 digits (Sutra accumulator loop / digit array), operator-char detection
-     (codepoint→op-code), two-operand expression parse, then wire into `calc.py`
-     replacing the host recursive-descent parser. Finding: `planning/23` Stage-1.
+     `tests/test_calc_parse.py`: exact over all of 0–99 (real run). No host
+     parsing in the path. **Operator detection also DONE 2026-05-25:**
+     `apps/calc/parse_op.su` maps the operator char to its op-code ON THE
+     SUBSTRATE ('+'→0 '-'→1 '*'→2 '/'→3) via the switch.su select+saturation
+     pattern — removes the host `CODE[op]` dict (`test_op_code_maps_operator_chars
+     _on_substrate`, 4/4). **Remaining toward full step d:** variable length
+     >2 digits (Sutra accumulator loop / digit array), two-operand expression
+     parse (split "DD OP DD" — find the space/operator positions on the
+     substrate), then wire `parse_int2` + `parse_op` into `calc.py` replacing the
+     host recursive-descent parser. Finding: `planning/23` Stage-1.
    - e. **Extend the exact range — float64 DONE 2026-05-24; arbitrary precision open.**
      **float64 substrate (substrate-pure, no host carries) — LIVE.** The calc now
      compiles `switch.su` in float64 (Sutra **v0.6.2** `runtime_dtype`, merged +
@@ -163,10 +168,14 @@ Not in scope: replicating their *video / screen-frame generation*
    click event can only be verified by hand (`python apps/gui/click_demo.py`).
    The substrate parts (field, flip, tint) ARE tested; the GUI tests stop at the
    render/state boundary. Verify the actual window interactively.
-2. **Per-pixel render is slow** — `render_field` calls the substrate once per
-   pixel (64×64 = 4096 calls, ~seconds). Fine for a static frame, too slow for
-   animation/interactivity at scale. Next: batch the whole grid into one
-   substrate forward pass.
+2. **Per-pixel render is slow — batching is BLOCKED on a Sutra-side change.**
+   `render_field` calls the substrate once per pixel (64×64 = 4096 calls). The
+   obvious fix — call the compiled `pixel` with batched tensor inputs — FAILS:
+   probed 2026-05-25, `make_real` is scalar-only (`only one element tensors can
+   be converted to Python scalars`), so the compiled graph can't take a batch
+   dim. Batching needs either a Sutra-side `make_real` that accepts a batch
+   (Sutra change — do on `yantra-driven` / a deliberate session) or the
+   returned-vector decoder (#3). Not a clean Yantra-side fix.
 3. **Emma's "returns a vector → reorganise into pixels" (reverse-CNN decoder)**
    is not built — the current GUI computes pixels per-coordinate, not by decoding
    one returned vector into a frame. That decoder is the bigger next step
