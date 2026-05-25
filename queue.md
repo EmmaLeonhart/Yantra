@@ -224,6 +224,7 @@ Not in scope: replicating their *video / screen-frame generation*
 - Boot sequence: `planning/19-boot-sequence.md`
 - Lazy axon evaluation: `planning/20-lazy-axon-evaluation.md`
 - Kernel + browser readiness audit: `planning/18-kernel-browser-readiness.md`
+- First GUI: `planning/24-first-gui.md`; v0.2.0 accuracy audit: `planning/25-v0.2.0-retrospective.md`
 - Paper + AI peer review pipeline: `paper/` (see `paper/README.md`)
 - External dependencies: `external/` (submodules)
 - Cross-repo workflow (Yantra ↔ Sutra): `CLAUDE.md` § "Cross-repo workflow"
