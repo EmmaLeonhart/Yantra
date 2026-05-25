@@ -49,23 +49,29 @@ code" beat "it runs my favourite app."
 
 This repo holds **planning documents** plus a v0.0 **Connectome
 Manager** under `kernel/` — a Python orchestration layer over real
-Sutra compute. The kernel + apps test gate is ~119 cases covering
-admission control, the axon router, capability checks, real `.su`
+Sutra compute — and the first native `apps/`: a **calculator**
+(`apps/calc/`, full expressions; *which* operation runs and *which
+character names it* are decided on the substrate, float64 so exact
+integers hold to 2⁵³), a first **GUI** (`apps/gui/`, every pixel
+computed on the substrate + an interactive red↔blue click toggle whose
+state flips on the substrate), a **terminal** surface (`apps/terminal/`,
+echo/calc through the kernel), and **echo**. The kernel + apps test gate
+covers admission control, the axon router, capability checks, real `.su`
 programs compiled and executed through the router (on the real GPU —
-admit allocates GPU memory, `_VSA.device == cuda`), and the calculator;
-the core paths pass (**118 passed, 1 xfailed**, measured 2026-05-24, on
-the real GPU). The one strict `xfail` is the cross-program axon-projection
-case — see `planning/18`, `planning/20`. (The GPU-residency test that used
-to read a false +0 admit-delta in the full suite now proves residency
-baseline-independently via the unload-delta — fixed 2026-05-24.)
-The Sutra compiler/runtime live in
-the `external/Sutra` submodule (pinned at v0.6.2; ships the TS→Sutra
-transpiler CLI, axon-keys static analysis, the per-receiver
+admit allocates GPU memory, `_VSA.device == cuda`), the calculator, the
+GUI render + click, the terminal, echo content round-trip, and
+1024/1024-symbol fidelity; it passes (**167 passed, 1 xfailed**, measured
+2026-05-25, on the real GPU). The one strict `xfail` is the cross-program
+axon-projection case — see `planning/18`, `planning/20`.
+The Sutra compiler/runtime live in the `external/Sutra` submodule
+(pinned at a `main` commit past **v0.7.0**, which ships the
+formal-verification tooling `from sutra_compiler import fv`; plus the
+TS→Sutra transpiler CLI, axon-keys static analysis, the per-receiver
 projection primitive, the `dot` builtin + selectable `runtime_dtype`
-(float64), and `MultiProcessRuntime` — N programs sharing
-one `_VSA`). Sutra's website: <https://sutralang.dev>. The
-orchestration layer is Python here as the near-term implementation;
-the production target on the CPU side is Rust.
+(float64), and `MultiProcessRuntime` — N programs sharing one `_VSA`).
+Sutra's website: <https://sutralang.dev>. The orchestration layer is
+Python here as the near-term implementation; the production target on the
+CPU side is Rust.
 
 Yantra is being designed (and now early-prototyped) here so that when
 the upstream Sutra-side multi-process runtime + the production Rust
