@@ -10,6 +10,67 @@
 
 ---
 
+## ⛔ Blocked / not-autonomous — surfaced 2026-05-24 (Emma asked these be pinned at the top)
+
+These are the queue items that were **deliberately NOT done autonomously**
+during the 2026-05-24 scheduled drain — each is a genuine blocker, a
+product decision, or substrate surgery that wants Emma's direct guidance.
+Named plainly per the hard rails (don't paper over difficulty; when Emma
+gives an algorithmic explanation, implement *hers*). Stage-2 terminal
+surface (the one cleanly-actionable item) shipped; everything below did
+not, for the stated reason.
+
+1. **CLI utilities beyond echo (`cat`, `ls`, `wc`)** — *blocked on
+   Sutra-side string + IO + FS vocabulary.* Not a Yantra-side fix; `echo`
+   works only because it's a pure axon round-trip. Promote per § 2 below
+   as each unblocks. (headline-demo step 1)
+
+2. **calc step c — return the substrate float instead of a host
+   `Fraction`** — *needs a PRODUCT DECISION from Emma, not autonomous.*
+   Doing it drops the "never a wrong answer" host-oracle refuse-gate
+   (CLAUDE.md flags the runtime refusal as impure). User-facing change.
+   See `planning/23` step c.
+
+3. **calc step d remaining — full substrate parse** — *substrate `.su`
+   surgery; do WITH Emma.* Shipped: `parse_int2.su` (1–2 digit) +
+   `parse_op.su` (operator→code), both on the substrate. Remaining:
+   variable-length >2-digit parse (Sutra accumulator loop / digit array),
+   two-operand "DD OP DD" split (find space/operator positions on the
+   substrate), then wire `parse_int2`+`parse_op` into `calc.py` replacing
+   the host recursive-descent parser. This is exactly the kind of
+   substrate-loop mechanism where Emma's guidance beats an agent guess —
+   not barreled into autonomously. See `planning/23` Stage-1.
+
+4. **calc step e — arbitrary precision (digit-array)** — *open; needs
+   carry propagation ON the substrate (not host) to stay pure.* float64
+   already extended exact integers to 2⁵³; true unbounded exactness is the
+   harder follow-on. Not a quick win.
+
+5. **Headline-demo contrast figure** — *needs a generative BASELINE.* The
+   Yantra side is pinned (zero drift, incl. N=60 through the terminal); the
+   decaying right side needs a CLIGen-shaped DiT-frame model reproduced or
+   Meta's published degradation numbers cited. Will NOT fabricate numbers.
+   See `planning/22` § "Making it measurable". (headline-demo step 3)
+
+6. **GUI open issues** (`planning/24-first-gui.md`):
+   - **Live window + click verification** — *needs a human at the screen*;
+     the substrate parts (field, flip, tint) are tested, the window/click
+     are not headless-testable.
+   - **Per-pixel render batching** — *blocked on a Sutra-side change*:
+     `make_real` is scalar-only, so the compiled `pixel` graph can't take a
+     batch dim. Not a clean Yantra-side fix (Sutra-side / deliberate
+     session).
+   - **Reverse-CNN decoder** (Emma's "return a vector → reorganise into
+     pixels") — *unbuilt; the bigger next GUI step.*
+
+7. **`axon_project` no-op across the connectome** — *narrowed blocker for a
+   future Sutra+kernel design session.* Intra-module slice shipped
+   (Sutra v0.4.1); the cross-separately-compiled-program case needs
+   whole-connectome compilation or admission-time producer specialization.
+   See `planning/20` § Status and § 1 below.
+
+---
+
 ## ▶ Continuation — start here (autonomous hourly loop)
 
 **An autonomous hourly cron drives this repo** (a sibling machine
