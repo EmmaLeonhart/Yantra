@@ -22,6 +22,14 @@ test harness so every unit stays host-testable.
   decode and byte-for-byte encode match. This is the orchestrator's read/write
   path for checkpointed axon values (see `kernel/checkpoint.py`,
   `planning/26-orchestrator-serialisation.md`).
+- **`checkpoint`** — the `YPRC` per-process cold-store codec
+  (`parse_process_blob` / `write_process_blob`), byte-for-byte compatible with
+  Python `kernel/checkpoint.py::serialise_process`. Reads the binary framing
+  (name + manifest/identity JSON + an inbox of `YAXE` envelopes); the JSON
+  fields are returned as borrowed bytes — JSON parsing is **deferred**
+  (`no_std`/no-alloc can't build the maps; see the module note). Cross-checked
+  against a committed fixture of real Python output
+  (`tests/fixtures/echo_process.yprc`).
 
 ## Build / test
 

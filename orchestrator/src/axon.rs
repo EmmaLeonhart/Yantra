@@ -242,7 +242,7 @@ impl<'a> Iterator for KeyIter<'a> {
     }
 }
 
-fn read_u32(data: &[u8], off: usize) -> Result<u32, ParseError> {
+pub(crate) fn read_u32(data: &[u8], off: usize) -> Result<u32, ParseError> {
     if off + 4 > data.len() {
         return Err(ParseError::Truncated);
     }
@@ -256,7 +256,7 @@ fn read_u32(data: &[u8], off: usize) -> Result<u32, ParseError> {
 
 /// Read a u32-LE-length-prefixed byte field at `off`. Returns the field bytes
 /// and the offset just past it.
-fn read_u32_prefixed(data: &[u8], off: usize) -> Result<(&[u8], usize), ParseError> {
+pub(crate) fn read_u32_prefixed(data: &[u8], off: usize) -> Result<(&[u8], usize), ParseError> {
     let len = read_u32(data, off)? as usize;
     let start = off + 4;
     let end = start.checked_add(len).ok_or(ParseError::Truncated)?;
@@ -357,7 +357,7 @@ pub fn write_axon_envelope(
     Ok(off)
 }
 
-fn put_u32_prefixed(bytes: &[u8], out: &mut [u8], off: usize) -> usize {
+pub(crate) fn put_u32_prefixed(bytes: &[u8], out: &mut [u8], off: usize) -> usize {
     out[off..off + 4].copy_from_slice(&(bytes.len() as u32).to_le_bytes());
     let start = off + 4;
     let end = start + bytes.len();
