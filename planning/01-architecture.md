@@ -152,16 +152,26 @@ freestanding image, and it lets the Rust port proceed in verifiable
 increments rather than waiting on a complete spec. `bootloader/` (already
 real Rust) is the first such unit; new units grow alongside it.
 
-**Storage-tier serialisation has two distinct kinds (Emma 2026-05-24),
-do the easy one first.** The orchestrator (Rust preferred; Python is the
-interim) performs the disc↔RAM↔GPU moves via two serialisations: (a)
-**axon-output serialisation** — capture/restore the structured-embedding
-value a program emits (easy; it is already a typed vector at the router);
-(b) **full-process-state serialisation** — snapshot the VRAM slice holding
-a *running* program's weights *and* in-flight memory for bit-exact
-checkpoint/resume (hard; this is what the Sutra `serialise-process-state`
-primitive is for). Ship (a) first; (b) is the long pole. See `todo.md`
-§1 and `17-memory-model.md`.
+**Storage-tier serialisation (Emma 2026-05-24; corrected by the 2026-05-25
+finding).** The orchestrator (Rust preferred; Python is the interim) performs
+the disc↔RAM↔GPU moves via serialisation. Emma's original framing was two
+kinds: (a) **axon-output serialisation** — capture/restore the structured-
+embedding value a program emits (easy; already a typed vector at the router);
+(b) **full-process-state serialisation** — snapshot a *running* program's
+weights *and* in-flight memory for bit-exact resume (expected to need the
+Sutra `serialise-process-state` primitive). **Finding (2026-05-25): (b)
+reduces to (a) for current Sutra.** The language is purely functional (no
+shared mutable state), training is a hand-reimplemented PyTorch proxy rather
+than compiled `.su`, and VSA caches are deterministic from key strings — so
+there is no per-program mutable substrate state to snapshot, and no
+`serialise-process-state` primitive is needed today. The substantive piece
+was (c) **orchestrator state** — admission table + tier map + router inboxes
+— which is pure host serialisation. **Shipped:** (a) `kernel/serialise.py`;
+(c) the whole-kernel checkpoint `kernel/checkpoint.py`; and the RAM cold-store
+tier (`Init.cold_store` / `restore_from_cold`, `Tier.RAM`). A
+`serialise-process-state` accessor stays deferred until a real consumer (e.g.
+trained `.su` programs) exists. See `todo.md` §1,
+`26-orchestrator-serialisation.md`, and `17-memory-model.md`.
 
 ## Three guiding inversions
 

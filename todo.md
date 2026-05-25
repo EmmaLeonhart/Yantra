@@ -275,11 +275,11 @@ production form is Rust. Hardening list:
   **the spec direction is: write many small Rust programs that each do one
   small task, then merge them into the orchestrator over time.** This is
   itself bare-metal-friendly (small freestanding Rust units compose toward
-  a no-std image). Specify this build strategy in
-  `planning/01-architecture.md` § "CPU side" so it's the standing plan,
-  and grow `bootloader/` (already real Rust) along the same lines. The
-  Python `kernel/` stays the behavioural API reference each Rust unit must
-  match.
+  a no-std image). **This build strategy is now written into
+  `planning/01-architecture.md` § "CPU side: small, Rust, orchestrator"
+  (the standing plan).** Grow `bootloader/` (already real Rust) along the
+  same lines. The Python `kernel/` stays the behavioural API reference each
+  Rust unit must match.
 - **Rotation-operator-based capability check.** v0.0 trusts the
   sender's name (admission grants identity; capability is checked
   by name). Production's threat model (`paper/paper.md` § 3.3.1)
