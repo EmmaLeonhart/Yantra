@@ -133,12 +133,26 @@ The build order for (c):
    other tensors on cpu`). A restored kernel must put its inboxes where
    the consuming substrate lives — a GPU kernel comes back GPU-resident,
    no host->device copy at delivery.
-3. **Wire `Tier.RAM` into `Init`** (still open): a tier value that means
-   "cold-stored to a blob" rather than "torn down on disc," plus
-   `Init.cold_store(name) -> bytes` / `Init.restore_from_cold(name,
-   bytes)` for individual processes. Today (1)+(2) handle the
-   whole-kernel cold-store; per-process cold-store is a refinement
-   that needs the tier value to land first.
+3. **Wire `Tier.RAM` into `Init` — SHIPPED 2026-05-25.** `Tier.RAM` is now
+   a real tier value meaning "cold-stored to a host blob" (distinct from
+   DISC = "torn down, reloads fresh"). `Init.cold_store(name) -> bytes`
+   captures the process's inbox into a self-contained per-process blob
+   (`YPRC` magic, `kernel.checkpoint.serialise_process` / `parse_process`),
+   frees its GPU residency, clears the live router inbox, and marks it RAM;
+   `Init.restore_from_cold(name, blob)` reloads the runtime, re-pushes the
+   inbox onto the reloaded service's device, and marks it GPU — the inverse.
+   Round-trip is bit-exact and behaviour-identical through a real echo
+   (`tests/test_kernel_ram_tier.py`, 10 tests: inbox bit-exact, GPU→RAM→GPU
+   transitions, behavioural resume, error paths). **Boundary kept honest:**
+   a RAM-tier process can't go through the *whole-kernel* checkpoint (its
+   inbox lives in the external `YPRC` blob, not the router), so
+   `serialise_kernel_state` refuses a RAM member rather than emit a checkpoint
+   that silently loses queued work. The earlier "needs the tier value to land
+   first" framing is resolved. Full gate 207 passed, 1 xfail.
+   Remaining refinement: pool-budget accounting on tier moves (cold_store
+   leaves the budget untouched, matching `unload` — v0.0's `compute_units` is
+   bookkeeping-only, not a real device-memory carve-out; real accounting
+   belongs with the production GPU-arena work).
 
 ## Format for (a): `kernel/serialise.py`
 

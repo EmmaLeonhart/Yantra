@@ -38,23 +38,36 @@ class Tier(enum.Enum):
 
     The Connectome Manager's core job is moving programs between
     storage tiers (see `planning/01-architecture.md` § "The kernel
-    is a Connectome Manager"). The MVP implements the two tiers that
-    matter for "is this program running":
+    is a Connectome Manager"). The three tiers, from coldest to
+    hottest:
 
-      - ``GPU``  — the Sutra runtime is instantiated and resident on
-        the GPU; the program executes on every tick.
       - ``DISC`` — the program is at rest: admitted (route entry
         kept, reloadable) but its Sutra runtime is torn down and it
-        holds zero GPU memory. It does not run.
+        holds zero GPU memory. It does not run, and a reload starts
+        it **fresh** — any in-flight state (queued inbox work) is
+        gone. This is residency drop, not a checkpoint.
+      - ``RAM``  — the program is *cold-stored to a host blob*: its
+        Sutra runtime is torn down (zero GPU memory) but its in-flight
+        state (the queued inbox) is captured to bytes so it resumes
+        **bit-exact** where it paused, not fresh. See
+        :meth:`Init.cold_store` / :meth:`Init.restore_from_cold`.
+      - ``GPU``  — the Sutra runtime is instantiated and resident on
+        the GPU; the program executes on every tick.
 
-    A ``RAM`` cold-store tier (a *running* program checkpointed to
-    host memory and resumed bit-exact) is deliberately NOT modelled
-    yet: that needs the Sutra ``serialise-process-state`` primitive,
-    which does not exist. Naming the gap, not faking a tier.
+    The RAM tier needs **no** Sutra ``serialise-process-state``
+    primitive (the earlier docstring claimed it did — corrected
+    2026-05-25). Finding (`planning/26-orchestrator-serialisation.md`
+    § "(b) … finding"): current Sutra is purely functional with no
+    persistent per-program substrate state (VSA caches are
+    deterministic from key strings; loop carriers don't survive across
+    ``on_axon`` calls), so cold-store reduces to capturing the
+    orchestrator-side inbox — pure host serialisation, already shipped
+    in :mod:`kernel.serialise` / :mod:`kernel.checkpoint`.
     """
 
     GPU = "gpu"
     DISC = "disc"
+    RAM = "ram"
 
 
 class AdmissionError(RuntimeError):
@@ -186,6 +199,114 @@ class Init:
                 )
             ap = self._table[name]
             ap.service.load()
+            self._tier[name] = Tier.GPU
+
+    # --- RAM cold-store: capture in-flight state to a host blob ------
+
+    def cold_store(self, name: str) -> bytes:
+        """Cold-store a process to a host blob — the RAM tier.
+
+        Captures the process's in-flight state (its queued inbox) into a
+        self-contained byte blob, tears down its GPU runtime (zero GPU
+        memory, like :meth:`unload`), clears its router inbox (now held in
+        the blob), and marks it ``RAM``. The process stays admitted (route
+        entry + pool budget kept); :meth:`restore_from_cold` resumes it
+        bit-exact from the returned bytes.
+
+        Contrast with :meth:`unload` (the ``DISC`` tier): unload reloads the
+        program **fresh** — any queued inbox work is lost. RAM cold-store
+        preserves it. This is pure orchestrator-side serialisation; it needs
+        no Sutra ``serialise-process-state`` primitive (see the :class:`Tier`
+        docstring for the finding).
+
+        Pool budget is intentionally left untouched, matching :meth:`unload`
+        — v0.0's ``compute_units`` is a bookkeeping counter, not a real
+        device-memory carve-out (see the module docstring); making tier
+        moves adjust it belongs with the production GPU-arena work.
+
+        Raises :class:`AdmissionError` if the process is not admitted, or if
+        it is already cold-stored (no live state to capture; the caller holds
+        the existing blob). Raises :class:`NotImplementedError` (from the
+        service) for a shared-runtime service that can't be individually
+        evicted. Raises :class:`~kernel.checkpoint.CheckpointError` if the
+        service is not checkpointable (e.g. PythonService).
+        """
+        from kernel.checkpoint import serialise_process  # lazy: avoid cycle
+
+        with self._lock:
+            if name not in self._table:
+                raise AdmissionError(
+                    f"process {name!r} is not admitted; cannot cold-store"
+                )
+            if self._tier.get(name) is Tier.RAM:
+                raise AdmissionError(
+                    f"process {name!r} is already cold-stored (tier RAM); the "
+                    "caller holds its blob. restore_from_cold it before "
+                    "cold-storing again."
+                )
+            ap = self._table[name]
+            # Capture the blob BEFORE tearing anything down.
+            blob = serialise_process(self, name)
+            # Free GPU residency (same teardown as unload → DISC).
+            ap.service.unload()
+            # The inbox is now in the blob; clear the live router queue so a
+            # later restore doesn't double it and a tick doesn't drain stale
+            # work from a non-resident process.
+            inbox = self._router._inboxes.get(name)  # noqa: SLF001
+            if inbox is not None:
+                inbox.clear()
+            self._tier[name] = Tier.RAM
+            return blob
+
+    def restore_from_cold(self, name: str, blob: bytes) -> None:
+        """Resume a cold-stored (``RAM``) process from its blob.
+
+        Rebuilds the process's GPU runtime (:meth:`load`), re-pushes the
+        inbox captured in ``blob`` onto the freshly-resident service's own
+        device, and marks it ``GPU`` again — the inverse of
+        :meth:`cold_store`.
+
+        Raises :class:`AdmissionError` if the process is not admitted or is
+        not on tier ``RAM``. Raises :class:`~kernel.checkpoint.CheckpointError`
+        if the blob is malformed or names a different process.
+        """
+        from kernel.checkpoint import (  # lazy: avoid cycle
+            CheckpointError,
+            _service_device,
+            parse_process,
+        )
+
+        with self._lock:
+            if name not in self._table:
+                raise AdmissionError(
+                    f"process {name!r} is not admitted; cannot restore"
+                )
+            if self._tier.get(name) is not Tier.RAM:
+                raise AdmissionError(
+                    f"process {name!r} is not cold-stored (tier "
+                    f"{self._tier.get(name)}); restore_from_cold only resumes "
+                    "a RAM-tier process."
+                )
+            # Parse + validate the blob BEFORE mutating any kernel state, so a
+            # wrong/corrupt blob can't leave the process half-restored (GPU
+            # runtime rebuilt but still tagged RAM). Axons land on CPU here;
+            # they're moved to the service's device once it is reloaded.
+            cold = parse_process(blob)
+            if cold.name != name:
+                raise CheckpointError(
+                    f"cold blob is for process {cold.name!r}, not {name!r}"
+                )
+            ap = self._table[name]
+            # Now safe to rebuild GPU residency. Place restored axons on the
+            # reloaded service's device (where the consumer lives).
+            ap.service.load()
+            device = _service_device(ap.service)
+            inbox = self._router._inboxes[name]  # noqa: SLF001
+            for axon in cold.axons:
+                if device is not None:
+                    # `.to(device)` is a no-op when the tensor is already there.
+                    axon = dataclasses.replace(axon, payload=axon.payload.to(device))
+                inbox.append(axon)
             self._tier[name] = Tier.GPU
 
     def tier(self, name: str) -> Tier:

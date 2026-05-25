@@ -72,8 +72,11 @@ from kernel.init import (
 )
 from kernel.checkpoint import (
     CheckpointError,
+    ColdProcess,
+    parse_process,
     restore_kernel_state,
     serialise_kernel_state,
+    serialise_process,
 )
 from kernel.serialise import (
     AxonSerialiseError,
@@ -96,6 +99,7 @@ __all__ = [
     "AxonSerialiseError",
     "CapabilityError",
     "CheckpointError",
+    "ColdProcess",
     "Init",
     "Manifest",
     "ManifestError",
@@ -109,8 +113,10 @@ __all__ = [
     "deserialise_axon_payload",
     "load_manifest",
     "make_shared_sutra_services",
+    "parse_process",
     "restore_kernel_state",
     "serialise_axon",
     "serialise_axon_payload",
     "serialise_kernel_state",
+    "serialise_process",
 ]
