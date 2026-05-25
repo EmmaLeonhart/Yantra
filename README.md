@@ -20,7 +20,7 @@ Three things that fall out of that:
 - **Predictable performance under load.** Once a process has its allocation,
   it doesn't slow down. Adding more processes either fits cleanly or fails
   admission — never degrades what is already running.
-- **Verifiable.** The non-AI parts reduce to a tensor normal form +
+- **Verifiable.** The non-AI parts reduce to a compiled tensor-op graph +
   polynomial Kleene logic + tail-recursive loops, which is a much cleaner
   surface for formal arguments than a typical kernel.
 - **AI-native by construction.** Every process already takes an axon and

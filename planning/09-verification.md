@@ -24,9 +24,9 @@ quarantined behind axon-typed contracts.
 
 The combination of three Sutra design choices does the work:
 
-1. **Beta reduction to tensor normal form.** Sutra programs reduce to
-   a canonical, fused tensor-op graph. Two programs that are
-   semantically equivalent reduce to the same graph (modulo trivial
+1. **Beta reduction to a tensor-op graph.** Sutra programs reduce to
+   a fused tensor-op graph that is the program's semantics. Two programs
+   that are semantically equivalent reduce to the same graph (modulo trivial
    differences). This means equivalence checking is algebra, not
    traversal.
 
@@ -58,7 +58,7 @@ roughly like:
 - **Software requirements**. Each kernel role and critical process has
   an axon-typed contract (input roles, output roles, status conditions).
 - **Design**. The kernel and critical processes are written in Sutra.
-  Their tensor normal forms are the designs.
+  Their compiled tensor-op graphs are the designs.
 - **Code**. The Sutra source.
 - **Verification artefacts**. Mechanical proofs that the tensor normal
   form satisfies the contracts. Polynomial-logic obligations

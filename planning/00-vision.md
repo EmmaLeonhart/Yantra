@@ -76,7 +76,7 @@ emerges, Yantra is already the operating system designed for it. See
   processes that don't fit simply fail to launch — but the ones already
   running don't slow down.
 - The non-AI parts of the system are **formally verifiable**, because
-  beta-reduced tensor normal form + polynomial Kleene logic + tail-recursive
+  a beta-reduced tensor-op graph + polynomial Kleene logic + tail-recursive
   loops is a much cleaner verification surface than the average modern
   kernel.
 - **Local AI is first-class everywhere** because there is no place where
