@@ -54,10 +54,9 @@ from kernel.router import Axon  # noqa: E402
 APPS_CALC = pathlib.Path(__file__).resolve().parent
 AXON_WIDTH = 768
 
-# operator symbol -> real-axis op-code fed to switch.su, which selects the
-# operation ON THE SUBSTRATE via exact Lagrange one-hot masks (not a host
-# `if`/dict). 0=+, 1=-, 2=*, 3=/ — the integer grid switch.su interpolates.
-CODE = {"+": 0.0, "-": 1.0, "*": 2.0, "/": 3.0}
+# The operator is fed to switch.su as a 1-char STRING (make_string(op)); switch
+# reads its codepoint on the substrate and selects the operation there. No host
+# operator->code map: the operator->operation mapping is a substrate decision.
 # Host oracle for the exactness gate (monitoring only): exact rational
 # arithmetic used to verify each substrate op's result.
 _FOPS = {
@@ -237,7 +236,7 @@ class Calculator:
         vsa = self._service._compiled_module._VSA  # noqa: SLF001
         axon = vsa.axon_add(vsa.zero_vector(), "a", a)
         axon = vsa.axon_add(axon, "b", b)
-        axon = vsa.axon_add(axon, "op", CODE[op])
+        axon = vsa.axon_add(axon, "op_char", vsa.make_string(op))
         self._received.clear()
         self._producer.emit("R_switch_in", axon)
         self.init.tick()  # fire the switch service
