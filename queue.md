@@ -145,6 +145,38 @@ Remaining steps:
 Not in scope: replicating their *video / screen-frame generation*
 (NCGUIWorld-style) — deferred, optional, only if the GUI layer matures.
 
+### GUI — substrate-computed pixels + interactive click toggle
+
+**DONE 2026-05-24/25.** Yantra's first GUI, content computed on the substrate.
+- **Static frame:** `apps/gui/frame.su` (`pixel(x,y)=1−x²−y²`) + `apps/gui/window.py`
+  render a radial glow; every pixel is a substrate call. `tests/test_gui_render.py`
+  (3 tests). First frame: `apps/gui/first_frame.png`.
+- **Interactive click red↔blue toggle (Emma's idea):** `apps/gui/toggle.su`
+  (`flip(s)=1−s`, the colour STATE transition computed ON THE SUBSTRATE) +
+  `apps/gui/click_demo.py` — click anywhere → flip the state on the substrate →
+  recolour the glow red (0) / blue (1). Verified: flip 0→1→0 on the substrate;
+  red/blue frames render correctly (`click_red.png`, `click_blue.png`).
+  `tests/test_gui_click.py` (2 tests pass). Run: `python apps/gui/click_demo.py`.
+
+**Open GUI issues / handoff (next session):**
+1. **Live window + click are NOT headless-testable** — the tkinter window and the
+   click event can only be verified by hand (`python apps/gui/click_demo.py`).
+   The substrate parts (field, flip, tint) ARE tested; the GUI tests stop at the
+   render/state boundary. Verify the actual window interactively.
+2. **Per-pixel render is slow** — `render_field` calls the substrate once per
+   pixel (64×64 = 4096 calls, ~seconds). Fine for a static frame, too slow for
+   animation/interactivity at scale. Next: batch the whole grid into one
+   substrate forward pass.
+3. **Emma's "returns a vector → reorganise into pixels" (reverse-CNN decoder)**
+   is not built — the current GUI computes pixels per-coordinate, not by decoding
+   one returned vector into a frame. That decoder is the bigger next step
+   (planning/24-first-gui.md).
+4. **Window belongs in the orchestrator eventually** — host tkinter is the
+   stand-in; the real window is a Rust-orchestrator unit (planning/01).
+5. Host does tint/colormap + event handling (I/O); the field + state are
+   substrate. Keep that split — don't let host-drawn content masquerade as
+   substrate output.
+
 ---
 
 ## Pointers
