@@ -12,11 +12,15 @@ test harness so every unit stays host-testable.
 
 ## Units
 
-- **`axon`** — the `YAXN` axon-payload wire codec (`parse_axon_payload` /
-  `write_axon_payload`). Byte-for-byte compatible with Python
-  `kernel/serialise.py`; the tests embed the exact bytes the Python encoder
-  emits and assert both decode and encode match. This is the orchestrator's
-  read/write path for checkpointed axon values (see `kernel/checkpoint.py`,
+- **`axon`** — the axon wire codecs, byte-for-byte compatible with Python
+  `kernel/serialise.py`:
+  - `YAXN` payload: `parse_axon_payload` / `write_axon_payload`.
+  - `YAXE` envelope (role + from_proc + keys + nested YAXN payload):
+    `parse_axon_envelope` / `write_axon_envelope`.
+
+  The tests embed the exact bytes the Python encoder emits and assert both
+  decode and byte-for-byte encode match. This is the orchestrator's read/write
+  path for checkpointed axon values (see `kernel/checkpoint.py`,
   `planning/26-orchestrator-serialisation.md`).
 
 ## Build / test
