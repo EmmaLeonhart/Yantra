@@ -140,9 +140,25 @@ Remaining steps:
      remains as a standalone op-code demonstrator (its 4/4 test still passes; the
      calc no longer needs it since switch.su does the codepoint dispatch inline).
      **Remaining toward full step d:**
-       - variable length >2 digits (Sutra accumulator loop / digit array);
+       - variable length >2 digits (Sutra accumulator loop / digit array).
+         **ATTEMPTED 2026-05-25, BLOCKED — needs a deliberate Sutra-loop session.**
+         Numeric `iterative_loop`s work (verified: count-to-5 → 5.0; sum of
+         `iterator` 1..4 → 10.0). But a loop that *parses a string* —
+         `iterative_loop acc(n, value, str){ d = str.string_char_at(iterator-1)-48;
+         pass value*10+d, replace; }` — does not run. Failure modes hit, in order:
+         (a) loop state args must be `slot` vars (fixed: `slot string str = s`);
+         (b) then a RUNTIME `expand([868], size=[])` in `slot_store` — an 868-vector
+         being coerced into a scalar-shaped slot (every value here, incl.
+         `string_length()`, is an 868-d vector; `slot scalar n = string_length()`
+         and/or the loop's mixed scalar/vector state threading mis-shapes). Tried
+         value as `scalar` and as `vector`; same error. Likely also: `iterative_loop`
+         wants a STATIC count, but length is dynamic (→ `while_loop i<n`). The clean
+         loop idiom for string iteration + dynamic count + a numeric accumulator
+         was not found in this session; may need a Sutra-side helper or a documented
+         idiom. NOT faked — no working variable-length parser shipped. (parse_int2's
+         1–2 digit place-value formula remains the only working substrate int parse.)
        - two-operand "DD OP DD" split — find the operator position on the
-         substrate (needs a scan/loop), then compose parse_int2 + the dispatch;
+         substrate (needs the same scan/loop — blocked by the above);
        - a FULL substrate parser to replace calc.py's host recursive-descent
          parser is a big build, NOT a drop-in: the host parser handles precedence,
          parens, and arbitrary expressions the current pieces do not, so a naive
