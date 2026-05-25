@@ -1,0 +1,29 @@
+// count.su — a GUI counter whose state lives ON THE SUBSTRATE (Emma's
+// recurrent-loop demo). Two substrate computations:
+//
+//   step(n) = n + 1   — the recurrent step. The current count goes in, the
+//                       incremented count comes out and is fed back as the
+//                       next state. The +1 happens on the substrate, not in a
+//                       host `n += 1`; the host only holds and re-feeds the
+//                       decoded value (the register role toggle.su's flip plays
+//                       in the red<->blue demo).
+//
+//   pixel(x, y, n)    — the displayed FIELD: a radial glow whose centre steps
+//                       left -> right as the count rises (cx = -1 at n=0, +1 at
+//                       n=9), so each click walks the glow across the screen.
+//                       The position is chosen FROM n HERE, on the substrate;
+//                       the host only paints. Same "substrate computes the
+//                       picture, host is I/O" split as frame.su.
+//
+// make_real lifts each result onto the real axis so the host reads it with
+// real(). We do NOT wrap back to 0 after 9 (Emma: don't care past the count);
+// n just keeps rising and the glow exits the right edge.
+function vector step(scalar n) { return make_real(n + 1.0); }
+
+function vector pixel(scalar x, scalar y, scalar n) {
+    scalar cx = (2.0 * n / 9.0) - 1.0;
+    scalar dx = x - cx;
+    return make_real(1.0 - dx * dx - y * y);
+}
+
+function vector main() { return step(0.0); }
