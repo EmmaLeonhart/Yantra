@@ -126,16 +126,28 @@ def main() -> None:
     root.title("Yantra — click to toggle red/blue (state flips on the substrate)")
     label = tk.Label(root, image=make_photo(flipper.state))
     label.pack()
+    status = tk.Label(
+        root, text="click anywhere — the colour state flips on the Sutra substrate")
+    status.pack()
 
     def on_click(_event):
         state = flipper.toggle()  # substrate flip
         photo = make_photo(state)
         label.configure(image=photo)
         label.image = photo  # keep a ref
+        colour = "red" if round(float(state)) == 0 else "blue"
+        status.configure(
+            text=f"state = {round(float(state))} ({colour}) — flipped on the substrate")
+        print(f"[gui] click -> substrate flip -> state {round(float(state))} ({colour})",
+              flush=True)
 
-    label.bind("<Button-1>", on_click)
+    # Bind ONCE, on the toplevel only. A widget's bindtags already include
+    # its toplevel, so a click anywhere in the window (image, text, or empty
+    # area) fires this exactly once. Binding BOTH the image label AND the
+    # toplevel fired on_click TWICE per click (label tag + toplevel tag),
+    # double-flipping the state (0->1->0) so the colour never appeared to
+    # change. This was the "clicking does nothing" bug.
     root.bind("<Button-1>", on_click)
-    tk.Label(root, text="click anywhere — the colour state flips on the Sutra substrate").pack()
     root.mainloop()
 
 
