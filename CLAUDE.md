@@ -9,6 +9,22 @@
 - **Keep this file up to date.** As the project takes shape, record architectural decisions, conventions, and anything needed to work effectively in this repo.
 - **Update README.md regularly.** It should always reflect the current state of the project for human readers.
 
+## Session-local auto-flush cron — RESTART AT THE START OF EVERY SESSION (Emma 2026-05-24)
+
+**Leaving the `external/Sutra` submodule with uncommitted or unpushed changes actively causes complications** (dirty/detached submodule state, the Yantra working tree showing `M external/Sutra`, work that silently disappears). So: **push all the time** — never let the submodule sit dirty.
+
+**At the START of every session, (re)create this `CronCreate` job** (it is session-local — `durable: false` — so it dies when the session ends and must be recreated each session):
+
+- **Schedule:** `15 * * * *` (every hour at :15).
+- **What it does:** commit + push ALL pending work in BOTH repos so nothing sits uncommitted —
+  1. `external/Sutra`: `git -C external/Sutra fetch origin --quiet`; fast-forward if behind; if the working tree has changes, commit them on the current branch (**`main`** unless told otherwise this session — Emma works on `main`, not `yantra-driven`); push if ahead. **Never force-push, never `reset --hard`, never discard the other machine's work.**
+  2. Yantra: `git fetch origin --quiet`; ff if behind; if the pin moved (`M external/Sutra`) or files changed, commit + push `origin main` (bump the pin in the same commit).
+  3. Only commit/push when something is actually pending — no empty commits.
+  4. Report one line: what was pushed (shas) or "nothing pending".
+- **Caveats:** recurring `CronCreate` jobs auto-expire after 7 days; sessions are usually shorter, and each new session recreates it anyway. Not remote-durable by design — it is a within-session safety net, not infrastructure.
+
+This complements (does not replace) the "commit early and often" rule above — the cron is the backstop that catches anything left uncommitted between manual pushes.
+
 ## Queue and longer-horizon work
 - **`queue.md`** — what's being worked on right now. Items get deleted on completion. If it's not in `queue.md`, it's not in scope for the current session.
 - **`planning/`** — design docs and longer-horizon thinking. Items migrate `planning/` → `queue.md` → deleted on completion.
