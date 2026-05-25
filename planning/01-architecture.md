@@ -152,9 +152,9 @@ freestanding image, and it lets the Rust port proceed in verifiable
 increments rather than waiting on a complete spec. `bootloader/` (already
 real Rust) is the first such unit; new units grow alongside it.
 **First orchestrator-proper unit landed 2026-05-25:** `orchestrator/` (a
-host-testable `no_std` Rust crate) ships `axon` (YAXN payload + YAXE envelope) + `checkpoint` (YPRC per-process cold-store)
+host-testable `no_std` Rust crate) ships `axon` (YAXN payload + YAXE envelope) + `checkpoint` (YPRC per-process + YKST whole-kernel)
 codec, byte-for-byte cross-checked against Python `kernel/serialise.py`
-(`cargo test`, 27 cases). This is the read/write path the Rust orchestrator
+(`cargo test`, 33 cases). This is the read/write path the Rust orchestrator
 uses for checkpointed axon values.
 
 **Storage-tier serialisation (Emma 2026-05-24; corrected by the 2026-05-25

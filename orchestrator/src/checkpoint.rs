@@ -177,6 +177,291 @@ pub fn write_process_blob(
     Ok(off)
 }
 
+// ---- YKST: the whole-kernel checkpoint (admission table + tiers + inboxes) ----
+
+/// Storage tier of a process in a checkpoint. Tags match Python
+/// `kernel/checkpoint.py` `_TIER_TAGS`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Tier {
+    Gpu,
+    Disc,
+    Ram,
+}
+
+impl Tier {
+    pub const fn tag(self) -> u8 {
+        match self {
+            Tier::Gpu => 0,
+            Tier::Disc => 1,
+            Tier::Ram => 2,
+        }
+    }
+
+    pub const fn from_tag(tag: u8) -> Option<Tier> {
+        match tag {
+            0 => Some(Tier::Gpu),
+            1 => Some(Tier::Disc),
+            2 => Some(Tier::Ram),
+            _ => None,
+        }
+    }
+}
+
+/// Magic prefix for a whole-kernel checkpoint.
+pub const KERNEL_MAGIC: [u8; 4] = *b"YKST";
+/// Whole-kernel checkpoint version.
+pub const KERNEL_VERSION: u8 = 1;
+/// Header size: magic(4) + version(1) + reserved(3) + pool_total(4) +
+/// pool_free(4) + process_count(4).
+pub const KERNEL_HEADER_SIZE: usize = 20;
+
+/// A parsed whole-kernel checkpoint: the compute-pool totals + a lazy iterator
+/// over the admitted processes (each with its manifest/identity JSON, tier, and
+/// inbox of YAXE envelopes).
+#[derive(Debug, Clone, Copy)]
+pub struct KernelCheckpoint<'a> {
+    pub pool_total: u32,
+    pub pool_free: u32,
+    pub process_count: u32,
+    records_blob: &'a [u8],
+}
+
+impl<'a> KernelCheckpoint<'a> {
+    /// Lazily iterate the admitted processes (in the checkpoint's order, which
+    /// Python writes sorted by name).
+    pub fn processes(&self) -> ProcessIter<'a> {
+        ProcessIter {
+            data: self.records_blob,
+            remaining: self.process_count,
+        }
+    }
+}
+
+/// One admitted process inside a [`KernelCheckpoint`]. Like a [`ProcessBlob`]
+/// but with the storage [`Tier`] (the whole-kernel record interleaves the tier
+/// tag between the manifest and identity sections).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ProcessRecord<'a> {
+    pub name: &'a str,
+    pub manifest_json: &'a [u8],
+    pub tier: Tier,
+    pub identity_json: &'a [u8],
+    inbox_blob: &'a [u8],
+    inbox_count: u32,
+}
+
+impl<'a> ProcessRecord<'a> {
+    pub fn inbox_count(&self) -> u32 {
+        self.inbox_count
+    }
+
+    /// Lazily iterate the inbox, parsing each YAXE envelope on access.
+    pub fn inbox(&self) -> InboxIter<'a> {
+        InboxIter {
+            data: self.inbox_blob,
+            remaining: self.inbox_count,
+        }
+    }
+
+    /// Lazily iterate the inbox as RAW (un-parsed) YAXE byte slices — useful to
+    /// re-frame a record without re-serialising each envelope.
+    pub fn inbox_raw(&self) -> InboxRawIter<'a> {
+        InboxRawIter {
+            data: self.inbox_blob,
+            remaining: self.inbox_count,
+        }
+    }
+}
+
+/// Iterator over a [`ProcessRecord`]'s inbox as raw YAXE byte slices.
+#[derive(Debug, Clone)]
+pub struct InboxRawIter<'a> {
+    data: &'a [u8],
+    remaining: u32,
+}
+
+impl<'a> Iterator for InboxRawIter<'a> {
+    type Item = Result<&'a [u8], ParseError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.remaining == 0 {
+            return None;
+        }
+        self.remaining -= 1;
+        match read_u32_prefixed(self.data, 0) {
+            Ok((bytes, end)) => {
+                self.data = &self.data[end..];
+                Some(Ok(bytes))
+            }
+            Err(e) => {
+                self.remaining = 0;
+                Some(Err(e))
+            }
+        }
+    }
+}
+
+/// Iterator over a [`KernelCheckpoint`]'s process records. See
+/// [`KernelCheckpoint::processes`].
+#[derive(Debug, Clone)]
+pub struct ProcessIter<'a> {
+    data: &'a [u8],
+    remaining: u32,
+}
+
+impl<'a> Iterator for ProcessIter<'a> {
+    type Item = Result<ProcessRecord<'a>, ParseError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.remaining == 0 {
+            return None;
+        }
+        self.remaining -= 1;
+        match parse_one_record(self.data) {
+            Ok((rec, consumed)) => {
+                self.data = &self.data[consumed..];
+                Some(Ok(rec))
+            }
+            Err(e) => {
+                self.remaining = 0; // stop after a framing error
+                Some(Err(e))
+            }
+        }
+    }
+}
+
+/// Parse a single process record at the start of `data`, returning the record
+/// and the number of bytes it consumed.
+fn parse_one_record(data: &[u8]) -> Result<(ProcessRecord<'_>, usize), ParseError> {
+    let (name_bytes, off) = read_u32_prefixed(data, 0)?;
+    let name = core::str::from_utf8(name_bytes).map_err(|_| ParseError::InvalidUtf8)?;
+    let (manifest_json, off) = read_u32_prefixed(data, off)?;
+    // tier tag (1 byte) + 3 pad
+    if off + 4 > data.len() {
+        return Err(ParseError::Truncated);
+    }
+    let tier = Tier::from_tag(data[off]).ok_or(ParseError::UnknownTier(data[off]))?;
+    let off = off + 4;
+    let (identity_json, off) = read_u32_prefixed(data, off)?;
+    let inbox_count = read_u32(data, off)?;
+    let inbox_start = off + 4;
+    let mut walk = inbox_start;
+    for _ in 0..inbox_count {
+        let (_env, end) = read_u32_prefixed(data, walk)?;
+        walk = end;
+    }
+    let inbox_blob = &data[inbox_start..walk];
+    Ok((
+        ProcessRecord {
+            name,
+            manifest_json,
+            tier,
+            identity_json,
+            inbox_blob,
+            inbox_count,
+        },
+        walk,
+    ))
+}
+
+/// Parse a `YKST` whole-kernel checkpoint header; processes are walked lazily
+/// via [`KernelCheckpoint::processes`].
+pub fn parse_kernel_checkpoint(data: &[u8]) -> Result<KernelCheckpoint<'_>, ParseError> {
+    if data.len() < KERNEL_HEADER_SIZE {
+        return Err(ParseError::TooShort);
+    }
+    if data[0..4] != KERNEL_MAGIC {
+        return Err(ParseError::BadMagic);
+    }
+    let version = data[4];
+    if version != KERNEL_VERSION {
+        return Err(ParseError::UnsupportedVersion(version));
+    }
+    // data[5..8] reserved.
+    let pool_total = read_u32(data, 8)?;
+    let pool_free = read_u32(data, 12)?;
+    let process_count = read_u32(data, 16)?;
+    Ok(KernelCheckpoint {
+        pool_total,
+        pool_free,
+        process_count,
+        records_blob: &data[KERNEL_HEADER_SIZE..],
+    })
+}
+
+/// One process to write into a kernel checkpoint (the input side of
+/// [`write_kernel_checkpoint`]).
+pub struct KernelProcess<'a> {
+    pub name: &'a str,
+    pub manifest_json: &'a [u8],
+    pub tier: Tier,
+    pub identity_json: &'a [u8],
+    pub inbox_envelopes: &'a [&'a [u8]],
+}
+
+/// Write a `YKST` whole-kernel checkpoint into `out`. Processes are written in
+/// the given order (pass them sorted by name to match Python's canonical form).
+/// No allocation.
+pub fn write_kernel_checkpoint(
+    pool_total: u32,
+    pool_free: u32,
+    processes: &[KernelProcess],
+    out: &mut [u8],
+) -> Result<usize, WriteError> {
+    let u32_max = u32::MAX as usize;
+    if processes.len() > u32_max {
+        return Err(WriteError::FieldTooLong);
+    }
+    let mut total = KERNEL_HEADER_SIZE;
+    for p in processes {
+        if p.name.len() > u32_max
+            || p.manifest_json.len() > u32_max
+            || p.identity_json.len() > u32_max
+            || p.inbox_envelopes.len() > u32_max
+            || p.inbox_envelopes.iter().any(|e| e.len() > u32_max)
+        {
+            return Err(WriteError::FieldTooLong);
+        }
+        total += 4 + p.name.len() + 4 + p.manifest_json.len() + 4 /*tier+pad*/
+            + 4 + p.identity_json.len() + 4 /*inbox count*/;
+        for e in p.inbox_envelopes {
+            total += 4 + e.len();
+        }
+    }
+    if out.len() < total {
+        return Err(WriteError::BufferTooSmall {
+            needed: total,
+            got: out.len(),
+        });
+    }
+
+    out[0..4].copy_from_slice(&KERNEL_MAGIC);
+    out[4] = KERNEL_VERSION;
+    out[5] = 0;
+    out[6] = 0;
+    out[7] = 0;
+    out[8..12].copy_from_slice(&pool_total.to_le_bytes());
+    out[12..16].copy_from_slice(&pool_free.to_le_bytes());
+    out[16..20].copy_from_slice(&(processes.len() as u32).to_le_bytes());
+    let mut off = KERNEL_HEADER_SIZE;
+    for p in processes {
+        off = put_u32_prefixed(p.name.as_bytes(), out, off);
+        off = put_u32_prefixed(p.manifest_json, out, off);
+        out[off] = p.tier.tag();
+        out[off + 1] = 0;
+        out[off + 2] = 0;
+        out[off + 3] = 0;
+        off += 4;
+        off = put_u32_prefixed(p.identity_json, out, off);
+        out[off..off + 4].copy_from_slice(&(p.inbox_envelopes.len() as u32).to_le_bytes());
+        off += 4;
+        for e in p.inbox_envelopes {
+            off = put_u32_prefixed(e, out, off);
+        }
+    }
+    Ok(off)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -315,5 +600,131 @@ mod tests {
     #[test]
     fn parse_rejects_short() {
         assert_eq!(parse_process_blob(&[89, 80, 82]), Err(ParseError::TooShort));
+    }
+
+    // --- YKST whole-kernel checkpoint ---
+
+    // Real Python kernel/checkpoint.py::serialise_kernel_state output for a
+    // 2-process kernel: echo (GPU, one queued f32[1,2,3] axon) + echo2 (DISC,
+    // empty). Committed fixed test vector; identity paths are machine-relative
+    // so the test asserts framing + tiers, not path content.
+    const PY_YKST: &[u8] = include_bytes!("../tests/fixtures/kernel_state.ykst");
+
+    #[test]
+    fn tier_tag_round_trips() {
+        for t in [Tier::Gpu, Tier::Disc, Tier::Ram] {
+            assert_eq!(Tier::from_tag(t.tag()), Some(t));
+        }
+    }
+
+    #[test]
+    fn parse_python_kernel_checkpoint() {
+        let cp = parse_kernel_checkpoint(PY_YKST).unwrap();
+        assert_eq!(cp.pool_total, 10);
+        assert_eq!(cp.pool_free, 8);
+        assert_eq!(cp.process_count, 2);
+
+        let recs: Result<Vec<_>, _> = cp.processes().collect();
+        let recs = recs.unwrap();
+        assert_eq!(recs.len(), 2);
+
+        // echo — GPU, one queued axon (payload f32[1,2,3]).
+        assert_eq!(recs[0].name, "echo");
+        assert_eq!(recs[0].tier, Tier::Gpu);
+        assert!(recs[0].manifest_json.starts_with(b"{\"axon_keys\""));
+        assert_eq!(recs[0].inbox_count(), 1);
+        let envs: Result<Vec<_>, _> = recs[0].inbox().collect();
+        let envs = envs.unwrap();
+        assert_eq!(envs[0].role, "R_stdin");
+        assert_eq!(envs[0].from_proc, "external");
+        assert_eq!(envs[0].payload.width, 3);
+
+        // echo2 — DISC, empty inbox.
+        assert_eq!(recs[1].name, "echo2");
+        assert_eq!(recs[1].tier, Tier::Disc);
+        assert_eq!(recs[1].inbox_count(), 0);
+        assert_eq!(recs[1].inbox().count(), 0);
+    }
+
+    #[test]
+    fn rust_write_reproduces_python_kernel_byte_for_byte() {
+        let cp = parse_kernel_checkpoint(PY_YKST).unwrap();
+        let recs: Vec<_> = cp.processes().map(|r| r.unwrap()).collect();
+        let echo_inbox: Vec<&[u8]> = recs[0].inbox_raw().map(|r| r.unwrap()).collect();
+        let echo2_inbox: Vec<&[u8]> = recs[1].inbox_raw().map(|r| r.unwrap()).collect();
+        let procs = [
+            KernelProcess {
+                name: recs[0].name,
+                manifest_json: recs[0].manifest_json,
+                tier: recs[0].tier,
+                identity_json: recs[0].identity_json,
+                inbox_envelopes: &echo_inbox,
+            },
+            KernelProcess {
+                name: recs[1].name,
+                manifest_json: recs[1].manifest_json,
+                tier: recs[1].tier,
+                identity_json: recs[1].identity_json,
+                inbox_envelopes: &echo2_inbox,
+            },
+        ];
+        let mut out = vec![0u8; PY_YKST.len()];
+        let n = write_kernel_checkpoint(cp.pool_total, cp.pool_free, &procs, &mut out).unwrap();
+        assert_eq!(n, PY_YKST.len());
+        assert_eq!(&out[..n], PY_YKST);
+    }
+
+    #[test]
+    fn write_then_parse_kernel_round_trips() {
+        let mut env = [0u8; 128];
+        let en = make_envelope("R_stdin", "external", &["k"], &mut env);
+        let procs = [
+            KernelProcess {
+                name: "a",
+                manifest_json: b"{\"name\":\"a\"}",
+                tier: Tier::Gpu,
+                identity_json: b"{\"kind\":\"sutra\"}",
+                inbox_envelopes: &[&env[..en]],
+            },
+            KernelProcess {
+                name: "b",
+                manifest_json: b"{\"name\":\"b\"}",
+                tier: Tier::Disc,
+                identity_json: b"{\"kind\":\"sutra\"}",
+                inbox_envelopes: &[],
+            },
+        ];
+        let mut out = [0u8; 512];
+        let n = write_kernel_checkpoint(10, 8, &procs, &mut out).unwrap();
+
+        let cp = parse_kernel_checkpoint(&out[..n]).unwrap();
+        assert_eq!(cp.pool_total, 10);
+        assert_eq!(cp.pool_free, 8);
+        assert_eq!(cp.process_count, 2);
+        let recs: Vec<_> = cp.processes().map(|r| r.unwrap()).collect();
+        assert_eq!(recs[0].name, "a");
+        assert_eq!(recs[0].tier, Tier::Gpu);
+        assert_eq!(recs[0].inbox_count(), 1);
+        assert_eq!(recs[1].name, "b");
+        assert_eq!(recs[1].tier, Tier::Disc);
+        assert_eq!(recs[1].inbox_count(), 0);
+    }
+
+    #[test]
+    fn parse_kernel_rejects_bad_magic() {
+        let mut b = PY_YKST.to_vec();
+        b[0] = b'X';
+        assert!(matches!(
+            parse_kernel_checkpoint(&b),
+            Err(ParseError::BadMagic)
+        ));
+    }
+
+    #[test]
+    fn parse_kernel_rejects_short() {
+        assert!(matches!(
+            parse_kernel_checkpoint(&[89, 75, 83, 84, 1]),
+            Err(ParseError::TooShort)
+        ));
     }
 }
