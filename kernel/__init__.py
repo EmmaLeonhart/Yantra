@@ -72,7 +72,9 @@ from kernel.init import (
 )
 from kernel.serialise import (
     AxonSerialiseError,
+    deserialise_axon,
     deserialise_axon_payload,
+    serialise_axon,
     serialise_axon_payload,
 )
 from kernel.services import (
@@ -97,8 +99,10 @@ __all__ = [
     "Service",
     "SutraService",
     "Tier",
+    "deserialise_axon",
     "deserialise_axon_payload",
     "load_manifest",
     "make_shared_sutra_services",
+    "serialise_axon",
     "serialise_axon_payload",
 ]

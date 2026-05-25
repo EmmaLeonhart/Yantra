@@ -180,6 +180,78 @@ def test_bindings_decode_after_round_trip(calc_vsa) -> None:
     assert cp_after == cp_before, f"op_char codepoint drift: {cp_before} -> {cp_after}"
 
 
+def test_axon_envelope_round_trip(calc_vsa) -> None:
+    """A full ``Axon`` (role / payload / from_proc / keys) round-trips through
+    ``serialise_axon`` / ``deserialise_axon`` — every field preserved, payload
+    bit-exact. This is the foundation for orchestrator-level checkpoint (c):
+    each entry in a program's inbox is one of these envelopes.
+    """
+    from kernel.router import Axon  # type: ignore[import-not-found]
+    from kernel.serialise import deserialise_axon, serialise_axon
+
+    vsa = calc_vsa
+    payload = vsa.axon_add(vsa.zero_vector(), "a", 7.5)
+    payload = vsa.axon_add(payload, "b", -1.25)
+
+    original = Axon(
+        role="R_switch_in",
+        payload=payload,
+        from_proc="calc_in",
+        keys=frozenset({"a", "b"}),
+    )
+    data = serialise_axon(original)
+    restored = deserialise_axon(data, device=payload.device)
+
+    assert restored.role == original.role
+    assert restored.from_proc == original.from_proc
+    assert restored.keys == original.keys
+    assert torch.equal(restored.payload, original.payload)
+
+    # And bindings still decode through axon_item from the restored payload.
+    assert float(vsa.real(vsa.axon_item(restored.payload, "a"))) == float(
+        vsa.real(vsa.axon_item(original.payload, "a"))
+    )
+
+
+def test_axon_envelope_preserves_empty_keys_and_unicode(calc_vsa) -> None:
+    """The envelope handles edge cases: empty key set, Unicode in role/from_proc/keys."""
+    from kernel.router import Axon
+    from kernel.serialise import deserialise_axon, serialise_axon
+
+    vsa = calc_vsa
+    payload = vsa.axon_add(vsa.zero_vector(), "value", 42.0)
+
+    original = Axon(
+        role="R_λ_out",  # Unicode role
+        payload=payload,
+        from_proc="процесс",  # Cyrillic from_proc
+        keys=frozenset(),  # empty key set
+    )
+    data = serialise_axon(original)
+    restored = deserialise_axon(data, device=payload.device)
+    assert restored.role == "R_λ_out"
+    assert restored.from_proc == "процесс"
+    assert restored.keys == frozenset()
+    assert torch.equal(restored.payload, payload)
+
+
+def test_axon_envelope_rejects_bad_magic() -> None:
+    """A blob that is not a YAXE envelope is refused at the header."""
+    from kernel.serialise import deserialise_axon
+
+    bad = b"NOPE" + b"\x01\x00\x00\x00" + b"\x00" * 16
+    with pytest.raises(AxonSerialiseError, match="envelope magic"):
+        deserialise_axon(bad)
+
+
+def test_axon_envelope_rejects_non_axon_input() -> None:
+    """Passing a plain tensor (not an Axon) to the envelope encoder is refused."""
+    from kernel.serialise import serialise_axon
+
+    with pytest.raises(AxonSerialiseError, match="not an Axon"):
+        serialise_axon(torch.zeros(8))  # type: ignore[arg-type]
+
+
 def test_format_header_layout(calc_vsa) -> None:
     """The first 12 bytes match the documented header layout — Rust readers
     can rely on this without re-discovering the offsets. Pulls one real axon
