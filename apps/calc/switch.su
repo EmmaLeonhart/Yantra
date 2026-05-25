@@ -26,8 +26,9 @@
 // substrate — no host `if`/dict, and no host operator->code map either (the
 // codepoint scoring below subsumes what a host CODE[op] used to do).
 // Operands are `complex` so `/` routes through complex_div; for
-// real inputs every result lands on the real axis. Exact within the
-// float32 exact-integer range (|value| < 2^24); bigger values need an
+// real inputs every result lands on the real axis. With float64 runtime
+// dtype (Sutra >= v0.6.2, the calc's pinned compile) exact integers hold
+// to 2^53 (~9.007e15) — not float32's ~2^24; bigger values need an
 // arbitrary-precision digit encoding (planning/22 Stage 3, planning/23).
 function vector on_axon(vector input_axon) {
     complex a = axon_item(input_axon, "a");

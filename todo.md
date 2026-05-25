@@ -32,14 +32,20 @@ not, for the stated reason.
    See `planning/23` step c.
 
 3. **calc step d remaining — full substrate parse** — *substrate `.su`
-   surgery; do WITH Emma.* Shipped: `parse_int2.su` (1–2 digit) +
-   `parse_op.su` (operator→code), both on the substrate. Remaining:
-   variable-length >2-digit parse (Sutra accumulator loop / digit array),
-   two-operand "DD OP DD" split (find space/operator positions on the
-   substrate), then wire `parse_int2`+`parse_op` into `calc.py` replacing
-   the host recursive-descent parser. This is exactly the kind of
-   substrate-loop mechanism where Emma's guidance beats an agent guess —
-   not barreled into autonomously. See `planning/23` Stage-1.
+   surgery; do WITH Emma.* Shipped on the substrate: `parse_int2.su` (1–2
+   digit integer); `parse_op.su` (operator-char → op-code, standalone
+   demonstrator of the codepoint-scoring technique); and **operator-from-
+   char dispatch wired into the live calc (8d8b2d3, 2026-05-24)** —
+   `switch.su` now reads the operator as a 1-char string axon item,
+   takes its codepoint with `string_char_at`, and scores 43/45/42/47
+   directly, so the host `CODE[op]` map is gone (57/57 calc + full kernel
+   gate green). Remaining: variable-length >2-digit parse (Sutra
+   accumulator loop / digit array), two-operand "DD OP DD" split (find
+   space/operator positions on the substrate), then compose parse_int2 +
+   the wired char-dispatch into `calc.py` replacing the host recursive-
+   descent parser. This is exactly the kind of substrate-loop mechanism
+   where Emma's guidance beats an agent guess — not barreled into
+   autonomously. See `planning/23` Stage-1.
 
 4. **calc step e — arbitrary precision (digit-array)** — *open; needs
    carry propagation ON the substrate (not host) to stay pure.* float64

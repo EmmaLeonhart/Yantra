@@ -13,13 +13,16 @@ names symbolic stability as unsolved). Two things it demonstrates:
 
 Layering matches the architecture (planning/01): text I/O + parsing is
 **host orchestration** (the CPU side's job); the arithmetic — including
-*which* operation runs — happens on the substrate. ``switch.su`` computes
-all four ops and selects the requested one with exact Lagrange one-hot
-masks driven by an operator code, so the host does not pick the operation
-with an ``OPS[op]`` dispatch. Multi-term expressions with precedence and
-parentheses are supported (``2 + 3 * 4 = 14``, ``(10 - 2) * 5 = 40``) — a
-recursive-descent parser on the host evaluates each binary operation on
-the substrate in turn.
+*which* operation runs, and *which character* names it — happens on the
+substrate. ``switch.su`` computes all four ops, reads the operator
+codepoint with ``string_char_at`` from a single-character string in the
+axon (``"+"``/``"-"``/``"*"``/``"/"``), and selects the requested one via
+``select`` made exact by softmax saturation. The host no longer carries a
+``CODE`` map or an ``OPS[op]`` dispatch — the operator's identification
+from its character runs on the substrate too. Multi-term expressions with
+precedence and parentheses are supported (``2 + 3 * 4 = 14``,
+``(10 - 2) * 5 = 40``) — a recursive-descent parser on the host evaluates
+each binary operation on the substrate in turn.
 
 The substrate runs in float64 (Sutra v0.6.2 ``runtime_dtype``), so exact
 integers hold to 2**53 (~9.007e15) — not float32's ~2**24; this is the
@@ -82,8 +85,9 @@ class Calculator:
     def __init__(self) -> None:
         self.init = Init(compute_pool=32)
         # ONE service computes every operation and selects the requested
-        # one on the substrate (switch.su's Lagrange masks). No host
-        # `OPS[op]` choosing which .su to run.
+        # one on the substrate (switch.su's select+saturation one-hot,
+        # scored against the operator codepoint). No host `OPS[op]`
+        # choosing which .su to run; no host `CODE[op]` numeric op-code.
         self._service = SutraService(
             source_path=APPS_CALC / "switch.su",
             output_role="R_switch_out",
