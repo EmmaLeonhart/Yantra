@@ -78,18 +78,27 @@ under `stdin_text`, routes through the kernel, unbinds `stdout_text`, and decode
 current pinned Sutra (main 6cdca94b). The 2026-05-14 bundle-decoding regression
 the old test cited is stale for this `make_string` path (NB: that finding tracked
 codebook-cleanup *cosine margins* — a different decode path not re-measured here).
-This de-risks step 1 below: a terminal can rely on echo carrying text verbatim.
+This de-risks the terminal surface below: a terminal can rely on echo carrying text verbatim.
+
+(d) **Terminal surface (Stage 2) shipped (2026-05-24).** `apps/terminal/terminal.py`
+is a command reader over kernel-admitted utilities: `echo <text>` carries text
+bit-exact through `echo.su` and shows the SUBSTRATE's decoded string (not a host
+re-echo); `calc <expr>` evaluates on the calc substrate; `help`; unknown → shell-style
+`command not found`. **Which utility a typed command names is admission/routing = host
+orchestration by design** (the Connectome Manager's "what is connected to what"),
+distinct from calc's *which-operation* dispatch which is substrate compute — the two
+look alike but sit on opposite sides of the host/substrate line. `Terminal.run_script`
+runs an N-step interaction trace exact at EVERY step (zero drift — the planning/22
+measurement at small N). `tests/test_terminal.py` 19/19 green; `python apps/terminal/demo.py`
+prints a transcript. Does NOT close calc's step-c gap (composes calc as-is). See
+`apps/terminal/README.md`, `planning/22` Stage 2.
 
 Remaining steps:
 
-1. **Minimal terminal surface.** A Sutra-native command reader
-   (scripted or button-driven is fine — need not be keyboard-typed)
-   that admits a utility through the kernel and shows its exact output.
-   (The calc REPL already proves the text-in → exact-out pattern.)
-2. **First CLI utilities beyond echo** (cat, ls, wc) — native Sutra,
+1. **First CLI utilities beyond echo** (cat, ls, wc) — native Sutra,
    gated on Sutra's string + IO + FS vocabulary; promote from
    `todo.md` § 2 as each unblocks.
-3. **Calculator — make it substrate-pure (PRIORITY), then the optimal demo.**
+2. **Calculator — make it substrate-pure (PRIORITY), then the optimal demo.**
    **Substrate-purity gap (audit 2026-05-24):** as built, host Python picks which
    operation runs (`OPS[op]`) and returns a host `Fraction` answer (the substrate is
    used only as a pass/refuse gate). That defeats "computes on the substrate." Full
@@ -140,7 +149,7 @@ Remaining steps:
      **Still open — arbitrary precision (digit-array):** true unbounded exactness;
      would need carry propagation on the substrate (not host) to stay pure.
    See `planning/23-calc-substrate-purity.md` (full design + findings) + `planning/22`.
-4. **Demo on the site — DONE.** `site/index.html` has a "See it compute"
+3. **Demo on the site — DONE.** `site/index.html` has a "See it compute"
    section (the calculator transcript + the symbolic-stability contrast),
    live at yantra.emmaleonhart.com; `!runCalculator.bat` at the repo root
    opens the REPL locally, and `python apps/calc/demo.py` prints the
@@ -193,6 +202,7 @@ Not in scope: replicating their *video / screen-frame generation*
 - Longer-horizon items: `todo.md`
 - Kernel runtime nucleus: `kernel/` (see `kernel/README.md`)
 - First userspace utility: `apps/echo/` (see `apps/README.md`)
+- Terminal surface (Stage 2): `apps/terminal/` (see `apps/terminal/README.md`)
 - Bare-metal QEMU bootloader: `bootloader/` (see `bootloader/README.md`)
 - Design notes: `planning/` (numbered for reading order)
 - Open architectural questions: `planning/15-open-questions.md`

@@ -14,6 +14,19 @@ stdin/stdout vocabulary that doesn't go through axon-passing.
 |---|---|---|
 | `echo/` | First v0 (2026-05-14); content-verified 2026-05-24 | Routes input axon's `stdin_text` key to the output's `stdout_text`. Real Sutra service, real `.su` source, real manifest, admitted by the kernel via the same `Init.admit_from_path` path the kernel-services use. The smallest end-to-end demonstration that `apps/` works as a milestone. **Now content-verified:** `test_echo_echoes_string_content_exactly` binds `make_string(text)` under `stdin_text`, routes through the kernel, and recovers the line verbatim (bit-exact across 46 varied strings under the current pinned Sutra — the earlier 2026-05-14 bundle-decoding regression is stale for this `make_string` path). |
 
+### Host-orchestration demo surfaces (over substrate compute)
+
+Two `apps/` entries are not native-Sutra utilities but **host command/UI
+surfaces** that admit utilities through the kernel and show the
+substrate's exact output — the CPU-side orchestrator's job (planning/01).
+The computation runs on the substrate; the surface is the stand-in for
+the eventual Rust-orchestrator / browser layer.
+
+| Surface | Status | Notes |
+|---|---|---|
+| `calc/` | CLI calculator (2026-05-24) | Full expressions, `+ - * /`, precedence + parens; operator **selected on the substrate** (`switch.su`), float64 so exact integers reach 2⁵³. Exact or refused. Known step-c purity gap (returns a host `Fraction` behind a host-oracle refuse-gate; see `planning/23`). |
+| `terminal/` | Stage-2 terminal surface (2026-05-24) | A command reader (`terminal.py`) over kernel-admitted utilities: `echo <text>` carries text bit-exact through `echo.su` and decodes the substrate's output verbatim; `calc <expr>` evaluates on the calc substrate; `help`. `run_script` runs an N-step interaction trace exact at every step (zero drift — the headline-demo measurement, planning/22). Choosing *which utility* a typed command names is admission/routing = host orchestration by design (distinct from calc's *which-operation* dispatch, which is substrate compute). `tests/test_terminal.py` (19 cases); `python apps/terminal/demo.py` prints a transcript. |
+
 ## What's coming (not started)
 
 Per `todo.md` § 2 Q-list, in priority order: `cat`, `ls`, `wc`,
