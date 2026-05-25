@@ -140,7 +140,7 @@ that matters underneath."
 The intellectual ancestor of Sutra's binding/bundling primitives.
 Plate, Kanerva, et al. defined the field. Modern implementations
 (TorchHD, etc.) are good libraries; none of them is a programming
-language compiled to tensor normal form. Sutra is what happens when
+language compiled to a tensor-op graph. Sutra is what happens when
 you take VSA seriously enough to build a typed functional language
 out of it.
 

@@ -371,3 +371,31 @@ measured seed) is fully unblocked today.
 - Engineering readiness audit: `planning/18-kernel-browser-readiness.md`
 - Kernel layout + what's stubbed: `kernel/README.md`
 - Paper revision discipline: `CLAUDE.md` § "Paper revision discipline"
+
+---
+
+## [NEXT YEAR] Formally define "tensor normal form" — before using the term anywhere
+
+**Status: deferred, ~next year (Emma 2026-05-25).** "Tensor normal form" / "TNF"
+has been **removed from the active specs and docs** (here and in Sutra) because we
+never formally defined it, and asserting a canonical "normal form" we have not
+proven actively hurt the FV paper's reception. The defensible phrasing used
+everywhere now is descriptive: *the compiler emits a tensor-op graph that is the
+program's semantics.*
+
+Rough idea we have (keep, do not over-promise):
+- **Tensor normal form ≈** algebraically simplifying a program to *just a
+  sequence of matrix multiplications* (an affine/multilinear pipeline).
+- **Recurrent tensor normal form ≈** the same for the bounded soft-halt loop
+  (`state ← R · state`).
+
+Deferred because a real normal-form claim needs FV / rewriting-theory machinery
+(confluence, a canonicalisation/decision procedure, proofs of canonicality) we
+do not have yet, and it is unclear what standing we have to declare a new normal
+form as a formal object. Define it properly, with proofs, as part of the FV
+process — then and only then reintroduce the term. Mirrored in Sutra `todo.md`.
+
+Note: the arXiv-frozen `paper/paper.md` (+ its supplementary, e.g. `paper/SKILL.md`)
+still use "tensor normal form" and cannot change until the freeze lifts (June 1).
+Review records (`paper/reviews/*`) are left as-is. These are the only remaining
+in-repo uses on the Yantra side.

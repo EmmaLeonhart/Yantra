@@ -103,7 +103,7 @@ in adjacent projects.
   reimplementation must match.
 - **Kernel is native Sutra, not transpiled.** The verification
   surface in `paper/paper.md` § 4 depends on the trusted base
-  reducing cleanly to tensor normal form. Sutra services run on the
+  reducing cleanly to a compiled tensor-op graph. Sutra services run on the
   GPU; the Rust orchestrator runs on the CPU, written natively in
   Rust.
 
