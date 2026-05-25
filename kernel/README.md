@@ -42,12 +42,12 @@
 >    program's CUDA-resident Sutra runtime, with the GPU memory
 >    actually reclaimed (`tests/test_kernel_gpu_tiers.py`:
 >    `loaded=669696 → unloaded=0 → reloaded=669696` bytes). What is
->    *still* not modelled is the **RAM cold-store of a running
+>    *now shipped (2026-05-25)* is the **RAM cold-store of a running
 >    program's mutated state** (checkpoint + bit-exact resume) —
->    that needs the Sutra `serialise-process-state` primitive,
->    which does not exist. So: start/stop-on-GPU works; pause-and-
->    resume-preserving-state does not. Naming the real remaining
->    gap, not the old over-broad one.
+>    once thought to need `serialise-process-state` — but the
+>    2026-05-25 finding showed it does NOT: current Sutra has no
+>    per-program mutable substrate state, so cold-store reduces to
+>    capturing the inbox — **SHIPPED** (`Tier.RAM`). See `planning/26`.
 
 ## What runs today
 
@@ -145,14 +145,14 @@ Sutra-side work that hasn't shipped:
   (`evict-from-GPU` is no longer a missing primitive — it's
   proactive `_VSA` device-tensor release in
   `SutraService.unload()`; `tests/test_kernel_gpu_tiers.py`).
-  What is **still** blocked is checkpointing a *running* program's
-  mutated state to a RAM/disc cold-store and resuming it bit-exact
-  — that needs the Sutra `serialise-process-state` primitive,
-  which does not exist. The multi-program axon-passing demo in
+  What was thought blocked — checkpointing a *running* program's
+  mutated state to a RAM cold-store and resuming it bit-exact
+  — is **SHIPPED 2026-05-25** (`Tier.RAM`, `Init.cold_store`/
+  `restore_from_cold`); no `serialise-process-state` needed (2026-05-25 finding). The multi-program axon-passing demo in
   `external/Sutra/examples/multi_program_axon/` serialises a
-  program's *output*, not a live process's state. So the MVP is
-  "start/stop a program on the GPU" (done), not "pause a running
-  program and resume it where it left off" (still open).
+  program's *output*, not a live process's state. Both tiers now work:
+  "start/stop a program on the GPU" AND "pause a running
+  program and resume it where it left off" — done (2026-05-25).
 - **GPU-tick-parallel scheduling.** `Init.tick()` iterates
   services sequentially on the CPU. Production Yantra runs all
   admitted processes simultaneously on the GPU at each tick. The

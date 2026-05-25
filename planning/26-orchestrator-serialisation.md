@@ -9,8 +9,8 @@
 > **Bottom line.** The easy slice — serialising an axon's output value —
 > lands now as `kernel/serialise.py`. The long pole — serialising a *running*
 > program's full state (weights + in-flight memory + scheduler position) —
-> needs Sutra-side `serialise-process-state` and is genuinely out of scope
-> until that primitive exists.
+> was thought to need Sutra-side `serialise-process-state`, but the 2026-05-25
+> finding (§(b)) showed current Sutra has no such mutable state — RAM cold-store **shipped** (`Tier.RAM`) without it. See §3.
 
 ## The two kinds (Emma's direction 2026-05-24)
 
