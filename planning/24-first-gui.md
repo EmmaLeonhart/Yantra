@@ -46,6 +46,12 @@ Verified (real run): a 64×64 field, centre = 0.9995, corner = −1.0, matching
    belongs in the Rust orchestrator (planning/01 "CPU side: small, Rust"), as one
    of the piecemeal Rust units; the display server is host-side by design
    (planning/01 inversion 3: the FS/IO boundary is host, compute is substrate).
+   **Shipped 2026-05-25:** `apps/gui-rust/` — a Rust window (minifb) owns the
+   clicks + painting and gets each frame from the Sutra substrate over a
+   subprocess bridge (`apps/gui/counter_substrate_server.py`); the count + the
+   pixel field stay on the substrate. First Rust-orchestrator GUI unit (the
+   counter demo). PyO3 in-process embedding is a later tightening; subprocess
+   was chosen (Emma 2026-05-25) as the simplest honest bridge.
 4. **Build-sequence note.** The committed sequence (planning/01, CLAUDE.md) gates
    the production browser GUI behind the kernel + CLI utilities. This is an
    exploratory first-pixels PoC, not that GUI — it demonstrates substrate→screen
