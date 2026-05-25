@@ -120,7 +120,15 @@ kernel already does today: `apps/echo` round-trips a symbol bit-exact.
 **First real data point (2026-05-23):** the Stage-1 harness
 (`tests/test_symbol_fidelity.py`) measures Yantra at 1024/1024 exact,
 max |err| = 0.0, flat across the horizon — the left end of the figure
-is pinned at perfect.
+is pinned at perfect. **Terminal-surface data point (2026-05-24):**
+through the actual command reader (`apps/terminal`), an N=60 interaction
+trace mixing `echo` (text symbols) and `calc` (numeric symbols) is exact
+at every step — drift = 0/60 (`test_zero_drift_as_n_grows`). The same
+zero-drift result now holds end-to-end through the *terminal*, not just a
+passthrough service. What remains for the full figure is the **baseline**
+(the decaying right side): reproduce a CLIGen-shaped DiT-frame model or
+cite Meta's published degradation numbers — that is the open piece, not
+the Yantra side.
 
 ## Shipping it — a downloadable demo on the site
 

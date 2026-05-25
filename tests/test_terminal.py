@@ -135,3 +135,30 @@ def test_scripted_trace_zero_drift(term: Terminal) -> None:
         "done",
     ]
     assert term.run_script(script) == expected
+
+
+def test_zero_drift_as_n_grows(term: Terminal) -> None:
+    """A long deterministic trace stays exact at EVERY step — drift = 0 as N grows.
+
+    The headline-demo thesis is symbolic stability *as the horizon grows*
+    (planning/22): a generative DiT-frame terminal accumulates error with N;
+    Yantra computes, so error is identically zero however long the session.
+    We build an N=60 trace with a known-exact expected transcript and assert
+    a perfect match, then confirm the drift count is 0 — the left end of the
+    contrast figure pinned at perfect at non-trivial N.
+    """
+    script: list[str] = []
+    expected: list[str] = []
+    for i in range(30):
+        # echo: an executed/carried text symbol, exact by construction.
+        script.append(f"echo line {i} stays exact")
+        expected.append(f"line {i} stays exact")
+        # calc: a computed numeric symbol, exact by construction.
+        script.append(f"calc {i} + {i} =")
+        expected.append(str(i + i))
+
+    outputs = term.run_script(script)
+    assert len(outputs) == 60
+    drift = sum(1 for got, want in zip(outputs, expected) if got != want)
+    assert drift == 0, f"{drift}/{len(expected)} steps drifted (expected 0)"
+    assert outputs == expected
