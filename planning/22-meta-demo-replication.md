@@ -58,6 +58,11 @@ enough to make the point. Where CLIGen's DiT *hallucinates* plausible
 terminal text that drifts, Yantra's terminal prints the exact bytes the
 program produced.
 
+**Update (2026-05-24):** built — `apps/terminal/` (a command reader over
+kernel-admitted utilities: `echo`, `calc`, `help`). `echo` is bit-exact
+through `echo.su`; a scripted N-step trace is exact at every step (zero
+drift). See the Stage-2 roadmap entry below for details.
+
 ### 2. A visible calculator app — the optimal demo (exceeds what Meta did)
 
 The strongest single thing we can show: a calculator with **buttons you
@@ -156,9 +161,21 @@ Gated on the build sequence (`planning/18`: kernel → CLI → GUI).
   (The returned value is still the host oracle's, not the substrate's
   decode — step c, a product decision; see `planning/23`.) The "text
   parsing + reliable math" proof — the calculator's compute core.
-- **Stage 2 — terminal surface.** A Sutra-native command reader
-  (scripted or button-driven is fine) that admits utilities through the
-  kernel and shows exact output.
+- **Stage 2 — terminal surface. DONE (2026-05-24).** `apps/terminal/`
+  is a command reader over kernel-admitted utilities: `echo <text>`
+  carries text **bit-exact** through `echo.su` and shows the substrate's
+  decoded string (not a host re-echo); `calc <expr>` evaluates on the
+  calc substrate; `help`; unknown commands return a shell-style
+  `command not found`. `Terminal.run_script` runs an N-step interaction
+  trace exact at **every** step — the § "Making it measurable" zero-drift
+  claim at small N. `tests/test_terminal.py` (19 cases);
+  `python apps/terminal/demo.py` prints a transcript. **Which utility a
+  typed command names is admission/routing = host orchestration by
+  design** (the Connectome Manager's job), distinct from calc's
+  *which-operation* dispatch (substrate compute). Does NOT close calc's
+  step-c purity gap — composes calc as-is. Next: utilities beyond echo
+  (`cat`/`ls`/`wc`, gated on Sutra string/IO/FS vocabulary); a keyboard
+  front-end belongs to the GUI layer (milestone 3).
 - **Stage 3 — the calculator app.** A minimal GUI (button grid +
   display) over real Sutra arithmetic. The optimal demo; needs the GUI
   layer. **Precision note (updated 2026-05-24):** the real-axis encoding
