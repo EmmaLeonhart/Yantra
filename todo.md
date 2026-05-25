@@ -201,10 +201,16 @@ production form is Rust. Hardening list:
   Manager").
   - **Emma's direction (2026-05-24): the orchestrator does the
     serialisation, in two distinct kinds — start with the easy one.**
-    (a) **Serialise an axon's output** — the structured-embedding value a
-    program emits. This is the easy, near-term kind (it's already a
-    well-typed vector through the router; capturing/restoring it is
-    tractable). (b) **Serialise the full process state** — the slice of
+    (a) **Serialise an axon's output — SHIPPED 2026-05-25.** The structured-
+    embedding value a program emits is captured bit-exact via
+    `kernel/serialise.py` (`serialise_axon_payload` /
+    `deserialise_axon_payload`, Rust-portable wire format — 12-byte header
+    + raw little-endian body, no Python pickle). Round-trip verified across
+    every supported dtype (float32 / float64 / complex64 / complex128) and
+    through the calc's real VSA where every binding still decodes from the
+    restored tensor (`tests/test_axon_serialise.py`, 16 passed + 1 CUDA-
+    gated skip). Design + format spec: `planning/26-orchestrator-serialisation.md`.
+    (b) **Serialise the full process state** — the slice of
     VRAM holding the program's weights *and* its in-flight memory, so a
     *running* program can be checkpointed and resumed bit-exact. This is
     the hard kind (you're snapshotting live device memory + weights), and

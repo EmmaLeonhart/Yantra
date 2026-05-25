@@ -70,6 +70,11 @@ from kernel.init import (
     PoolExhaustedError,
     Tier,
 )
+from kernel.serialise import (
+    AxonSerialiseError,
+    deserialise_axon_payload,
+    serialise_axon_payload,
+)
 from kernel.services import (
     PythonService,
     Service,
@@ -81,6 +86,7 @@ __all__ = [
     "AdmissionError",
     "Axon",
     "AxonRouter",
+    "AxonSerialiseError",
     "CapabilityError",
     "Init",
     "Manifest",
@@ -91,6 +97,8 @@ __all__ = [
     "Service",
     "SutraService",
     "Tier",
+    "deserialise_axon_payload",
     "load_manifest",
     "make_shared_sutra_services",
+    "serialise_axon_payload",
 ]
