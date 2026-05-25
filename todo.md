@@ -204,7 +204,11 @@ production form is Rust. Hardening list:
   `kernel/checkpoint.py` (`serialise_kernel_state` /
   `restore_kernel_state`) SHIPPED 2026-05-25 + verified bit-exact
   through a real echo round-trip (`tests/test_kernel_checkpoint.py`,
-  9 tests; full gate 192). Per-process cold-store API + a runtime
+  9 tests; full gate 197 passed/1-xfail on the RTX 4070, after the
+  2026-05-25 restore-device-faithfulness fix — restore now places each
+  process's inbox on its own service's device, not a hard-coded CPU; the
+  CPU-only sibling machine didn't surface the GPU device mismatch).
+  Per-process cold-store API + a runtime
   `Tier.RAM` enum value is the remaining refinement on top.
   - **Emma's direction (2026-05-24): the orchestrator does the
     serialisation, in two distinct kinds — start with the easy one.**

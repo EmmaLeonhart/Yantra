@@ -120,8 +120,19 @@ The build order for (c):
    checkpoint (not faked) per CLAUDE.md "no fake primitives" — its
    callable isn't reconstructable from bytes. RAM tier is refused at
    restore until the `Tier.RAM` enum lands. 9 tests in
-   `tests/test_kernel_checkpoint.py`. Full kernel gate 192/2-skipped/
-   1-xfail.
+   `tests/test_kernel_checkpoint.py`. Full kernel gate 197 passed,
+   1-xfail (measured 2026-05-25 on the RTX 4070 machine).
+
+   **Device faithfulness (fixed 2026-05-25).** `restore_kernel_state`
+   now restores each process's inbox onto the *device its own service
+   uses* (default `device=None` infers from `service._compiled_module.
+   _VSA.device`); an explicit `device=` overrides. The earlier hard
+   `device="cpu"` default restored GPU-resident inboxes onto CPU, which
+   the sibling (CPU-only) machine didn't catch but failed bit-exact
+   `torch.equal` on the RTX 4070 (`other is on cuda:0, different from
+   other tensors on cpu`). A restored kernel must put its inboxes where
+   the consuming substrate lives — a GPU kernel comes back GPU-resident,
+   no host->device copy at delivery.
 3. **Wire `Tier.RAM` into `Init`** (still open): a tier value that means
    "cold-stored to a blob" rather than "torn down on disc," plus
    `Init.cold_store(name) -> bytes` / `Init.restore_from_cold(name,
