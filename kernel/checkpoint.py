@@ -238,11 +238,32 @@ def _default_gpu_tier():
     return Tier.GPU
 
 
+def _service_device(service: "Service") -> Any:
+    """Best-effort device of the service's substrate (the compiled VSA).
+
+    A restored kernel's inboxes must live where the consuming service lives:
+    on a GPU machine the service's ``_VSA`` is on ``cuda``, so its queued
+    axons must be restored on ``cuda`` too — otherwise the router would have
+    to host->device copy every payload at delivery, and a bit-exact
+    ``torch.equal`` against the original (which was on the GPU) fails on a
+    pure device mismatch. Returns ``None`` when the service exposes no
+    compiled VSA (e.g. not yet bound, or a non-Sutra service); the caller
+    then falls back to CPU.
+    """
+    mod = getattr(service, "_compiled_module", None)
+    if mod is None:
+        return None
+    vsa = getattr(mod, "_VSA", None)
+    if vsa is None:
+        return None
+    return getattr(vsa, "device", None)
+
+
 def restore_kernel_state(
     data: bytes | bytearray | memoryview,
     services_factory: Callable[[str, dict[str, Any]], "Service"],
     *,
-    device: Any = "cpu",
+    device: Any = None,
 ) -> "Init":
     """Rebuild an :class:`~kernel.init.Init` from a checkpoint blob.
 
@@ -258,8 +279,13 @@ def restore_kernel_state(
     contents as the original. Routes are rebuilt automatically via the
     re-admission path.
 
-    ``device`` is passed through to each axon's payload restore (the
-    tensors are placed on that device). If a process was on DISC at
+    ``device`` controls where each axon payload is restored. The default
+    (``None``) restores each process's inbox onto the device of *that
+    process's* service substrate — a GPU kernel comes back with
+    GPU-resident inboxes, a CPU kernel with CPU inboxes — which is what
+    makes the round-trip bit-exact (``torch.equal`` is device-sensitive;
+    the originals lived on the service's device). Pass an explicit device
+    to force every payload onto it instead. If a process was on DISC at
     checkpoint, it is admitted then immediately unloaded — same end
     state as the original.
     """
@@ -317,6 +343,13 @@ def restore_kernel_state(
 
         service = services_factory(name, identity)
         init.admit(manifest, service)
+        # Capture the substrate device while the service is GPU-resident
+        # (admit() always loads onto GPU). Restored inbox axons are placed
+        # on the device the consuming service uses, so the round-trip is
+        # bit-exact (torch.equal is device-sensitive). An explicit
+        # `device=` argument overrides; otherwise fall back to CPU when the
+        # service exposes no compiled VSA.
+        axon_device = device if device is not None else (_service_device(service) or "cpu")
         # admit() always starts on GPU; replay the unload if the checkpoint
         # had this process on DISC.
         if tier_name == "disc":
@@ -330,7 +363,7 @@ def restore_kernel_state(
         axons = []
         for _ in range(inbox_count):
             envelope_bytes, offset = _unpack_section(data, offset)
-            axon = deserialise_axon(envelope_bytes, device=device)
+            axon = deserialise_axon(envelope_bytes, device=axon_device)
             axons.append(axon)
         restored_axons_by_name[name] = axons
 
