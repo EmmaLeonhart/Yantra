@@ -63,6 +63,19 @@ Walk the codepoint string:
 > add/mul path, verified end-to-end before wiring into `calc.py`. (This is the
 > §"fake-substrate-work" trap by name — do the real composition or queue it,
 > never a host stand-in.)
+>
+> **Update 2026-05-25 — fixed-width (1–2 digit) parse SHIPPED; the variable-width
+> LOOP is blocked.** `apps/calc/parse_int2.su` does 1–2 digits via the closed-form
+> place-value formula (no loop) — works, tested. Extending to variable length
+> needs a Sutra loop, and that is **blocked** (attempted, not faked): numeric
+> `iterative_loop`s work, but a string-iterating accumulator loop fails at runtime
+> with `expand([868], size=[])` in `slot_store` — every value (incl.
+> `string_length()`) is an 868-d vector, and the loop's mixed scalar/vector/string
+> slot threading mis-shapes (tried value as scalar and as vector; `iterative_loop`
+> also wants a static count while length is dynamic → likely `while_loop i<n`).
+> The working loop idiom for string iteration + dynamic count + numeric
+> accumulator was not found; needs a deliberate Sutra-loop session (possibly a
+> Sutra-side helper). Full failure log: queue.md § calc step-d "variable length".
 
 **Stage 2 — compute all four ops at once:** `a+b`, `a−b`, `a×b`, `a÷b`.
 
