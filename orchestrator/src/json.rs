@@ -199,6 +199,54 @@ impl<'a> Iterator for StrArrayIter<'a> {
     }
 }
 
+/// Un-escape a raw JSON string (the content [`get_str`] returns) into `out`,
+/// writing the resolved bytes and returning how many were written. Handles the
+/// common JSON escapes (`\\`, `\"`, `\/`, `\n`, `\t`, `\r`, `\b`, `\f`).
+///
+/// Returns `None` on an unknown escape, a trailing `\` with no follower, or a
+/// buffer too small. (A buffer of `raw.len()` always suffices: escapes shrink
+/// the byte count, never grow it.)
+///
+/// `\uXXXX` is **deferred** — out of scope for the kernel checkpoint schema
+/// (the only escaped field the kernel emits is a Windows `source_path`'s `\\`).
+/// Named, not faked: a `\u` escape returns `None`.
+pub fn unescape_into(raw: &[u8], out: &mut [u8]) -> Option<usize> {
+    let mut i = 0;
+    let mut o = 0;
+    while i < raw.len() {
+        if raw[i] != b'\\' {
+            if o >= out.len() {
+                return None;
+            }
+            out[o] = raw[i];
+            o += 1;
+            i += 1;
+            continue;
+        }
+        if i + 1 >= raw.len() {
+            return None; // trailing backslash
+        }
+        if o >= out.len() {
+            return None;
+        }
+        let resolved = match raw[i + 1] {
+            b'\\' => b'\\',
+            b'"' => b'"',
+            b'/' => b'/',
+            b'n' => b'\n',
+            b't' => b'\t',
+            b'r' => b'\r',
+            b'b' => 0x08,
+            b'f' => 0x0c,
+            _ => return None, // unknown escape (incl. \u — deferred)
+        };
+        out[o] = resolved;
+        o += 1;
+        i += 2;
+    }
+    Some(o)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -261,5 +309,65 @@ mod tests {
         // A later scalar key must be found past an array value.
         assert_eq!(get_str(MANIFEST, "source"), Some("echo.su"));
         assert_eq!(get_u32(MANIFEST, "compute_units"), Some(1));
+    }
+
+    // --- unescape_into ---
+
+    #[test]
+    fn unescape_backslash_path() {
+        // get_str's raw output for "..\\apps\\echo.su" → the bytes
+        // `. . \ \ a p p s \ \ e c h o . s u` (every \ is a literal byte).
+        // un-escape replaces each `\\` pair with one `\`.
+        let raw = b"..\\\\apps\\\\echo.su";
+        let mut out = [0u8; 32];
+        let n = unescape_into(raw, &mut out).unwrap();
+        assert_eq!(&out[..n], b"..\\apps\\echo.su");
+    }
+
+    #[test]
+    fn unescape_quote_and_whitespace() {
+        let raw = b"a\\\"b\\nc\\td";
+        let mut out = [0u8; 16];
+        let n = unescape_into(raw, &mut out).unwrap();
+        assert_eq!(&out[..n], b"a\"b\nc\td");
+    }
+
+    #[test]
+    fn unescape_rejects_unknown_escape() {
+        let raw = b"x\\zy"; // \z is not a valid escape
+        let mut out = [0u8; 16];
+        assert_eq!(unescape_into(raw, &mut out), None);
+    }
+
+    #[test]
+    fn unescape_rejects_unicode_escape() {
+        // \uXXXX is deferred. Refuse, don't fake.
+        let raw = b"a\\u0041b";
+        let mut out = [0u8; 16];
+        assert_eq!(unescape_into(raw, &mut out), None);
+    }
+
+    #[test]
+    fn unescape_rejects_trailing_backslash() {
+        let raw = b"abc\\";
+        let mut out = [0u8; 16];
+        assert_eq!(unescape_into(raw, &mut out), None);
+    }
+
+    #[test]
+    fn unescape_rejects_small_buffer() {
+        let raw = b"abcd";
+        let mut out = [0u8; 2];
+        assert_eq!(unescape_into(raw, &mut out), None);
+    }
+
+    #[test]
+    fn unescape_then_get_str_round_trip() {
+        // End-to-end: get_str's raw content -> unescape_into recovers the path.
+        let obj: &[u8] = b"{\"source_path\": \"..\\\\apps\\\\echo.su\"}";
+        let raw = get_str(obj, "source_path").unwrap();
+        let mut out = [0u8; 32];
+        let n = unescape_into(raw.as_bytes(), &mut out).unwrap();
+        assert_eq!(&out[..n], b"..\\apps\\echo.su");
     }
 }
