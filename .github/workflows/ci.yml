@@ -1,27 +1,26 @@
 name: CI
 
-# Four jobs:
-#   - test:               the fast lane. Sets up Python 3.13 + CPU torch + the
-#                         Sutra submodule and runs pytest. Mirrors what most
-#                         contributors do locally.
-#   - docker:             builds the dev container Dockerfile and runs the same
-#                         pytest inside it. Catches Dockerfile drift early —
-#                         without this job, the Dockerfile rots silently.
-#   - rust-orchestrator:  cargo build + cargo test for the orchestrator/ crate
-#                         (the YAXN/YAXE/YPRC/YKST checkpoint codecs + the json
-#                         reader + the dump-checkpoint binary). Has no third-
-#                         party deps, so no system-lib install or --locked
-#                         complexity.
-#   - gui-rust:           cargo build + headless bridge `--check` for the
+# Five jobs — every build artifact is gated on every push:
+#   - test:               Python 3.13 + CPU torch + Sutra submodule, pytest on
+#                         the kernel + apps suite. The fast lane; mirrors what
+#                         most contributors do locally.
+#   - docker:             builds the Dockerfile dev container and runs the same
+#                         pytest inside it. Catches Dockerfile drift early.
+#   - rust-orchestrator:  cargo build + cargo test for orchestrator/ (the
+#                         YAXN/YAXE/YPRC/YKST checkpoint codecs + the json
+#                         reader + the dump-checkpoint binary). No third-party
+#                         deps, no system libs.
+#   - gui-rust:           cargo build + headless --check bridge for the
 #                         apps/gui-rust counter binary (Rust window over a
 #                         subprocess bridge to a Python+Sutra substrate child).
-#                         Needs minifb's Linux libs + Python+torch for the
-#                         substrate. Pre-warms the Sutra codebook cache from
-#                         the committed fixture so the substrate doesn't need
-#                         an ollama daemon.
-#
-# bootloader/ (custom JSON target + nightly + build-std + rust-src) is deferred
-# to separate CI plumbing.
+#                         Needs minifb's Linux libs + Python+torch; pre-warms
+#                         the Sutra codebook cache from the committed fixture.
+#   - bootloader:         cargo build for the multiboot1 i686 bare-metal
+#                         bootloader. Uses the pinned nightly + rust-src +
+#                         build-std + the custom i686-yantra.json target spec
+#                         (all in bootloader/.cargo/config.toml + rust-
+#                         toolchain.toml). Catches build-std / target-spec
+#                         drift on the toolchain.
 
 on:
   push:
@@ -132,9 +131,6 @@ jobs:
         with:
           python-version: '3.13'
       - name: System libs for minifb (X11 + Wayland + xkbcommon — build-only)
-        # minifb 0.27 links X11 + Wayland on Linux even when the window isn't
-        # opened (--check spawns the substrate but skips minifb::Window::new).
-        # Without these the build itself fails before --check runs.
         run: |
           sudo apt-get update
           sudo apt-get install -y libxkbcommon-dev libwayland-dev libx11-dev
@@ -146,9 +142,6 @@ jobs:
           pip install numpy
           pip install torch --index-url https://download.pytorch.org/whl/cpu
       - name: Pre-warm Sutra codebook cache (avoid ollama in the Python child)
-        # The spawned substrate inherits this; same fixture the pytest conftest
-        # uses, just placed at the default cache location so the Rust-spawned
-        # Python finds it without needing XDG_CACHE_HOME wiring.
         run: |
           mkdir -p "$HOME/.cache/sutra/embeddings"
           cp tests/fixtures/nomic-embed-text-d868.pt "$HOME/.cache/sutra/embeddings/"
@@ -158,3 +151,26 @@ jobs:
       - name: bridge --check (Rust spawns substrate, counts on the substrate, no window)
         working-directory: apps/gui-rust
         run: cargo run --quiet --bin yantra-gui-counter -- --check
+
+  bootloader:
+    name: bootloader — cargo build (multiboot1 i686 bare-metal)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # The bootloader/ crate is real Rust, freestanding, multiboot1, 32-bit
+    # i686 bare-metal. It uses the pinned nightly (bootloader/rust-toolchain.toml
+    # → nightly-2026-04-01 with rust-src + llvm-tools-preview), build-std for
+    # core + compiler_builtins, and a custom JSON target spec (i686-yantra.json,
+    # configured in bootloader/.cargo/config.toml). All gated here so toolchain
+    # drift or a build-std / json-target-spec regression fails before merge.
+    # No qemu run — just the build; running the multiboot ELF is a manual step
+    # via scripts/qemu-run.{sh,bat}.
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned nightly + rust-src + llvm-tools-preview
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2026-04-01
+          components: rust-src, llvm-tools-preview
+      - name: cargo build (pulls i686-yantra.json target + build-std from .cargo/config.toml)
+        working-directory: bootloader
+        run: cargo build
