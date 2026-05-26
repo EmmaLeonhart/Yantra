@@ -34,21 +34,11 @@ APPS_GUI = pathlib.Path(__file__).resolve().parent
 
 def _compile_frame():
     """Compile frame.su and return its `pixel` function + the _VSA runtime."""
-    from sutra_compiler.codegen_pytorch import translate_module as torch_translate
-    from sutra_compiler.lexer import Lexer
-    from sutra_compiler.parser import Parser
-
-    src = (APPS_GUI / "frame.su").read_text(encoding="utf-8")
-    lexer = Lexer(src, file="frame.su")
-    toks = lexer.tokenize()
-    parser = Parser(toks, file="frame.su", diagnostics=lexer.diagnostics)
-    module = parser.parse_module()
-    if lexer.diagnostics.has_errors():
-        raise SystemExit(f"frame.su parse error: {list(lexer.diagnostics)}")
-    py = torch_translate(module, llm_model="nomic-embed-text", runtime_dim=768)
-    ns: dict = {}
-    exec(compile(py, "frame.su", "exec"), ns)
-    return ns["pixel"], ns["_VSA"]
+    from sutra_compiler import compile_su
+    mod = compile_su(APPS_GUI / "frame.su",
+                     llm_model="nomic-embed-text", runtime_dim=768,
+                     verbose=False)
+    return mod.pixel, mod._VSA
 
 
 def render_field(size: int = 64) -> np.ndarray:

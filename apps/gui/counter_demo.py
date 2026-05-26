@@ -37,32 +37,30 @@ if str(_SUTRA_SDK) not in sys.path:
 
 APPS_GUI = pathlib.Path(__file__).resolve().parent
 
-# Compile cache: count.su is recompiled on the first call and reused. The field
-# re-renders every click, so compiling once (not per click) matters. A plain
-# memo dict — the Rust orchestrator likewise compiles a service once.
+# In-process memo: count.su's compiled module is reused across clicks. The
+# disk cache from sutra_compiler.compile_su skips codegen across PROCESS
+# restarts; this dict additionally skips the small exec() cost between
+# calls within one process. The field re-renders every click, so reusing
+# the compile (not per click) matters.
 _COMPILED: dict = {}
 
 
-def _compile(su_name: str):
-    """Compile a .su under apps/gui and return its namespace (functions + _VSA)."""
+def _compile(su_name: str) -> dict:
+    """Compile a .su under apps/gui and return its namespace (functions + _VSA).
+
+    Returns a dict view on the compiled module (source-compat with the
+    prior `ns["pixel"]` access pattern). Caching is two-tier: the
+    in-process `_COMPILED` memo plus `sutra_compiler.compile_su`'s
+    disk-resident codegen cache (skips translate_module across restarts).
+    """
     cached = _COMPILED.get(su_name)
     if cached is not None:
         return cached
-
-    from sutra_compiler.codegen_pytorch import translate_module as torch_translate
-    from sutra_compiler.lexer import Lexer
-    from sutra_compiler.parser import Parser
-
-    src = (APPS_GUI / su_name).read_text(encoding="utf-8")
-    lexer = Lexer(src, file=su_name)
-    toks = lexer.tokenize()
-    parser = Parser(toks, file=su_name, diagnostics=lexer.diagnostics)
-    module = parser.parse_module()
-    if lexer.diagnostics.has_errors():
-        raise SystemExit(f"{su_name} parse error: {list(lexer.diagnostics)}")
-    py = torch_translate(module, llm_model="nomic-embed-text", runtime_dim=768)
-    ns: dict = {}
-    exec(compile(py, su_name, "exec"), ns)
+    from sutra_compiler import compile_su
+    mod = compile_su(APPS_GUI / su_name,
+                     llm_model="nomic-embed-text", runtime_dim=768,
+                     verbose=False)
+    ns = mod.__dict__
     _COMPILED[su_name] = ns
     return ns
 
