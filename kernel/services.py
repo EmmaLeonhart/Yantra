@@ -399,36 +399,23 @@ def _compile_su_to_module(
 ) -> types.ModuleType:
     """Compile a .su file via the PyTorch backend.
 
-    Pattern mirrors external/Sutra/examples/multi_program_axon/_run.py:
-    lex → parse → torch_translate → exec into a fresh module dict.
-    Each call returns a freshly-compiled module so two services
-    instantiated from the same .su file have independent state.
+    Thin wrapper over ``sutra_compiler.compile_su`` (Sutra >= v0.7.1) -- the
+    SDK helper does the lex -> parse -> translate -> exec dance AND caches
+    the emitted Python on disk, so a re-admit of the same service skips the
+    full codegen pass. Each call still returns an independent module so two
+    services instantiated from the same .su file have independent state.
     """
     # Lazy-import inside the function so that environments without the
     # Sutra SDK on sys.path can still import kernel.services as long
     # as they don't actually instantiate a SutraService.
-    from sutra_compiler.codegen_pytorch import translate_module as torch_translate
-    from sutra_compiler.lexer import Lexer
-    from sutra_compiler.parser import Parser
-
-    src_path = pathlib.Path(src_path).resolve()
-    if not src_path.is_file():
-        raise FileNotFoundError(f"Sutra source not found: {src_path}")
-    src = src_path.read_text(encoding="utf-8")
-
-    lexer = Lexer(src, file=str(src_path))
-    tokens = lexer.tokenize()
-    parser = Parser(tokens, file=str(src_path), diagnostics=lexer.diagnostics)
-    module_ast = parser.parse_module()
-    py_src = torch_translate(
-        module_ast, llm_model=llm_model, runtime_dim=runtime_dim,
+    from sutra_compiler import compile_su
+    return compile_su(
+        src_path,
+        llm_model=llm_model,
+        runtime_dim=runtime_dim,
         runtime_dtype=runtime_dtype,
+        verbose=False,
     )
-
-    mod = types.ModuleType(src_path.stem)
-    mod.__file__ = f"<compiled from {src_path}>"
-    exec(compile(py_src, mod.__file__, "exec"), mod.__dict__)
-    return mod
 
 
 def make_shared_sutra_services(

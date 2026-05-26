@@ -240,4 +240,10 @@ Not in scope: replicating their *video / screen-frame generation*
 - Paper + AI peer review pipeline: `paper/` (see `paper/README.md`)
 - External dependencies: `external/` (submodules)
 - Cross-repo workflow (Yantra ↔ Sutra): `CLAUDE.md` § "Cross-repo workflow"
+- **Precompile every .su to prime the codegen cache:**
+  `python scripts/precompile_all_su.py` — run after a fresh clone or
+  after a Sutra submodule bump, so demos + tests don't pay the slow
+  codegen on first launch. Caches are committed; the script just
+  populates them when the manifest changes. Add a row to its
+  `_MANIFEST` when a new .su that benefits from precompilation lands.
 - Narrative history: `git log`

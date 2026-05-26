@@ -71,25 +71,18 @@ if str(_SUTRA_SDK) not in sys.path:
 
 
 def _compile_su(su_path: pathlib.Path, runtime_dtype: str = "float64") -> dict:
-    """Compile a .su file directly; return its module namespace (functions + _VSA)."""
-    from sutra_compiler.codegen_pytorch import translate_module as torch_translate
-    from sutra_compiler.lexer import Lexer
-    from sutra_compiler.parser import Parser
+    """Compile a .su file directly; return its module namespace (functions + _VSA).
 
-    src = su_path.read_text(encoding="utf-8")
-    lexer = Lexer(src, file=su_path.name)
-    toks = lexer.tokenize()
-    parser = Parser(toks, file=su_path.name, diagnostics=lexer.diagnostics)
-    module = parser.parse_module()
-    if lexer.diagnostics.has_errors():
-        raise SystemExit(f"{su_path.name} parse error: {list(lexer.diagnostics)}")
-    py = torch_translate(
-        module, llm_model="nomic-embed-text", runtime_dim=AXON_WIDTH,
-        runtime_dtype=runtime_dtype,
+    Thin wrapper over `sutra_compiler.compile_su` (Sutra >= v0.7.1) which
+    caches the emitted Python on disk so repeat calls skip codegen entirely.
+    Returns a dict view (source-compat with the prior `ns["fn"]` pattern).
+    """
+    from sutra_compiler import compile_su
+    mod = compile_su(
+        su_path, llm_model="nomic-embed-text", runtime_dim=AXON_WIDTH,
+        runtime_dtype=runtime_dtype, verbose=False,
     )
-    ns: dict = {}
-    exec(compile(py, su_path.name, "exec"), ns)
-    return ns
+    return mod.__dict__
 
 # The operator is fed to switch.su as a 1-char STRING (make_string(op)); switch
 # reads its codepoint on the substrate and selects the operation there. No host
