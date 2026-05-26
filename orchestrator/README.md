@@ -36,9 +36,12 @@ test harness so every unit stays host-testable.
 - **`json`** — a minimal `no_std`/no-alloc reader for the FLAT JSON schema the
   kernel emits (object of strings, non-negative ints, string arrays):
   `get_str` / `get_u32` / `get_str_array`. A structural scanner (never
-  false-matches a key inside a value; escape pairs skipped). Strings returned
-  raw (un-escaping deferred). This turns the codecs' opaque manifest/identity
-  bytes into typed fields — verified end-to-end against the YKST fixture.
+  false-matches a key inside a value; escape pairs skipped). Strings come back
+  raw; `unescape_into` resolves the common escapes (`\\`, `\"`, `\/`, `\n`,
+  `\t`, `\r`, `\b`, `\f`) plus `\uXXXX` for BMP codepoints (1–3 byte UTF-8);
+  surrogate pairs are refused, not faked. Turns the codecs' opaque
+  manifest/identity bytes into typed fields — verified end-to-end against the
+  YKST fixture.
 
 ## Build / test
 
