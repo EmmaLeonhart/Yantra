@@ -1,12 +1,19 @@
 name: CI
 
-# Two jobs:
-#   - test:   the fast lane. Sets up Python 3.13 + CPU torch + the
-#             Sutra submodule and runs pytest. Mirrors what most
-#             contributors do locally.
-#   - docker: builds the dev container Dockerfile and runs the same
-#             pytest inside it. Catches Dockerfile drift early —
-#             without this job, the Dockerfile rots silently.
+# Three jobs:
+#   - test:               the fast lane. Sets up Python 3.13 + CPU torch + the
+#                         Sutra submodule and runs pytest. Mirrors what most
+#                         contributors do locally.
+#   - docker:             builds the dev container Dockerfile and runs the same
+#                         pytest inside it. Catches Dockerfile drift early —
+#                         without this job, the Dockerfile rots silently.
+#   - rust-orchestrator:  cargo build + cargo test for the orchestrator/ crate
+#                         (the YAXN/YAXE/YPRC/YKST checkpoint codecs + the json
+#                         reader + the dump-checkpoint binary). Has no third-
+#                         party deps, so no system-lib install or --locked
+#                         complexity. apps/gui-rust (minifb needs X11 libs) and
+#                         bootloader/ (nightly + build-std + custom target) are
+#                         deferred to separate CI.
 
 on:
   push:
@@ -76,3 +83,26 @@ jobs:
             -w /workspace \
             yantra-dev:ci \
             pytest tests/ -v
+
+  rust-orchestrator:
+    name: Rust orchestrator — cargo build + cargo test + dump-checkpoint smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # The orchestrator/ crate is the incremental Rust port of the CPU-side
+    # Connectome Manager (the YAXN/YAXE/YPRC/YKST checkpoint codec stack, the
+    # flat-JSON reader, and the dump-checkpoint binary). It has no third-party
+    # dependencies; the lib is no_std-ready, the bin uses std. Gate every push
+    # so future changes can't silently regress the byte-for-byte cross-checks
+    # against the committed Python fixtures.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: cargo build (no_std lib + std bin)
+        working-directory: orchestrator
+        run: cargo build --bins --lib
+      - name: cargo test (lib + bin targets)
+        working-directory: orchestrator
+        run: cargo test
+      - name: dump-checkpoint smoke (compose the units on the committed YKST fixture)
+        working-directory: orchestrator
+        run: cargo run --quiet --bin dump-checkpoint -- tests/fixtures/kernel_state.ykst > /dev/null
