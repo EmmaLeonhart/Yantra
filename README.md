@@ -40,6 +40,8 @@ storage-tier decision. The CPU-side orchestrator is **Rust**.
 
 **Bare-metal QEMU bootloader (v0.0)** at [`bootloader/`](bootloader/) — first Yantra-authored binary that runs on virtualized bare metal. Build with `scripts/qemu-build.{sh,bat}`, boot with `scripts/qemu-run.{sh,bat}`. See [`bootloader/README.md`](bootloader/README.md).
 
+**Rust orchestrator (incremental)** at [`orchestrator/`](orchestrator/) — the CPU-side Connectome Manager being ported to Rust as small, host-testable `no_std`-ready units, each verified byte-for-byte against the Python `kernel/`. Shipped so far: the full checkpoint wire-codec stack — axon payload (`YAXN`) → envelope (`YAXE`) → per-process cold-store (`YPRC`) → whole-kernel checkpoint (`YKST`). See [`orchestrator/README.md`](orchestrator/README.md).
+
 The intended customer is not a consumer desktop user. It is defense,
 aerospace, industrial control, medical devices, autonomous systems —
 anywhere "predictable latency under load" and "the certifier can read the
@@ -52,9 +54,10 @@ Manager** under `kernel/` — a Python orchestration layer over real
 Sutra compute — and the first native `apps/`: a **calculator**
 (`apps/calc/`, full expressions; *which* operation runs and *which
 character names it* are decided on the substrate, float64 so exact
-integers hold to 2⁵³), a first **GUI** (`apps/gui/`, every pixel
-computed on the substrate + an interactive red↔blue click toggle whose
-state flips on the substrate), a **terminal** surface (`apps/terminal/`,
+integers hold to 2⁵³, and the answer's digits are then decomposed back ON the substrate via the
+Fourier-series modulus and shown as a string), a first **GUI** (`apps/gui/`, every pixel
+computed on the substrate, plus click demos whose state runs on the substrate — a red↔blue toggle, and
+a click-to-count counter (each +1 and the glow's screen position computed on the substrate; also driven by a Rust-orchestrator window over a subprocess bridge)), a **terminal** surface (`apps/terminal/`,
 echo/calc through the kernel), and **echo**. The kernel + apps test gate
 covers admission control, the axon router, capability checks, real `.su`
 programs compiled and executed through the router (on the real GPU —
@@ -62,7 +65,7 @@ admit allocates GPU memory, `_VSA.device == cuda`), the calculator, the
 GUI render + click, the terminal, echo content round-trip, the
 orchestrator checkpoint + RAM cold-store tier (`Init.cold_store` /
 `restore_from_cold`, bit-exact through the kernel), and
-1024/1024-symbol fidelity; it passes (**207 passed, 1 xfailed**, measured
+1024/1024-symbol fidelity; it passes (**215 passed, 1 xfailed**, measured
 2026-05-25, on the real GPU). The one strict `xfail` is the cross-program
 axon-projection case — see `planning/18`, `planning/20`.
 The Sutra compiler/runtime live in the `external/Sutra` submodule
