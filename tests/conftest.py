@@ -26,7 +26,12 @@ import shutil
 
 import pytest
 
-_FIXTURE = pathlib.Path(__file__).parent / "fixtures" / "sutra_codebook_nomic_d868.pt"
+# Name MUST match what codegen_pytorch.py emits: nomic-embed-text-d<dim>.pt,
+# with dim = semantic_dim + synthetic_dim. The default Sutra build (this pin)
+# uses semantic 768 + synthetic 100 = 868. A mismatched filename silently
+# bypasses the cache (file doesn't exist → cache stays empty → ollama call),
+# which was the bug that hid behind the first version of this conftest.
+_FIXTURE = pathlib.Path(__file__).parent / "fixtures" / "nomic-embed-text-d868.pt"
 
 
 @pytest.fixture(scope="session", autouse=True)
