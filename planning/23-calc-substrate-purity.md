@@ -12,10 +12,20 @@ drifts"):
 2. **Host Python returns the answer.** `_binop` computes on the substrate, then
    recomputes the exact answer with a host `Fraction`, compares, and **returns the
    host value** — using the substrate only as a pass/refuse gate. The displayed
-   exactness is host-provided, not substrate-provided. **STILL OPEN** — closing it
-   means dropping the "never a wrong answer" refuse-gate, which is a user-facing
-   product decision (see "Drop the exactness oracle" below). Flag for Emma; do not
-   do autonomously.
+   exactness is host-provided, not substrate-provided. **CLOSED for the demo
+   2026-05-25 (Emma's product decision).** Rather than drop the refuse-gate to
+   return a raw float, the user-facing result is now a digit STRING decomposed ON
+   THE SUBSTRATE: `apps/calc/digits.su` peels the 1000s/100s/10s/1s with the
+   Fourier-series eigenrotation modulus + integer division —
+   `digit = round(mod(floor(n/place)+0.5, 10) - 0.5)`, the +0.5 offset dodging
+   `rotation_mod`'s branch-cut at exact multiples (without it a digit comes out
+   ~10, garbage that only cancels in aggregate — measured). `Calculator.
+   result_string` decodes each digit with `real()` and joins them; the host
+   provides no digit value. 4-digit demo scope (0..9999), `tests/
+   test_calc_digits.py` measured exact over every digit boundary. The internal
+   `evaluate` keeps the exact-`Fraction` composition + monitoring oracle for
+   multi-term precedence; what changed is the *returned/displayed* value is now
+   substrate-decoded. Arbitrary precision (more digits) is Stage 3 / planning/22.
 
 The four per-op files (`add/sub/mul/div.su`) were real substrate math; they are
 **removed** — `switch.su` computes all four internally and selects on the substrate.

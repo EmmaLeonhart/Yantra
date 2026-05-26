@@ -28,12 +28,17 @@ The substrate runs in float64 (Sutra v0.6.2 ``runtime_dtype``), so exact
 integers hold to 2**53 (~9.007e15) — not float32's ~2**24; this is the
 substrate computing in higher precision, no host carries.
 
-Known remaining purity gap (planning/23 step c): the result is still
-verified against a host oracle and REFUSED if it can't be confirmed (a
-non-terminating quotient like ``10 / 3``, a divide-by-zero, or a result
-past the float64 exact range, 2**53) — never approximated. Returning the
-substrate's own decoded float (dropping the refuse-gate) is a pending
-product decision. True arbitrary precision is planning/22 Stage 3.
+Step c (Emma's product decision 2026-05-25 — DONE for the demo): the
+user-facing result is now a digit STRING decomposed ON THE SUBSTRATE.
+``result_string`` runs ``digits.su`` (the Fourier-series eigenrotation
+modulus + integer division) to peel the 1000s / 100s / 10s / 1s, each digit
+decoded from the substrate with ``real()`` — not a host ``Fraction``. The
+REPL prints that string. 4-digit demo scope (0..9999); the internal
+``evaluate`` still composes exact ``Fraction``s for multi-term precedence +
+the monitoring oracle, and still refuses what it can't confirm exactly (a
+non-terminating quotient like ``10 / 3``, divide-by-zero, or a value past
+the float64 exact range 2**53) — never approximated. True arbitrary
+precision (beyond 4 digits) is planning/22 Stage 3.
 """
 from __future__ import annotations
 
@@ -56,6 +61,35 @@ from kernel.router import Axon  # noqa: E402
 
 APPS_CALC = pathlib.Path(__file__).resolve().parent
 AXON_WIDTH = 768
+
+# digits.su is compiled directly (its `digit(n, place)` is a pure substrate
+# function call, not an axon service — the same direct-substrate pattern the GUI
+# uses for frame.su / count.su). That needs the Sutra compiler on the path.
+_SUTRA_SDK = _REPO_ROOT / "external" / "Sutra" / "sdk" / "sutra-compiler"
+if str(_SUTRA_SDK) not in sys.path:
+    sys.path.insert(0, str(_SUTRA_SDK))
+
+
+def _compile_su(su_path: pathlib.Path, runtime_dtype: str = "float64") -> dict:
+    """Compile a .su file directly; return its module namespace (functions + _VSA)."""
+    from sutra_compiler.codegen_pytorch import translate_module as torch_translate
+    from sutra_compiler.lexer import Lexer
+    from sutra_compiler.parser import Parser
+
+    src = su_path.read_text(encoding="utf-8")
+    lexer = Lexer(src, file=su_path.name)
+    toks = lexer.tokenize()
+    parser = Parser(toks, file=su_path.name, diagnostics=lexer.diagnostics)
+    module = parser.parse_module()
+    if lexer.diagnostics.has_errors():
+        raise SystemExit(f"{su_path.name} parse error: {list(lexer.diagnostics)}")
+    py = torch_translate(
+        module, llm_model="nomic-embed-text", runtime_dim=AXON_WIDTH,
+        runtime_dtype=runtime_dtype,
+    )
+    ns: dict = {}
+    exec(compile(py, su_path.name, "exec"), ns)
+    return ns
 
 # The operator is fed to switch.su as a 1-char STRING (make_string(op)); switch
 # reads its codepoint on the substrate and selects the operation there. No host
@@ -129,6 +163,56 @@ class Calculator:
             ),
             sink,
         )
+
+        # digits.su is compiled lazily on the first result_string() call, so the
+        # arithmetic-only path (the 57 evaluate() tests) doesn't pay for it.
+        self._digit = None
+        self._digit_vsa = None
+
+    # 4-digit demo scope (Emma 2026-05-25): the substrate digit decomposition
+    # covers integers 0..9999 (negatives get a leading '-').
+    DIGIT_MAX = 9999
+
+    def _ensure_digits(self) -> None:
+        if self._digit is None:
+            ns = _compile_su(APPS_CALC / "digits.su")
+            self._digit = ns["digit"]
+            self._digit_vsa = ns["_VSA"]
+
+    def result_string(self, value: int) -> str:
+        """Return the result's decimal digits as a STRING, decomposed ON THE
+        SUBSTRATE — Emma's product decision for step c.
+
+        Rather than return a host ``Fraction``, decompose the integer result
+        into its 1000s / 100s / 10s / 1s digits via ``digits.su`` (the
+        Fourier-series eigenrotation modulus + integer division) and join them.
+        Each digit is decoded from the substrate with ``real()``; the host only
+        assembles the string. The arithmetic upstream is kernel-routed; this is
+        the final substrate display step.
+
+        Non-negative integers 0..9999 (negatives get a leading ``-``). Raises
+        ``ValueError`` for a non-integer or out-of-range value — never a guessed
+        string.
+        """
+        if not isinstance(value, int):
+            raise ValueError(
+                f"result {value!r} is not an integer; the substrate digit string "
+                "is integer-only (step-c demo scope)"
+            )
+        if abs(value) > self.DIGIT_MAX:
+            raise ValueError(
+                f"result {value} is outside the 4-digit substrate-digit demo "
+                f"range (|x| <= {self.DIGIT_MAX})"
+            )
+        self._ensure_digits()
+        vsa = self._digit_vsa
+        n = abs(value)
+        digs = [
+            round(float(vsa.real(self._digit(float(n), float(place)))))  # SUBSTRATE
+            for place in (1000.0, 100.0, 10.0, 1.0)
+        ]
+        s = "".join(str(d) for d in digs).lstrip("0") or "0"
+        return ("-" if value < 0 else "") + s
 
     def evaluate(self, line: str) -> int | float:
         """Evaluate an arithmetic expression on the substrate.
@@ -262,7 +346,14 @@ def main() -> None:  # pragma: no cover - interactive REPL
         if not line:
             continue
         try:
-            print(calc.evaluate(line))
+            value = calc.evaluate(line)
+            # Integer results in the 4-digit demo range print as the digit
+            # STRING decomposed on the substrate (Emma's step c); other results
+            # print as the numeric value.
+            if isinstance(value, int) and abs(value) <= Calculator.DIGIT_MAX:
+                print(calc.result_string(value))
+            else:
+                print(value)
         except (ValueError, RuntimeError) as exc:
             print(f"error: {exc}")
 

@@ -25,11 +25,18 @@ not, for the stated reason.
    works only because it's a pure axon round-trip. Promote per § 2 below
    as each unblocks. (headline-demo step 1)
 
-2. **calc step c — return the substrate float instead of a host
-   `Fraction`** — *needs a PRODUCT DECISION from Emma, not autonomous.*
-   Doing it drops the "never a wrong answer" host-oracle refuse-gate
-   (CLAUDE.md flags the runtime refusal as impure). User-facing change.
-   See `planning/23` step c.
+2. **calc step c — return a substrate-decoded value, not a host `Fraction`**
+   — **DONE 2026-05-25 (Emma's product decision).** Instead of dropping the
+   refuse-gate to return a raw float, the result is decomposed into its
+   1000s/100s/10s/1s digits ON THE SUBSTRATE (`apps/calc/digits.su`:
+   Fourier-series eigenrotation modulus + integer division, `digit =
+   round(mod(floor(n/place)+0.5,10)-0.5)`; the +0.5 offset dodges the
+   branch-cut at multiples) and returned as a STRING via
+   `Calculator.result_string`. The digits are decoded from the substrate, host
+   only joins them. 4-digit demo scope (0..9999); `tests/test_calc_digits.py`
+   (4 tests, measured exact over all digit-boundary cases). The internal
+   `evaluate` still composes exact `Fraction`s + the monitoring oracle. See
+   `planning/23` step c.
 
 3. **calc step d remaining — full substrate parse** — *substrate `.su`
    surgery; do WITH Emma.* Shipped on the substrate: `parse_int2.su` (1–2
