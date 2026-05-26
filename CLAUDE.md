@@ -503,14 +503,20 @@ When in emergency stop mode:
 
 ## Hourly status-report cron for extensive work
 
-**For any session involving relatively extensive work — above all, any large-scale population of `queue.md` with created tasks — run a local hourly status-report cron.** Use the `CronCreate` tool to schedule a prompt that fires **every hour, on the hour**, giving a status report on the work being done. This is the default way of working on big jobs, and it exists to prevent the most common autonomous-agent failure: doing a large amount of work and silently losing the thread of what it is doing.
+The status-report cron lives inside the larger **three-cron playbook** documented in §"Autonomous productivity loop" above (work-loop at `:03`, auto-flush at `:15`, status-report at `:42`). On its own it is `42 * * * *` — fires every hour at :42 with a status report of the work being done. The two pinned tail items at the end of the queue ensure all three crons (not just this one) are running and run an end-of-session summary.
 
-**Sequencing around a large-scale queue fill:**
+## Check cleanvibe for skill updates (weekly)
 
-- **The FIRST queue item is always: kill the hourly update cron job.**
-- **... then all the created work items, worked top to bottom ...**
-- **The LAST TWO queue items, always kept pinned at the tail, are:**
-  1. **Restart the hourly updates cron job.**
-  2. **Independently run the status-report action once more — an end-of-session summary of everything that happened this session.**
+This `CLAUDE.md` carries cleanvibe-shaped sections (writing rules, emergency stop, cron policy, the productivity loop). cleanvibe ships new sections / skills over time — when one lands, this file should pick it up.
 
-**Planning mode disables this cron.** Entering planning mode kills the hourly cron; restarting it therefore belongs at the **end of the queue** (it is the second-to-last item above). A session that plans → fills the queue → executes will drop the cron when planning begins and bring it back as the queue drains.
+**The check is weekly, not per-session.** At the top of any session, look at the *last cleanvibe update check* date below. If it has been more than 7 days, do this:
+
+1. **Fetch the current skill index** — `WebFetch https://cleanvibe.emmaleonhart.com/updates.md`. This is the canonical, hand-maintained page describing every section / skill / convention cleanvibe templates currently ship, keyed by the cleanvibe version that introduced it.
+2. **Compare against the version below.** If `updates.md` lists sections introduced in later versions, fold those sections into THIS `CLAUDE.md`. Match the wording from `updates.md`; don't paraphrase. Yantra-specific carve-outs already in this file (cross-repo workflow, substrate-purity rules, kernel-as-Connectome-Manager, etc.) stay — only the generic sections are kept in sync.
+3. **Update the version + date below** to reflect the check. Commit the changes with a message describing which sections were folded in.
+
+If the fetch fails (offline, DNS, page not yet up), leave the date alone and try next session — the check is opportunistic, not mandatory.
+
+- **Last synced cleanvibe version:** `1.11.0`
+- **Last cleanvibe update check:** `2026-05-26`
+- **Updates source:** <https://cleanvibe.emmaleonhart.com/updates.md>
