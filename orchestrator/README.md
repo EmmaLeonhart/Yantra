@@ -51,3 +51,39 @@ cargo test            # host, default stable toolchain
 the default stable toolchain for host testing. The format contract is the
 point of the cross-check: if `kernel/serialise.py` changes the wire layout,
 the embedded-bytes tests here fail by design.
+
+## Inspect a checkpoint
+
+A `dump-checkpoint` binary composes the codecs + `json` reader into a
+developer tool that prints what's inside a real `.ykst` file:
+
+```bash
+cargo run --bin dump-checkpoint -- <path.ykst>
+```
+
+For the committed fixture (echo on GPU with one queued f32 axon + echo2 on DISC):
+
+```text
+YKST checkpoint: pool 8/10, 2 process(es)
+
+[0] echo (tier=GPU)
+    axon_width    = 768
+    compute_units = 1
+    source        = echo.su
+    read_roles    = ["R_stdin"]
+    write_roles   = ["R_stdout"]
+    axon_keys     = ["stdin_text"]
+    identity.kind = sutra
+    source_path   = ..\apps\echo\echo.su
+    runtime_dtype = float32
+    inbox: 1 axon(s)
+      [0] role=R_stdin from=external keys=["stdin_text"] payload=f32x3
+
+[1] echo2 (tier=DISC)
+    ...
+    inbox: 0 axon(s)
+```
+
+The binary uses `std` (for `fs::read` + `println!`); the lib it depends on stays
+`no_std`-ready. First real Rust program that composes the orchestrator units as
+a developer tool, not just a test.
