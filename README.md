@@ -56,7 +56,7 @@ integers hold to 2⁵³, and the answer's digits are then decomposed back ON the
 Fourier-series modulus and shown as a string), a first **GUI** (`apps/gui/`, every pixel
 computed on the substrate, plus click demos whose state runs on the substrate — a red↔blue toggle, and
 a click-to-count counter (each +1 and the glow's screen position computed on the substrate; also driven by a Rust-orchestrator window over a subprocess bridge)), a **terminal** surface (`apps/terminal/`,
-echo/calc through the kernel), and **echo**. The kernel + apps test gate
+echo/calc through the kernel), **echo**, and a **text-input pixel-font demo** (`apps/font/`, press A–Z or 0–9 → 5×5 glyph whose lit/unlit bit at each cell is decided on the substrate via Emma's recurrent `prev*0 + glyph_pixel(...)` step over a 36-way defuzzified `select`). The kernel + apps test gate
 covers admission control, the axon router, capability checks, real `.su`
 programs compiled and executed through the router (on the real GPU —
 admit allocates GPU memory, `_VSA.device == cuda`), the calculator, the
