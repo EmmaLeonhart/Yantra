@@ -146,14 +146,20 @@ def main() -> None:
 
     root = tk.Tk()
     root.title("Yantra font -- press A-Z or 0-9 (glyph decided on the substrate)")
+    # Black background on the toplevel so the padding around the glyph reads as
+    # one continuous frame instead of grey-stripe-around-black-rectangle.
+    root.configure(bg="black")
     photo0 = make_photo(state["field"])
-    label = tk.Label(root, image=photo0, bg="black")
+    label = tk.Label(root, image=photo0, bg="black", borderwidth=0)
     label.image = photo0
-    label.pack()
+    # Padding around the 5x5 glyph: at default cell=40 the glyph is 200x200, so
+    # 1 cell of breathing room each side = 40 px gives the character a frame to
+    # sit in instead of sitting flush against the window chrome.
+    label.pack(padx=args.cell, pady=args.cell)
     status = tk.Label(
-        root,
+        root, bg="black", fg="#aaaaaa",
         text="press any A-Z or 0-9 key -- step(prev, x, y, code) runs on the Sutra substrate")
-    status.pack()
+    status.pack(padx=args.cell, pady=(0, args.cell // 2))
 
     def on_key(event):
         ch = (event.char or "").upper()
