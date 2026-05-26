@@ -25,6 +25,26 @@ test-isolation / shared-substrate artifact (it usually is) — run it alone befo
 concluding a capability is missing. If you catch yourself hedging "probably no
 CUDA / probably won't work," stop: verify by running, the capability is there.
 
+### Active — calc step c: substrate digit extraction → return a string (Emma's product decision)
+
+Emma's product decision unblocks calc step c: instead of returning a host
+`Fraction` behind a host-oracle gate, extract the result's digits (1000s/100s/
+10s/1s) ON THE SUBSTRATE via the Fourier-series modulus (`Math.mod`) — integer
+division — and return a STRING. More impressive + substrate-derived.
+
+1. INVESTIGATE FIRST (don't implement what's not measured): prototype
+   `digit_k = round((mod(n, 10^(k+1)) - mod(n, 10^k)) / 10^k)` in Sutra; measure
+   across n=0..9999, watch the branch-cut at exact multiples of m. If round()
+   snapping recovers every digit, Emma's method works; if not, document the
+   precise failure + the floor-based exact alternative (also substrate, also
+   "integer division").
+2. Add `apps/calc/digits.su` (Fourier-mod digit extraction) and have calc return
+   a substrate-decoded digit STRING for the final result (4-digit demo scope,
+   0..9999). Keep the existing int/float `evaluate` for the test suite OR add a
+   string path; don't break the 57 calc tests — add tests for the digit string.
+3. Substrate-pure: digits decoded from the substrate, host only assembles the
+   string. Run it; only ship if measured exact.
+
 ### Blocker (NARROWED 2026-05-17, not closed) — axon_project no-op across the connectome
 
 The intra-module slice of the real fix shipped (Sutra v0.4.1,
