@@ -4,8 +4,6 @@
 
 A neuro-symbolic, GPU-native operating system written in Sutra.
 
-🌐 **Website: <https://yantra.emmaleonhart.com>**
-
 ## What it is
 
 Yantra is the operating system you get when you take "the symbol *is* the
@@ -40,7 +38,7 @@ storage-tier decision. The CPU-side orchestrator is **Rust**.
 
 **Bare-metal QEMU bootloader (v0.0)** at [`bootloader/`](bootloader/) — first Yantra-authored binary that runs on virtualized bare metal. Build with `scripts/qemu-build.{sh,bat}`, boot with `scripts/qemu-run.{sh,bat}`. See [`bootloader/README.md`](bootloader/README.md).
 
-**Rust orchestrator (incremental)** at [`orchestrator/`](orchestrator/) — the CPU-side Connectome Manager being ported to Rust as small, host-testable `no_std`-ready units, each verified byte-for-byte against the Python `kernel/`. Shipped so far: the full checkpoint wire-codec stack — axon payload (`YAXN`) → envelope (`YAXE`) → per-process cold-store (`YPRC`) → whole-kernel checkpoint (`YKST`). See [`orchestrator/README.md`](orchestrator/README.md).
+**Rust orchestrator (incremental)** at [`orchestrator/`](orchestrator/) — the CPU-side Connectome Manager being ported to Rust as small, host-testable `no_std`-ready units, each verified byte-for-byte against the Python `kernel/`. Shipped so far: the full checkpoint wire-codec stack — axon payload (`YAXN`) → envelope (`YAXE`) → per-process cold-store (`YPRC`) → whole-kernel checkpoint (`YKST`) — plus a `no_std` flat-JSON reader for checkpoint manifests, and a `dump-checkpoint` binary that composes the units on a real fixture. See [`orchestrator/README.md`](orchestrator/README.md).
 
 The intended customer is not a consumer desktop user. It is defense,
 aerospace, industrial control, medical devices, autonomous systems —
@@ -74,13 +72,20 @@ formal-verification tooling `from sutra_compiler import fv`; plus the
 TS→Sutra transpiler CLI, axon-keys static analysis, the per-receiver
 projection primitive, the `dot` builtin + selectable `runtime_dtype`
 (float64), and `MultiProcessRuntime` — N programs sharing one `_VSA`).
-Sutra's website: <https://sutralang.dev>. The orchestration layer is
+Sutra's website: <https://sutra.emmaleonhart.com>. The orchestration layer is
 Python here as the near-term implementation; the production target on the
 CPU side is Rust.
 
 Yantra is being designed (and now early-prototyped) here so that when
 the upstream Sutra-side multi-process runtime + the production Rust
 orchestrator land, there is a coherent target.
+
+CI gates every build artifact on every push: the kernel + apps pytest
+suite (host + inside the dev container), `cargo test` on the Rust
+orchestrator (including a `dump-checkpoint` smoke), an end-to-end
+`--check` of the Rust-GUI ↔ Sutra-substrate subprocess bridge, and a
+`cargo build` of the bare-metal bootloader on its pinned nightly. See
+[.github/workflows/ci.yml](.github/workflows/ci.yml).
 
 ## Dev environment
 
@@ -119,29 +124,12 @@ This is tier 1 of the three "VM tiers" planned for Yantra. Tier 2 (cloud GPU VM,
 - [paper/paper.md](paper/paper.md) — position paper synthesising the
   planning corpus. The fastest single-document entry to what Yantra is
   and why. Auto-submitted to [clawRxiv](https://clawrxiv.io) for AI peer
-  review on every push; reviews live in [paper/reviews/](paper/reviews/).
+  review on every push; reviews live in [paper/reviews/](paper/reviews/),
+  pipeline details in [paper/README.md](paper/README.md).
 - [planning/](planning/README.md) — the design notes, in reading order.
   Start with [`00-vision.md`](planning/00-vision.md).
-
-## Paper pipeline
-
-`paper/paper.md` is the canonical position paper. Editing it on main
-triggers `.github/workflows/submit-papers.yml`, which submits to
-clawRxiv (superseding the previous version tracked in
-`paper/.post_id`), fetches the AI peer review, and commits the result
-back to `paper/reviews/v{N}_post{ID}_review.{json,md}`. A scheduled
-`pull-reviews.yml` runs every 30 minutes to catch up any reviews that
-weren't ready at submission time. Requires the `CLAWRXIV_API_KEY`
-repository secret to be set.
-
-Local invocation:
-
-```bash
-set CLAWRXIV_API_KEY=...
-python scripts/paper_submit_and_fetch.py --paper-dir paper \
-    --tags operating-systems,neuro-symbolic,gpu,formal-verification,critical-systems
-python scripts/pull_all_reviews.py --paper-dir paper
-```
+- [ONBOARDING.md](ONBOARDING.md) — quick setup checklist for getting
+  oriented across the Yantra / Sutra / SutraDB / alignment repos.
 
 ## Contributing
 
