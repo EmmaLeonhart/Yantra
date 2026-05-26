@@ -201,15 +201,21 @@ impl<'a> Iterator for StrArrayIter<'a> {
 
 /// Un-escape a raw JSON string (the content [`get_str`] returns) into `out`,
 /// writing the resolved bytes and returning how many were written. Handles the
-/// common JSON escapes (`\\`, `\"`, `\/`, `\n`, `\t`, `\r`, `\b`, `\f`).
+/// common JSON escapes (`\\`, `\"`, `\/`, `\n`, `\t`, `\r`, `\b`, `\f`) and
+/// `\uXXXX` for BMP codepoints (1–3 byte UTF-8 sequences).
 ///
-/// Returns `None` on an unknown escape, a trailing `\` with no follower, or a
-/// buffer too small. (A buffer of `raw.len()` always suffices: escapes shrink
-/// the byte count, never grow it.)
+/// Returns `None` on an unknown escape, a malformed `\uXXXX` (short/non-hex), a
+/// surrogate codepoint `\uD800..=\uDFFF`, a trailing `\` with no follower, or a
+/// buffer too small. A buffer of `raw.len()` always suffices for the simple
+/// escapes (they shrink); `\uXXXX` shrinks too (6 input bytes → at most 3 UTF-8
+/// bytes for BMP), so `out.len() >= raw.len()` is a safe upper bound for any
+/// well-formed input.
 ///
-/// `\uXXXX` is **deferred** — out of scope for the kernel checkpoint schema
-/// (the only escaped field the kernel emits is a Windows `source_path`'s `\\`).
-/// Named, not faked: a `\u` escape returns `None`.
+/// **Surrogate pairs (`😀` for astral plane codepoints) are NOT
+/// supported** — refused, not faked. The kernel checkpoint schema doesn't emit
+/// them; adding pair handling without a real consumer would be untested code.
+/// If you hit this, supply the codepoint directly (as UTF-8) instead of as a
+/// surrogate-pair escape.
 pub fn unescape_into(raw: &[u8], out: &mut [u8]) -> Option<usize> {
     let mut i = 0;
     let mut o = 0;
@@ -226,10 +232,25 @@ pub fn unescape_into(raw: &[u8], out: &mut [u8]) -> Option<usize> {
         if i + 1 >= raw.len() {
             return None; // trailing backslash
         }
+        let c = raw[i + 1];
+        if c == b'u' {
+            // \uXXXX — four hex digits → BMP codepoint → UTF-8 (1–3 bytes).
+            if i + 6 > raw.len() {
+                return None; // truncated escape
+            }
+            let cp = parse_hex4(&raw[i + 2..i + 6])?;
+            if (0xD800..=0xDFFF).contains(&cp) {
+                return None; // surrogate codepoint — refused (see doc)
+            }
+            let n = utf8_encode_bmp(cp, out.get_mut(o..)?)?;
+            o += n;
+            i += 6;
+            continue;
+        }
         if o >= out.len() {
             return None;
         }
-        let resolved = match raw[i + 1] {
+        let resolved = match c {
             b'\\' => b'\\',
             b'"' => b'"',
             b'/' => b'/',
@@ -238,13 +259,56 @@ pub fn unescape_into(raw: &[u8], out: &mut [u8]) -> Option<usize> {
             b'r' => b'\r',
             b'b' => 0x08,
             b'f' => 0x0c,
-            _ => return None, // unknown escape (incl. \u — deferred)
+            _ => return None,
         };
         out[o] = resolved;
         o += 1;
         i += 2;
     }
     Some(o)
+}
+
+/// Parse exactly 4 ASCII hex digits into a codepoint. `None` on any non-hex.
+fn parse_hex4(b: &[u8]) -> Option<u32> {
+    if b.len() != 4 {
+        return None;
+    }
+    let mut v: u32 = 0;
+    for &ch in b {
+        let d = match ch {
+            b'0'..=b'9' => ch - b'0',
+            b'a'..=b'f' => ch - b'a' + 10,
+            b'A'..=b'F' => ch - b'A' + 10,
+            _ => return None,
+        };
+        v = (v << 4) | (d as u32);
+    }
+    Some(v)
+}
+
+/// Encode a BMP codepoint (0..=0xFFFF, surrogates pre-filtered) as 1–3 UTF-8
+/// bytes into `out`. Returns the bytes written, or `None` if `out` is too small.
+fn utf8_encode_bmp(cp: u32, out: &mut [u8]) -> Option<usize> {
+    if cp < 0x80 {
+        *out.get_mut(0)? = cp as u8;
+        Some(1)
+    } else if cp < 0x800 {
+        if out.len() < 2 {
+            return None;
+        }
+        out[0] = 0xC0 | (cp >> 6) as u8;
+        out[1] = 0x80 | (cp & 0x3F) as u8;
+        Some(2)
+    } else {
+        // cp <= 0xFFFF; surrogates D800..=DFFF were filtered upstream.
+        if out.len() < 3 {
+            return None;
+        }
+        out[0] = 0xE0 | (cp >> 12) as u8;
+        out[1] = 0x80 | ((cp >> 6) & 0x3F) as u8;
+        out[2] = 0x80 | (cp & 0x3F) as u8;
+        Some(3)
+    }
 }
 
 #[cfg(test)]
@@ -340,9 +404,50 @@ mod tests {
     }
 
     #[test]
-    fn unescape_rejects_unicode_escape() {
-        // \uXXXX is deferred. Refuse, don't fake.
+    fn unescape_unicode_ascii() {
+        // A -> 'A' (1-byte UTF-8).
         let raw = b"a\\u0041b";
+        let mut out = [0u8; 16];
+        let n = unescape_into(raw, &mut out).unwrap();
+        assert_eq!(&out[..n], b"aAb");
+    }
+
+    #[test]
+    fn unescape_unicode_2_byte() {
+        // é -> é (2-byte UTF-8: 0xC3 0xA9).
+        let raw = b"caf\\u00E9";
+        let mut out = [0u8; 16];
+        let n = unescape_into(raw, &mut out).unwrap();
+        assert_eq!(&out[..n], "café".as_bytes());
+    }
+
+    #[test]
+    fn unescape_unicode_3_byte_bmp() {
+        // 中 -> 中 (3-byte UTF-8: 0xE4 0xB8 0xAD).
+        let raw = b"x\\u4E2Dy";
+        let mut out = [0u8; 16];
+        let n = unescape_into(raw, &mut out).unwrap();
+        assert_eq!(&out[..n], "x中y".as_bytes());
+    }
+
+    #[test]
+    fn unescape_rejects_surrogate_codepoint() {
+        // High surrogate alone — refuse rather than fake.
+        let raw = b"\\uD83D";
+        let mut out = [0u8; 16];
+        assert_eq!(unescape_into(raw, &mut out), None);
+    }
+
+    #[test]
+    fn unescape_rejects_truncated_unicode() {
+        let raw = b"\\u00"; // only 2 hex digits
+        let mut out = [0u8; 16];
+        assert_eq!(unescape_into(raw, &mut out), None);
+    }
+
+    #[test]
+    fn unescape_rejects_non_hex_unicode() {
+        let raw = b"\\uZZZZ";
         let mut out = [0u8; 16];
         assert_eq!(unescape_into(raw, &mut out), None);
     }
