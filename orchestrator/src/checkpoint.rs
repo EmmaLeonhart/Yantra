@@ -727,4 +727,23 @@ mod tests {
             Err(ParseError::TooShort)
         ));
     }
+
+    #[test]
+    fn manifest_and_identity_json_read_via_json_module() {
+        // End-to-end: the codec hands back manifest_json / identity_json as
+        // opaque bytes; crate::json turns them into typed fields. Parse the real
+        // YKST fixture, take echo's record, and read its manifest + identity.
+        use crate::json;
+        let cp = parse_kernel_checkpoint(PY_YKST).unwrap();
+        let rec = cp.processes().next().unwrap().unwrap();
+        assert_eq!(rec.name, "echo");
+        assert_eq!(json::get_str(rec.manifest_json, "name"), Some("echo"));
+        assert_eq!(json::get_u32(rec.manifest_json, "axon_width"), Some(768));
+        assert_eq!(json::get_u32(rec.manifest_json, "compute_units"), Some(1));
+        let read: Vec<&str> =
+            json::get_str_array(rec.manifest_json, "read_roles").unwrap().collect();
+        assert_eq!(read, vec!["R_stdin"]);
+        assert_eq!(json::get_str(rec.identity_json, "kind"), Some("sutra"));
+        assert_eq!(json::get_str(rec.identity_json, "entry_point"), Some("on_axon"));
+    }
 }
