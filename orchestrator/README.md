@@ -29,10 +29,16 @@ test harness so every unit stays host-testable.
     storage `Tier` + inbox): `parse_kernel_checkpoint` / `write_kernel_checkpoint`.
 
   Both read the binary framing (name + manifest/identity JSON + an inbox of
-  `YAXE` envelopes); the JSON fields are returned as borrowed bytes — JSON
-  parsing is **deferred** (`no_std`/no-alloc can't build the maps; see the
-  module note). Cross-checked against committed fixtures of real Python output
-  (`tests/fixtures/echo_process.yprc`, `tests/fixtures/kernel_state.ykst`).
+  `YAXE` envelopes); the JSON fields come back as borrowed bytes, read by the
+  **`json`** unit (below). Cross-checked against committed fixtures of real
+  Python output (`tests/fixtures/echo_process.yprc`,
+  `tests/fixtures/kernel_state.ykst`).
+- **`json`** — a minimal `no_std`/no-alloc reader for the FLAT JSON schema the
+  kernel emits (object of strings, non-negative ints, string arrays):
+  `get_str` / `get_u32` / `get_str_array`. A structural scanner (never
+  false-matches a key inside a value; escape pairs skipped). Strings returned
+  raw (un-escaping deferred). This turns the codecs' opaque manifest/identity
+  bytes into typed fields — verified end-to-end against the YKST fixture.
 
 ## Build / test
 
