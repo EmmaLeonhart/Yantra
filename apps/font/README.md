@@ -11,9 +11,17 @@ python apps/font/font_demo.py --render A  # save A.png and exit (no window)
 python apps/font/font_demo.py --cell 40   # pixel cell size (default 40 -> 200x200 image)
 ```
 
-First run compiles `font.su` and warms the codebook (slow — many embeddings);
-subsequent keypresses reuse the compile (a few hundred substrate ops per
-keypress for the 5×5 render).
+First run runs Sutra's codegen on `font.su` (~5 min on this machine — 36
+letter functions × 25-way `select` each + an outer 36-way `select` add up
+to ~25 k AST tokens and ~172 KB of emitted Python). The output is
+deterministic, so it gets cached on disk as
+`apps/font/.font.su.compiled-sutra<ver>-<hash>.py`; subsequent runs skip
+codegen and start in ~3 s. The cache invalidates automatically if either
+`font.su` or the Sutra version changes (both go into the cache key). The
+cache file is committed so CI and fresh clones also skip the 5-min wait.
+Profiled: the slow step is the codegen pass itself — there are zero ollama
+calls and zero codebook lookups for this program (no string roles, no
+`axon_item`, just numbers + `select`).
 
 ## What runs on the substrate
 

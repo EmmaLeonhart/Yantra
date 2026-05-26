@@ -50,24 +50,71 @@ _COMPILED: dict = {}
 
 
 def _compile():
+    """Compile font.su and return its namespace. Disk-cached.
+
+    Sutra's codegen (`codegen_pytorch.translate_module`) takes ~5 min on
+    this .su (36 letter functions x 25-way select each + a 36-way outer
+    select -> ~25k AST tokens, ~172 KB of emitted Python). The output is
+    deterministic for a given .su, so we cache the EMITTED PYTHON SOURCE on
+    disk and skip the codegen pass on subsequent runs. Cache is keyed by a
+    SHA-256 of the .su content; edit the .su and the cache invalidates
+    automatically.
+
+    First run:    ~5 min (codegen + Python exec + ~0.5 s to load torch)
+    Cached runs:  ~3 s   (just exec the cached .py)
+    """
     cached = _COMPILED.get("font.su")
     if cached is not None:
         return cached
 
-    from sutra_compiler.codegen_pytorch import translate_module as torch_translate
-    from sutra_compiler.lexer import Lexer
-    from sutra_compiler.parser import Parser
+    import hashlib
+    import time
+
+    # Cache key: hash of the .su content + Sutra's package version. Either one
+    # changing invalidates the cache; the codegen output depends on both. We do
+    # NOT key on the dim/llm_model strings -- those are part of the .su's
+    # numeric contract, not user-tweakable here.
+    import sutra_compiler  # for __version__
 
     src = (APPS_FONT / "font.su").read_text(encoding="utf-8")
-    lexer = Lexer(src, file="font.su")
-    toks = lexer.tokenize()
-    parser = Parser(toks, file="font.su", diagnostics=lexer.diagnostics)
-    module = parser.parse_module()
-    if lexer.diagnostics.has_errors():
-        raise SystemExit(f"font.su parse error: {list(lexer.diagnostics)}")
-    py = torch_translate(module, llm_model="nomic-embed-text", runtime_dim=768)
+    src_hash = hashlib.sha256(src.encode("utf-8")).hexdigest()[:12]
+    sutra_ver = getattr(sutra_compiler, "__version__", "unknown").replace(".", "_")
+    cache_path = APPS_FONT / f".font.su.compiled-sutra{sutra_ver}-{src_hash}.py"
+
+    if cache_path.exists():
+        py = cache_path.read_text(encoding="utf-8")
+    else:
+        from sutra_compiler.codegen_pytorch import translate_module as torch_translate
+        from sutra_compiler.lexer import Lexer
+        from sutra_compiler.parser import Parser
+
+        print(
+            "[font] first-run cache miss -- running Sutra codegen on font.su.\n"
+            "[font] This takes ~5 min on this machine and ONLY happens once "
+            "per .su edit;\n"
+            "[font] the result lands at " + str(cache_path.name) + " and is "
+            "reused on every later run.",
+            flush=True,
+        )
+        t0 = time.time()
+
+        lexer = Lexer(src, file="font.su")
+        toks = lexer.tokenize()
+        parser = Parser(toks, file="font.su", diagnostics=lexer.diagnostics)
+        module = parser.parse_module()
+        if lexer.diagnostics.has_errors():
+            raise SystemExit(f"font.su parse error: {list(lexer.diagnostics)}")
+        py = torch_translate(module, llm_model="nomic-embed-text", runtime_dim=768)
+
+        # Atomic write so a Ctrl-C mid-codegen doesn't leave a half-baked cache.
+        tmp = cache_path.with_suffix(cache_path.suffix + ".tmp")
+        tmp.write_text(py, encoding="utf-8")
+        tmp.replace(cache_path)
+        print(f"[font] codegen done in {time.time() - t0:.1f} s -> cached at "
+              f"{cache_path.name}", flush=True)
+
     ns: dict = {}
-    exec(compile(py, "font.su", "exec"), ns)
+    exec(compile(py, str(cache_path), "exec"), ns)
     _COMPILED["font.su"] = ns
     return ns
 
@@ -127,6 +174,13 @@ def main() -> None:
         img.save(out)
         print(f"[font] saved {out} (char {ch!r}, code {ord(ch)})")
         return
+
+    # Pre-compile font.su BEFORE opening the window so the window doesn't sit
+    # frozen on first keypress while Sutra codegen runs (~5 min on this machine,
+    # instant after the on-disk cache is populated -- see _compile()). The
+    # printout above tells the user what's happening so the wait isn't a black
+    # box. After this returns, every keypress is fast.
+    _compile()
 
     import tkinter as tk
     from PIL import Image, ImageTk
