@@ -1,6 +1,6 @@
 name: CI
 
-# Three jobs:
+# Four jobs:
 #   - test:               the fast lane. Sets up Python 3.13 + CPU torch + the
 #                         Sutra submodule and runs pytest. Mirrors what most
 #                         contributors do locally.
@@ -11,9 +11,17 @@ name: CI
 #                         (the YAXN/YAXE/YPRC/YKST checkpoint codecs + the json
 #                         reader + the dump-checkpoint binary). Has no third-
 #                         party deps, so no system-lib install or --locked
-#                         complexity. apps/gui-rust (minifb needs X11 libs) and
-#                         bootloader/ (nightly + build-std + custom target) are
-#                         deferred to separate CI.
+#                         complexity.
+#   - gui-rust:           cargo build + headless bridge `--check` for the
+#                         apps/gui-rust counter binary (Rust window over a
+#                         subprocess bridge to a Python+Sutra substrate child).
+#                         Needs minifb's Linux libs + Python+torch for the
+#                         substrate. Pre-warms the Sutra codebook cache from
+#                         the committed fixture so the substrate doesn't need
+#                         an ollama daemon.
+#
+# bootloader/ (custom JSON target + nightly + build-std + rust-src) is deferred
+# to separate CI plumbing.
 
 on:
   push:
@@ -106,3 +114,47 @@ jobs:
       - name: dump-checkpoint smoke (compose the units on the committed YKST fixture)
         working-directory: orchestrator
         run: cargo run --quiet --bin dump-checkpoint -- tests/fixtures/kernel_state.ykst > /dev/null
+
+  gui-rust:
+    name: gui-rust — cargo build + bridge --check (subprocess to Sutra)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # apps/gui-rust is the Rust orchestrator front-end for the counter GUI: a
+    # minifb window in Rust, with the count + pixel field computed on the Sutra
+    # substrate in a Python child over a subprocess bridge. CI can't open a
+    # window, so it runs the binary's --check mode, which exercises the FULL
+    # bridge end-to-end (spawn substrate, request init + 3 clicks, verify the
+    # substrate count + frame dims) without needing a screen.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: System libs for minifb (X11 + Wayland + xkbcommon — build-only)
+        # minifb 0.27 links X11 + Wayland on Linux even when the window isn't
+        # opened (--check spawns the substrate but skips minifb::Window::new).
+        # Without these the build itself fails before --check runs.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-dev libwayland-dev libx11-dev
+      - name: Init Sutra submodule (substrate server compiles .su)
+        run: git submodule update --init external/Sutra
+      - name: Python deps for the substrate server
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - name: Pre-warm Sutra codebook cache (avoid ollama in the Python child)
+        # The spawned substrate inherits this; same fixture the pytest conftest
+        # uses, just placed at the default cache location so the Rust-spawned
+        # Python finds it without needing XDG_CACHE_HOME wiring.
+        run: |
+          mkdir -p "$HOME/.cache/sutra/embeddings"
+          cp tests/fixtures/nomic-embed-text-d868.pt "$HOME/.cache/sutra/embeddings/"
+      - name: cargo build (gui-rust binary)
+        working-directory: apps/gui-rust
+        run: cargo build --bin yantra-gui-counter
+      - name: bridge --check (Rust spawns substrate, counts on the substrate, no window)
+        working-directory: apps/gui-rust
+        run: cargo run --quiet --bin yantra-gui-counter -- --check
