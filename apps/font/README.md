@@ -79,11 +79,13 @@ as `apps/gui/click_demo.py`), but the substrate parts ARE tested.
 ## Design notes
 
 - **One step / one cell per substrate call** — like `count.su` and
-  `frame.su`, the substrate function is scalar-in / vector-out and the host
-  loops over (x, y) to assemble the field. Batching a whole 5×5 frame into a
-  single substrate call is blocked on the same Sutra-side `make_real`
-  batching gap that blocks `apps/gui` from batching its 64×64 render (see
-  `queue.md`).
+  `frame.su`, this .su is scalar-in / vector-out and the host loops over
+  (x, y) to assemble the field. This is a **host design choice** I copied
+  from those demos, not a Sutra limitation. A `font.su` that takes a vector
+  input (e.g. char_code) and returns a 25-element vector in one call is
+  possible — the substrate has the primitives — and would let the demo
+  re-render with one substrate call per keystroke instead of 25. Not done
+  yet; flagged as a follow-up, not as "blocked."
 - **Glyph lookup is one of the largest defuzzified switches in the
   codebase** — 36 outer branches × 25 inner branches per letter. The .su is
   ~1.2k lines; compile time is non-trivial (cached after first run).
