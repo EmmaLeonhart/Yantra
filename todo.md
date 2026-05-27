@@ -13,11 +13,11 @@
 
 ## stuff Emma is saying to do
 
-fix uo the queue.md because it has a lot of crud
-
 fix up the claude.md because it has bloat
 
 barrel through all of the blocked things below
+
+(queue.md crud fixup — done 2026-05-27, 250→63 lines, shipped narrative moved to git log; see DEVLOG)
 
 ## ⛔ Blocked / not-autonomous — surfaced 2026-05-24 (Emma asked these be pinned at the top)
 
