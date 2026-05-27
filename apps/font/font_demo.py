@@ -197,10 +197,6 @@ def main() -> None:
         photo = make_photo(new_field)
         label.configure(image=photo)
         label.image = photo
-        ch = chr(int(state["char_code"]))
-        # Stdout (not the window) for debug — strictly host I/O, not painted
-        # anywhere the user could confuse for substrate output.
-        print(f"[font] tick -> code {int(state['char_code'])} ({ch!r})", flush=True)
         root.after(tick_ms, tick)
 
     def on_key(event):
@@ -212,7 +208,6 @@ def main() -> None:
         # Stash the typed code; the next tick passes it to cycle_step with
         # has_typed=1.0 and the substrate weighted-sum gate picks it.
         state["pending_typed"] = ord(ch)
-        print(f"[font] keypress {ch!r} -> pending override (substrate decides next tick)", flush=True)
 
     root.bind("<Key>", on_key)
     root.after(tick_ms, tick)
