@@ -12,9 +12,23 @@ See `CLAUDE.md` § "Workflow Rules" for how this file, planning mode, and the ta
 
 ## Active
 
-### 🚨 Substrate-honesty audit across every Yantra app (Emma 2026-05-27)
+### 🚨 Substrate-honesty audit across every Yantra app (Emma 2026-05-27) — IN PROGRESS
 
-Trigger: today's session uncovered that the font demo was running at runtime_dim=768 when the task actually needs runtime_dim=8 (98% dim waste, no `basis_vector` in the .su so no embeddings needed). Emma's view: "every other Yantra programme that creates a graphical user interface that you wrote is also fake" — needs to be checked, not assumed. Apps under `apps/` (echo, calc, terminal, gui/*, font) and `kernel/` need an honest pass: (a) what runtime_dim does each .su actually require (count basis_vector calls; if none → tiny dim is fine); (b) is each demo's "recurrent step" / "RNN" / "substrate-pure" framing matched by what the code does, or is host-Python carrying state across substrate calls; (c) is the runtime cost paying for substrate work it doesn't need to do. Findings get written into the per-app README + planning notes; queue items spawn for each fix. Pre-existing apps (toggle, count, click_demo, calc, terminal) get the same scrutiny as font.
+**Survey done** (planning/27-substrate-honesty-audit-2026-05-27.md):
+NONE of apps/{calc,gui/count,gui/frame,gui/toggle,echo}.su call `basis_vector`,
+yet ALL use `runtime_dim=768`. Same 96× bloat the font demo had until
+commit e22c80a. Per-app fix items:
+
+- `apps/calc/calc.py:63 AXON_WIDTH=768` → measure correctness at dim=8/16, drop dim.
+- `apps/gui/count.su` + `counter_demo.py:61` → measure + drop to dim=8.
+- `apps/gui/frame.su` + `window.py:39` → measure + drop.
+- `apps/gui/toggle.su` + `click_demo.py:47` → measure + drop.
+- `apps/echo/echo.su` (inherits kernel default 768) → measure + per-manifest dim.
+- `kernel/services.py:425` default `runtime_dim=768` → review whether the default
+  should require explicit choice instead of silently bloating.
+- Separate framing pass per app: is the recurrence host-shaped (state on host
+  via `vsa.real()` between ticks)? `count.su`'s `step(n) = make_real(n+1.0)` is
+  exactly this pattern, same as the font cycle — host-state-shuttle, not RNN.
 
 ### 🤖 Daily-audit GitHub Action — prepend a substrate-honesty check to queue.md each day
 
