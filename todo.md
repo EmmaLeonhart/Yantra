@@ -10,6 +10,15 @@
 
 ---
 
+
+## stuff Emma is saying to do
+
+fix uo the queue.md because it has a lot of crud
+
+fix up the claude.md because it has bloat
+
+barrel through all of the blocked things below
+
 ## ⛔ Blocked / not-autonomous — surfaced 2026-05-24 (Emma asked these be pinned at the top)
 
 These are the queue items that were **deliberately NOT done autonomously**
