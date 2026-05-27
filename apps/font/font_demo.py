@@ -72,11 +72,20 @@ _COMPILED: dict = {}
 def _compile():
     """Compile font.su and return its namespace.
 
-    Delegates to ``sutra_compiler.compile_su`` (Sutra >= v0.7.1), which
-    caches the emitted Python on disk so repeat runs skip the ~5-min
-    codegen pass entirely. The bespoke cache logic that originally lived
-    here moved into the SDK so every consumer (calc, gui, kernel, ...)
-    gets the same benefit -- see commit fa89d359 in Sutra.
+    Uses ``runtime_dim=8`` (NOT 768). font.su contains no ``basis_vector``
+    calls -- it uses only ``make_real`` + arithmetic + ``select``, which
+    are pure math operations that don't touch the LLM codebook. So no
+    embeddings are needed and the runtime dim can be tiny. Measured
+    2026-05-27: at runtime_dim=8 the cycle_step / glyph_pixel results
+    are still exact (codes 66.000000 for A->B, etc.; glyph patterns
+    pixel-exact vs the font oracle).
+
+    Why this matters: the previous runtime_dim=768 was 96x bigger than
+    needed for this task. Every substrate op was doing 768-element
+    tensor work to carry 1 scalar of information. Switching to 8
+    eliminates the bulk of the per-tick slowness Emma asked about.
+    ``llm_model`` is still required by the API but unused at runtime
+    when no basis_vector calls are present.
     """
     cached = _COMPILED.get("font.su")
     if cached is not None:
@@ -84,8 +93,8 @@ def _compile():
     from sutra_compiler import compile_su
     mod = compile_su(
         APPS_FONT / "font.su",
-        llm_model="nomic-embed-text",
-        runtime_dim=768,
+        llm_model="unused-no-basis-vectors-in-font.su",
+        runtime_dim=8,
     )
     _COMPILED["font.su"] = mod.__dict__
     return mod.__dict__
