@@ -57,8 +57,13 @@ def _compile(su_name: str) -> dict:
     if cached is not None:
         return cached
     from sutra_compiler import compile_su
+    # runtime_dim=8 is enough: count.su uses only make_real + arithmetic, no
+    # basis_vector calls, so the LLM codebook is never touched and 766 of 768
+    # dims were dead weight. Measured exact at dim=8 (2026-05-27 audit, see
+    # planning/27-substrate-honesty-audit-2026-05-27.md). llm_model still
+    # required by the API but unused at runtime.
     mod = compile_su(APPS_GUI / su_name,
-                     llm_model="nomic-embed-text", runtime_dim=768,
+                     llm_model="unused-no-basis-vectors", runtime_dim=8,
                      verbose=False)
     ns = mod.__dict__
     _COMPILED[su_name] = ns
