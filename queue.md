@@ -30,6 +30,12 @@ Goal + roadmap: `planning/22-meta-demo-replication.md`. Stage-1 harness, CLI cal
 
 Not in scope: replicating the *video / screen-frame generation* (NCGUIWorld) — deferred, optional, only if the GUI layer matures.
 
+### Font demo rewrite — per-char bound-vector instead of 25-way inner switch
+
+The existing `apps/font/font.su` design pays **22,500 inner-select branches per keypress** because each of the 36 `bit_<C>(pos)` functions is itself a 25-way defuzzified switch over flat positions. That's the antipattern: a 25-way switch is implementing a tiny lookup table the substrate already has a clean primitive for. Rewrite so each character is encoded as a single **bound-vector of 25 bits**, and `glyph_pixel(x, y, code)` becomes a 36-way outer select where each branch is *one* unbind-by-position operation, not a 25-way inner switch. Render cost per cell drops from ~36×25 substrate ops to ~36. Same external API (`step`, `glyph_pixel`, `cycle_step` unchanged) so the cycle demo, render_glyph, and existing tests/test_font.py still pass after the rewrite.
+
+Triggered by Emma's pushback on 2026-05-27: "a 20,000-thing switch is just bizarre." She's right — that's bloat, not "the cost of substrate purity." The cycle_step demo shipped first so the recurrent step is visible today; this rewrite is the follow-up that makes the renderer not embarrassing.
+
 ### GUI — substrate-computed pixels: open follow-ups
 
 DONE 2026-05-24/25: static radial frame (`apps/gui/frame.su` + `window.py`) and the interactive click red↔blue toggle (`apps/gui/toggle.su` + `click_demo.py`) — substrate parts tested, run via `python apps/gui/click_demo.py`. Open:

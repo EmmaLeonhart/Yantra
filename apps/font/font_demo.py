@@ -1,32 +1,37 @@
-"""Yantra font demo -- type a letter, see it rendered on the substrate.
+"""Yantra font demo -- the recurrent character-code stepper as an RNN.
 
-Emma's text-input demo (2026-05-26). Press any A-Z or 0-9 key; the window
-shows that character as a 5x5 pixel glyph. Two substrate computations drive
-it (apps/font/font.su):
+Emma's text-input demo (2026-05-26, extended 2026-05-27). The window shows
+ONE character at a time as a 5x5 pixel glyph. By default the substrate
+advances the char_code every tick through the 36-glyph cycle
+(A->B->...->Z->0->...->9->A). Press an A-Z or 0-9 key and the typed code
+"takes the place" of the next advance -- substrate weighted sum, not a
+host if.
+
+Three substrate computations drive it (apps/font/font.su):
+
+  cycle_step(prev_code, typed_code, has_typed)
+      The recurrent step on the *character code*. Without override
+      (has_typed=0.0), a 36-way defuzzified select advances prev_code to the
+      next code in cycle order. With has_typed=1.0, the weighted sum
+      `has_typed*typed + (1-has_typed)*advanced` lets typed_code win.
 
   step(prev_state, x, y, char_code)
-      The recurrent step. The current pixel value at (x, y) is the state;
-      on a new keypress, `state = prev*0 + glyph_pixel(...)` -- the * 0 is
-      the substrate's explicit "forget previous state," the + is the
-      substrate's "add the new input." Same shape as toggle.su's flip and
-      count.su's +1 (the host is the register; the arithmetic is the
-      substrate).
+      The recurrent step on the *pixel value*. ``prev*0 + glyph_pixel(...)``
+      -- the * 0 is the substrate's explicit "forget previous state."
 
   glyph_pixel(x, y, char_code)
-      Returns 1.0 if (x, y) is lit for the typed character, else 0.0.
-      Decided ON the substrate by a 36-way defuzzified `select` over A-Z +
-      0-9 (made one-hot by softmax saturation -- same trick switch.su uses
-      for the calc's operator dispatch). No host font lookup on the runtime
-      path; only the displayed pixels are host-painted (tint + scale).
+      Returns 1.0 if (x, y) is lit, else 0.0. 36-way defuzzified select
+      over A-Z + 0-9, made one-hot by softmax saturation.
 
 Usage:
-    python apps/font/font_demo.py              # open the window; press keys
+    python apps/font/font_demo.py              # open window; auto-cycles, keys override
     python apps/font/font_demo.py --render A   # save A.png and exit (headless)
     python apps/font/font_demo.py --cell 40    # 5x5 glyph at 40px/cell = 200x200
+    python apps/font/font_demo.py --fps 2      # cycle rate (default 2 fps)
 
-The live window + keypress can't be checked headlessly (tkinter). The
-substrate parts (step, glyph_pixel) ARE tested -- tests/test_font.py covers
-each of the 36 glyphs.
+The live window can't be checked headlessly (tkinter). The substrate parts
+(step, cycle_step, glyph_pixel) ARE tested -- tests/test_font.py +
+tests/test_font_cycle.py.
 """
 from __future__ import annotations
 
@@ -107,11 +112,13 @@ def colormap(field: np.ndarray) -> np.ndarray:
 
 def main() -> None:
     ap = argparse.ArgumentParser(
-        description="Yantra font demo (type a letter, glyph decided on the substrate)")
+        description="Yantra font demo (auto-cycles A-Z-0-9, keypress overrides; all on the substrate)")
     ap.add_argument("--render", metavar="CHAR",
                     help="render the given character and save CHAR.png; exit")
     ap.add_argument("--cell", type=int, default=40,
                     help="pixel size per glyph cell (default 40 -> 200x200 image)")
+    ap.add_argument("--fps", type=float, default=2.0,
+                    help="auto-cycle rate (default 2 frames/sec)")
     args = ap.parse_args()
 
     if args.render:
@@ -128,16 +135,27 @@ def main() -> None:
         return
 
     # Pre-compile font.su BEFORE opening the window so the window doesn't sit
-    # frozen on first keypress while Sutra codegen runs (~5 min on this machine,
-    # instant after the on-disk cache is populated -- see _compile()). The
-    # printout above tells the user what's happening so the wait isn't a black
-    # box. After this returns, every keypress is fast.
-    _compile()
+    # frozen on the first tick while Sutra codegen runs (~5 min on this machine,
+    # instant after the on-disk cache is populated -- see _compile()).
+    ns = _compile()
+    cycle_step = ns["cycle_step"]
 
     import tkinter as tk
     from PIL import Image, ImageTk
 
-    state = {"field": np.zeros((5, 5), dtype=np.float64), "char": None}
+    # State the host shuttles between substrate ticks:
+    #   char_code    -- the current scalar code (the RNN's hidden state, decoded
+    #                   from the substrate vector each tick via vsa.real()).
+    #   field        -- the rendered 5x5 pixel field for that code.
+    #   pending_typed -- the last typed code, or None. Set by on_key, cleared
+    #                   by tick. The tick passes it to cycle_step as the
+    #                   typed-code branch.
+    state = {
+        "char_code": float(ord("A")),
+        "field": np.zeros((5, 5), dtype=np.float64),
+        "pending_typed": None,
+    }
+    tick_ms = max(50, int(1000.0 / max(0.1, args.fps)))
 
     def make_photo(field: np.ndarray):
         img = Image.fromarray(colormap(field)).resize(
@@ -145,42 +163,61 @@ def main() -> None:
         return ImageTk.PhotoImage(img)
 
     root = tk.Tk()
-    root.title("Yantra font -- press A-Z or 0-9 (glyph decided on the substrate)")
-    # Black background on the toplevel so the padding around the glyph reads as
-    # one continuous frame instead of grey-stripe-around-black-rectangle.
+    root.title(f"Yantra font -- auto-cycle @ {args.fps} fps; A-Z/0-9 override")
     root.configure(bg="black")
     photo0 = make_photo(state["field"])
     label = tk.Label(root, image=photo0, bg="black", borderwidth=0)
     label.image = photo0
-    # Padding around the 5x5 glyph: at default cell=40 the glyph is 200x200, so
-    # 1 cell of breathing room each side = 40 px gives the character a frame to
-    # sit in instead of sitting flush against the window chrome.
     label.pack(padx=args.cell, pady=args.cell)
     status = tk.Label(
         root, bg="black", fg="#aaaaaa",
-        text="press any A-Z or 0-9 key -- step(prev, x, y, code) runs on the Sutra substrate")
+        text="auto-cycle A->Z->0->9->A on the substrate; press any A-Z or 0-9 to override")
     status.pack(padx=args.cell, pady=(0, args.cell // 2))
+
+    def tick():
+        # Substrate-recurrent step on the char_code. Without a key, the
+        # 36-way defuzzified select advances the code one step in cycle order.
+        # With a pending key, has_typed=1.0 and the typed code wins via the
+        # weighted-sum gate -- no host if.
+        has_typed = 1.0 if state["pending_typed"] is not None else 0.0
+        typed = float(state["pending_typed"]) if has_typed else 0.0
+        next_code_vec = cycle_step(state["char_code"], typed, has_typed)
+        next_code = float(ns["_VSA"].real(next_code_vec))
+        state["pending_typed"] = None
+        # Round to the nearest integer codepoint -- the defuzzified select is
+        # exact in float64, but a defensive round() guards against any drift
+        # from the typed override (typed_vec * 1.0 is exact, but be careful).
+        state["char_code"] = float(round(next_code))
+
+        # Render the 25-cell pixel field for the new code. This is the expensive
+        # part (22500 substrate branches via the existing glyph_pixel design);
+        # the cycle_step itself is one 36-way select on top.
+        new_field = render_glyph(state["char_code"], prev_field=state["field"])
+        state["field"] = new_field
+        photo = make_photo(new_field)
+        label.configure(image=photo)
+        label.image = photo
+        ch = chr(int(state["char_code"]))
+        root.title(f"Yantra font -- {ch} (cycle_step + glyph_pixel on the substrate)")
+        status.configure(
+            text=f"showing {ch!r} (code {int(state['char_code'])}) "
+                 f"-- cycle_step advanced or override; glyph from substrate")
+        print(f"[font] tick -> code {int(state['char_code'])} ({ch!r})", flush=True)
+        root.after(tick_ms, tick)
 
     def on_key(event):
         ch = (event.char or "").upper()
         if len(ch) != 1 or not (ch.isalpha() or ch.isdigit()):
-            return  # ignore modifiers, arrows, etc.
+            return
         if ch.isalpha() and ch not in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
             return
-        # Substrate step for every cell: prev*0 + glyph_pixel(...). The new
-        # field overwrites the host-held register (state["field"]).
-        new_field = render_glyph(float(ord(ch)), prev_field=state["field"])
-        state["field"] = new_field
-        state["char"] = ch
-        photo = make_photo(new_field)
-        label.configure(image=photo)
-        label.image = photo
-        root.title(f"Yantra font -- {ch} (glyph from substrate)")
-        status.configure(
-            text=f"showing {ch!r} (code {ord(ch)}) -- step ran 25x on the substrate; prev*0 forgot the old glyph")
-        print(f"[font] key {ch!r} (code {ord(ch)}) -> substrate step -> 5x5 glyph", flush=True)
+        # Stash the typed code; the next tick passes it to cycle_step with
+        # has_typed=1.0 and the substrate weighted-sum gate picks it.
+        state["pending_typed"] = ord(ch)
+        print(f"[font] keypress {ch!r} -> pending override (substrate decides next tick)", flush=True)
 
     root.bind("<Key>", on_key)
+    root.after(tick_ms, tick)
     root.mainloop()
 
 
