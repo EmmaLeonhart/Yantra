@@ -162,17 +162,17 @@ def main() -> None:
             (5 * args.cell, 5 * args.cell), Image.NEAREST)
         return ImageTk.PhotoImage(img)
 
+    # The window is intentionally minimal — only the 5x5 pixel grid in the
+    # middle is substrate output. No status label, no chatty title. Anything
+    # painted by tkinter (fonts, borders, the title bar text the OS draws) is
+    # host chrome; only the centre image is the substrate's product.
     root = tk.Tk()
-    root.title(f"Yantra font -- auto-cycle @ {args.fps} fps; A-Z/0-9 override")
+    root.title("font")
     root.configure(bg="black")
     photo0 = make_photo(state["field"])
     label = tk.Label(root, image=photo0, bg="black", borderwidth=0)
     label.image = photo0
     label.pack(padx=args.cell, pady=args.cell)
-    status = tk.Label(
-        root, bg="black", fg="#aaaaaa",
-        text="auto-cycle A->Z->0->9->A on the substrate; press any A-Z or 0-9 to override")
-    status.pack(padx=args.cell, pady=(0, args.cell // 2))
 
     def tick():
         # Substrate-recurrent step on the char_code. Without a key, the
@@ -198,10 +198,8 @@ def main() -> None:
         label.configure(image=photo)
         label.image = photo
         ch = chr(int(state["char_code"]))
-        root.title(f"Yantra font -- {ch} (cycle_step + glyph_pixel on the substrate)")
-        status.configure(
-            text=f"showing {ch!r} (code {int(state['char_code'])}) "
-                 f"-- cycle_step advanced or override; glyph from substrate")
+        # Stdout (not the window) for debug — strictly host I/O, not painted
+        # anywhere the user could confuse for substrate output.
         print(f"[font] tick -> code {int(state['char_code'])} ({ch!r})", flush=True)
         root.after(tick_ms, tick)
 
