@@ -1,37 +1,52 @@
-"""Yantra font demo -- the recurrent character-code stepper as an RNN.
+"""Yantra font demo -- character cycler / pixel renderer (NOT an RNN).
 
-Emma's text-input demo (2026-05-26, extended 2026-05-27). The window shows
-ONE character at a time as a 5x5 pixel glyph. By default the substrate
-advances the char_code every tick through the 36-glyph cycle
-(A->B->...->Z->0->...->9->A). Press an A-Z or 0-9 key and the typed code
-"takes the place" of the next advance -- substrate weighted sum, not a
-host if.
+Honest framing, corrected 2026-05-27 after Emma called the previous header
+out: this is a *counter* with substrate function calls inside it, not a
+recurrent neural network. Specifically:
 
-Three substrate computations drive it (apps/font/font.su):
+  - The "hidden state" of this task is 2-dimensional at most: (input, current
+    character-on-screen). One scalar in, one scalar out per tick.
+  - The substrate's word width is 768-d (fixed by nomic-embed-text, the LLM
+    backing the runtime). Every substrate value is therefore 768-d regardless
+    of how much information it carries. For this 2-d-state task, 766 of those
+    768 dims are dead weight; the substrate adds no semantic structure.
+  - The pixels are 25 bits (5x5 black/white). Each cell is computed as one
+    768-d substrate vector with the bit on the real axis. 767 dims of dead
+    weight per pixel.
+  - Across ticks, the host extracts the scalar char_code via vsa.real() and
+    feeds it back next tick (apps/font/font_demo.py:tick()). That host-scalar-
+    shuttle is what makes the loop a counter, not a recurrent network --
+    state lives on the host, not on the substrate.
+
+The substrate operations DO run on real PyTorch tensors. The cycle decision
+(which char comes next) and the pixel decision (lit / unlit per cell) are
+computed by real substrate ops. What this demo is NOT is "an RNN" or
+"substrate-pure end-to-end" -- those framings would require state to live as
+a substrate vector across ticks AND for the substrate's 768-d capacity to be
+load-bearing on the task, neither of which is true here.
+
+Substrate computations (apps/font/font.su):
 
   cycle_step(prev_code, typed_code, has_typed)
-      The recurrent step on the *character code*. Without override
-      (has_typed=0.0), a 36-way defuzzified select advances prev_code to the
-      next code in cycle order. With has_typed=1.0, the weighted sum
-      `has_typed*typed + (1-has_typed)*advanced` lets typed_code win.
+      Counter step. 36-way defuzzified select picks (prev -> next) in cycle
+      order; override gate replaces with typed_code when has_typed=1.0.
+      Decision is on the substrate; state is on the host (real() between ticks).
 
   step(prev_state, x, y, char_code)
-      The recurrent step on the *pixel value*. ``prev*0 + glyph_pixel(...)``
-      -- the * 0 is the substrate's explicit "forget previous state."
+      Per-cell substrate dispatch. ``prev*0 + glyph_pixel(...)`` is host-
+      framed as "forget then add" but the * 0 is structurally a no-op (any
+      input zeros it). The pixel decision is real substrate work.
 
   glyph_pixel(x, y, char_code)
-      Returns 1.0 if (x, y) is lit, else 0.0. 36-way defuzzified select
-      over A-Z + 0-9, made one-hot by softmax saturation.
+      36-way outer select over char + 25-way inner select per char's bit
+      pattern. ~22,500 substrate branches per keypress; documented as bloat
+      in planning/26-font-bound-vector-rewrite.md (queued).
 
 Usage:
     python apps/font/font_demo.py              # open window; auto-cycles, keys override
     python apps/font/font_demo.py --render A   # save A.png and exit (headless)
     python apps/font/font_demo.py --cell 40    # 5x5 glyph at 40px/cell = 200x200
     python apps/font/font_demo.py --fps 2      # cycle rate (default 2 fps)
-
-The live window can't be checked headlessly (tkinter). The substrate parts
-(step, cycle_step, glyph_pixel) ARE tested -- tests/test_font.py +
-tests/test_font_cycle.py.
 """
 from __future__ import annotations
 
