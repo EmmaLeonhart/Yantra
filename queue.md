@@ -12,6 +12,14 @@ See `CLAUDE.md` § "Workflow Rules" for how this file, planning mode, and the ta
 
 ## Active
 
+### 🚨 Substrate-honesty audit across every Yantra app (Emma 2026-05-27)
+
+Trigger: today's session uncovered that the font demo was running at runtime_dim=768 when the task actually needs runtime_dim=8 (98% dim waste, no `basis_vector` in the .su so no embeddings needed). Emma's view: "every other Yantra programme that creates a graphical user interface that you wrote is also fake" — needs to be checked, not assumed. Apps under `apps/` (echo, calc, terminal, gui/*, font) and `kernel/` need an honest pass: (a) what runtime_dim does each .su actually require (count basis_vector calls; if none → tiny dim is fine); (b) is each demo's "recurrent step" / "RNN" / "substrate-pure" framing matched by what the code does, or is host-Python carrying state across substrate calls; (c) is the runtime cost paying for substrate work it doesn't need to do. Findings get written into the per-app README + planning notes; queue items spawn for each fix. Pre-existing apps (toggle, count, click_demo, calc, terminal) get the same scrutiny as font.
+
+### 🤖 Daily-audit GitHub Action — prepend a substrate-honesty check to queue.md each day
+
+Trigger: Emma asked for a daily action on BOTH Sutra and Yantra that prepends an audit-task to the top of `queue.md` (Yantra) / the daily-audit queue (Sutra), so the next session's first action is to do a substrate-break / hallucination audit on recent commits. Yantra side: `.github/workflows/daily-audit.yml` at `cron: '0 7 * * *'` opens a small PR (or pushes to a daily branch) that prepends one item to queue.md asking the next session to review the previous day's commits for fake-substrate / host-shaped patterns. Sutra side: same workflow against Sutra's queue.md. Both should reuse the existing GH Actions auth pattern from the repo's CI workflows.
+
 ### ⚙️ Environment pin — this machine IS capable (read before doubting hardware)
 
 Emma's machine has a real, good GPU — an RTX 4070, `torch.cuda.is_available() == True`, ample compute. Do NOT assume CPU-only, do NOT assume "the GPU path won't work," do NOT pre-emptively frame Emma's algorithms/logic as unworkable on this hardware. Measured 2026-05-24: admitting a Sutra program allocates real GPU memory; the GPU-tier residency tests pass 4/4 in isolation; the calc runs float64 exactly. When a GPU-dependent test looks like it "fails," first check whether it's a test-isolation / shared-substrate artifact (it usually is) — run it alone before concluding a capability is missing.
