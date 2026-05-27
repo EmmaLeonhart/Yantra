@@ -35,8 +35,10 @@ APPS_GUI = pathlib.Path(__file__).resolve().parent
 def _compile_frame():
     """Compile frame.su and return its `pixel` function + the _VSA runtime."""
     from sutra_compiler import compile_su
+    # dim=8 — frame.su uses only make_real + arithmetic; measured exact at
+    # dim=8 (2026-05-27 audit, planning/27-substrate-honesty-audit-2026-05-27.md).
     mod = compile_su(APPS_GUI / "frame.su",
-                     llm_model="nomic-embed-text", runtime_dim=768,
+                     llm_model="unused-no-basis-vectors", runtime_dim=8,
                      verbose=False)
     return mod.pixel, mod._VSA
 

@@ -20,9 +20,9 @@ yet ALL use `runtime_dim=768`. Same 96× bloat the font demo had until
 commit e22c80a. Per-app fix items:
 
 - `apps/calc/calc.py:63 AXON_WIDTH=768` → measure correctness at dim=8/16, drop dim.
-- `apps/gui/count.su` + `counter_demo.py:61` → measure + drop to dim=8.
-- `apps/gui/frame.su` + `window.py:39` → measure + drop.
-- `apps/gui/toggle.su` + `click_demo.py:47` → measure + drop.
+- ~~`apps/gui/count.su` + `counter_demo.py:61` → measure + drop to dim=8.~~ DONE (measured exact, 9 GUI tests green).
+- ~~`apps/gui/frame.su` + `window.py:39` → measure + drop.~~ DONE.
+- ~~`apps/gui/toggle.su` + `click_demo.py:47` → measure + drop.~~ DONE.
 - `apps/echo/echo.su` (inherits kernel default 768) → measure + per-manifest dim.
 - `kernel/services.py:425` default `runtime_dim=768` → review whether the default
   should require explicit choice instead of silently bloating.

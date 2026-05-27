@@ -43,8 +43,10 @@ def _compile(su_name: str) -> dict:
     skips codegen entirely.
     """
     from sutra_compiler import compile_su
+    # dim=8 — toggle.su + frame.su use only make_real + arithmetic; measured
+    # exact at dim=8 (2026-05-27 audit, planning/27-substrate-honesty-audit-2026-05-27.md).
     mod = compile_su(APPS_GUI / su_name,
-                     llm_model="nomic-embed-text", runtime_dim=768,
+                     llm_model="unused-no-basis-vectors", runtime_dim=8,
                      verbose=False)
     return mod.__dict__
 
