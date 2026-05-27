@@ -32,9 +32,9 @@ Not in scope: replicating the *video / screen-frame generation* (NCGUIWorld) —
 
 ### Font demo rewrite — per-char bound-vector instead of 25-way inner switch
 
-The existing `apps/font/font.su` design pays **22,500 inner-select branches per keypress** because each of the 36 `bit_<C>(pos)` functions is itself a 25-way defuzzified switch over flat positions. That's the antipattern: a 25-way switch is implementing a tiny lookup table the substrate already has a clean primitive for. Rewrite so each character is encoded as a single **bound-vector of 25 bits**, and `glyph_pixel(x, y, code)` becomes a 36-way outer select where each branch is *one* unbind-by-position operation, not a 25-way inner switch. Render cost per cell drops from ~36×25 substrate ops to ~36. Same external API (`step`, `glyph_pixel`, `cycle_step` unchanged) so the cycle demo, render_glyph, and existing tests/test_font.py still pass after the rewrite.
+Full design in `planning/26-font-bound-vector-rewrite.md`. The existing `apps/font/font.su` pays ~22,500 inner-select branches per keypress because each `bit_<C>(pos)` is a 25-way switch — a switch-as-lookup-table antipattern. Rewrite encodes each character as a single rotation-binding bundle (the Sutra-paper hashmap pattern); per-cell cost drops to ~63 ops (~14× fewer). Risks: rotation-binding capacity at N=25 in 768-d is unmeasured; tolerance shifts from exact (1e-9) to fuzzy (~1e-1); existing tests break. Plan in the planning doc.
 
-Triggered by Emma's pushback on 2026-05-27: "a 20,000-thing switch is just bizarre." She's right — that's bloat, not "the cost of substrate purity." The cycle_step demo shipped first so the recurrent step is visible today; this rewrite is the follow-up that makes the renderer not embarrassing.
+Triggered by Emma's pushback on 2026-05-27: "a 20,000-thing switch is just bizarre." She's right — that's bloat, not "the cost of substrate purity." The cycle_step demo shipped first (commit `3d8dae4`) so the recurrent step is visible today; this rewrite is the follow-up.
 
 ### GUI — substrate-computed pixels: open follow-ups
 
