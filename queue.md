@@ -68,6 +68,28 @@ DONE 2026-05-24/25: static radial frame (`apps/gui/frame.su` + `window.py`) and 
 4. **Window belongs in the orchestrator eventually** — host tkinter is the stand-in; the real window is a Rust-orchestrator unit (`planning/01`).
 5. Host does tint/colormap + event handling; the field + state are substrate. Keep that split — don't let host-drawn content masquerade as substrate output.
 
+### 🏁 LAST ITEM — migrate GUI / I-O apps from Yantra → Sutra (Emma 2026-05-27)
+
+Strategic decision: **the GUI / I-O work in `apps/` is too tightly coupled to Sutra-the-language to live in Yantra.** It's actually Sutra-language-development work — exercising what the substrate can do — not OS work. The OS-level work was failing because we were doing language-level work at the OS level without enough context. Move the language-level work back to Sutra; put the OS on hold while the language matures.
+
+**Do this LAST** — after every other open item in this queue is done. The migration is the *closing* action, not the next one.
+
+Migration plan:
+
+1. Move `apps/echo/`, `apps/calc/`, `apps/gui/*`, `apps/font/`, `apps/terminal/` (the .su files + their Python drivers + their tests) into the Sutra repo (likely under `examples/` or a new `demos/` directory — Sutra-side decision). Keep them on Yantra `main` until the Sutra commit lands, then delete from Yantra in the same Yantra commit that points to the new Sutra location.
+2. Append to Sutra `queue.md` (at the very BACK, per Emma) — items below under § "What goes at the back of Sutra's queue.md".
+3. After this migration: pause OS-level work. Next Yantra work is documentation about what Sutra actually does, so future autonomous-loop cron jobs build from documentation rather than from re-implementation guesses.
+
+### What goes at the back of Sutra's queue.md (to be appended in the same migration commit)
+
+Order matters. These are the new tail items for Sutra's queue:
+
+1. **Audit any inappropriate use of the 768-dim embedding space for non-embedding code.** Claude was lying about what was running on the substrate in Yantra's GUI demos — every .su that doesn't call `basis_vector` was paying 96× the runtime cost it should. Apply the same audit (Yantra `planning/27-substrate-honesty-audit-2026-05-27.md`) to every Sutra-side .su example and update `runtime_dim` to match each example's actual needs.
+2. **Update all documentation about the I-O / GUI things added to Sutra in this migration**, based on recent Yantra history. The .su sources have their own headers; the Sutra-side docs (`docs/`, `planning/`, README) need to describe what those programs do and what they don't do.
+3. **General honesty test on every migrated demo** to ensure the looping actually happens on the substrate, not on the host. Specifically: does the recurrent state live as a substrate vector across ticks, or is the host shuttling a scalar via `vsa.real()` between ticks? The latter is NOT an RNN; if a demo claims to be one, the claim is fake until proven by measurement. (See `apps/font/font_demo.py` 2026-05-27 framing rewrite — same misframing was inherited from existing `toggle.su` / `count.su` patterns; check those too.)
+4. **Write up the full design + history** — one document in Sutra that explains what we were trying to do across the recent Yantra GUI / I-O sessions (the cycle demo, the font demo, the rotation-binding rewrite design, the dim-bloat discovery, the host-state-shuttle misframing). Lessons learned, not just final state.
+5. **After all the above:** append the rest of THIS Yantra queue's open items to Sutra's queue (font bound-vector rewrite, the daily-audit GH Action — Sutra-side half of it, etc.). The Yantra-side half of the queue empties out as items either ship or migrate.
+
 ---
 
 ## Pointers
