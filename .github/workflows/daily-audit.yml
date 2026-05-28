@@ -50,48 +50,43 @@ jobs:
 
       - name: Prepend dated audit task to queue.md
         id: prepend
+        shell: python {0}
         run: |
-          set -euo pipefail
-          today="$(date -u +%Y-%m-%d)"
-          marker="### 🔍 Daily substrate-honesty audit — ${today}"
-
-          # Idempotent: if today's marker is already in queue.md, skip.
-          if grep -qF "$marker" queue.md; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "Today's audit task already present — skipping prepend."
-            exit 0
-          fi
-
-          # Find the line that starts the first ### section after "## Active"
-          # so we prepend at the TOP of Active rather than the file head.
-          insert_after="$(grep -n '^## Active' queue.md | head -1 | cut -d: -f1)"
-          if [ -z "${insert_after:-}" ]; then
-            echo "queue.md missing ## Active section — bailing" >&2
-            exit 1
-          fi
-
-          tmp="$(mktemp)"
-          {
-            head -n "$insert_after" queue.md
-            cat <<EOF
-
-${marker}
-
-Auto-prepended by .github/workflows/daily-audit.yml. The next autonomous-loop session
-should, as its first action: (a) review every commit landed since the previous daily
-audit; (b) for each commit that touched a .su or its compile/admit path, verify
-runtime_dim matches what the .su actually needs (basis_vector usage → embedding dim;
-no basis_vector → tiny dim, typically 8-16); (c) for any commit that frames work as
-"recurrent" / "RNN" / "substrate-pure" / "verified", verify the claim against
-measurement, not against earlier session framing; (d) if anything is amiss, write a
-finding under planning/ and a fix item under queue.md, BEFORE doing other queue work.
-Then delete this item.
-EOF
-            tail -n +"$((insert_after + 1))" queue.md
-          } > "$tmp"
-          mv "$tmp" queue.md
-          echo "changed=true" >> "$GITHUB_OUTPUT"
-          echo "Prepended audit task for ${today}."
+          import datetime, os, pathlib, sys
+          today = datetime.datetime.utcnow().strftime("%Y-%m-%d")
+          marker = f"### \U0001f50d Daily substrate-honesty audit — {today}"
+          body = (
+              "\n" + marker + "\n\n"
+              "Auto-prepended by .github/workflows/daily-audit.yml. The next "
+              "autonomous-loop session should, as its first action: (a) review every "
+              "commit landed since the previous daily audit; (b) for each commit that "
+              "touched a .su or its compile/admit path, verify runtime_dim matches "
+              "what the .su actually needs (basis_vector usage → embedding dim; "
+              "no basis_vector → tiny dim, typically 8-16); (c) for any commit "
+              'that frames work as "recurrent" / "RNN" / "substrate-pure" / '
+              '"verified", verify the claim against measurement, not against earlier '
+              "session framing; (d) if anything is amiss, write a finding under "
+              "planning/ and a fix item under queue.md, BEFORE doing other queue "
+              "work. Then delete this item.\n"
+          )
+          q = pathlib.Path("queue.md")
+          src = q.read_text(encoding="utf-8")
+          out_path = pathlib.Path(os.environ["GITHUB_OUTPUT"])
+          if marker in src:
+              out_path.write_text("changed=false\n", encoding="utf-8")
+              print("Today's audit task already present — skipping prepend.")
+              sys.exit(0)
+          anchor = "## Active"
+          idx = src.find(anchor)
+          if idx == -1:
+              print("queue.md missing ## Active section — bailing", file=sys.stderr)
+              sys.exit(1)
+          # Insert right after the "## Active" header line (find the next newline).
+          insert_at = src.index("\n", idx) + 1
+          new_src = src[:insert_at] + body + src[insert_at:]
+          q.write_text(new_src, encoding="utf-8")
+          out_path.write_text("changed=true\n", encoding="utf-8")
+          print(f"Prepended audit task for {today}.")
 
       - name: Commit + push the prepend
         if: steps.prepend.outputs.changed == 'true'
