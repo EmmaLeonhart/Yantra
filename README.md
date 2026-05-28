@@ -49,23 +49,34 @@ code" beat "it runs my favourite app."
 
 This repo holds **planning documents** plus a v0.0 **Connectome
 Manager** under `kernel/` — a Python orchestration layer over real
-Sutra compute — and the first native `apps/`: a **calculator**
-(`apps/calc/`, full expressions; *which* operation runs and *which
-character names it* are decided on the substrate, float64 so exact
-integers hold to 2⁵³, and the answer's digits are then decomposed back ON the substrate via the
-Fourier-series modulus and shown as a string), a first **GUI** (`apps/gui/`, every pixel
-computed on the substrate, plus click demos whose state runs on the substrate — a red↔blue toggle, and
-a click-to-count counter (each +1 and the glow's screen position computed on the substrate; also driven by a Rust-orchestrator window over a subprocess bridge)), a **terminal** surface (`apps/terminal/`,
-echo/calc through the kernel), **echo**, and a **text-input pixel-font demo** (`apps/font/`, press A–Z or 0–9 → 5×5 glyph whose lit/unlit bit at each cell is decided on the substrate via Emma's recurrent `prev*0 + glyph_pixel(...)` step over a 36-way defuzzified `select`). The kernel + apps test gate
-covers admission control, the axon router, capability checks, real `.su`
-programs compiled and executed through the router (on the real GPU —
-admit allocates GPU memory, `_VSA.device == cuda`), the calculator, the
-GUI render + click, the terminal, echo content round-trip, the
-orchestrator checkpoint + RAM cold-store tier (`Init.cold_store` /
-`restore_from_cold`, bit-exact through the kernel), and
-1024/1024-symbol fidelity; it passes (**215 passed, 1 xfailed**, measured
-2026-05-25, on the real GPU). The one strict `xfail` is the cross-program
-axon-projection case — see `planning/18`, `planning/20`.
+Sutra compute — and a small set of remaining kernel-coupled `apps/`:
+the **calculator** (`apps/calc/`, full expressions on the substrate,
+float64 exact to 2⁵³, answer digits decomposed via the Fourier-series
+modulus), **echo** (`apps/echo/`, axon round-trip), and the **terminal**
+(`apps/terminal/`, kernel-mediated echo/calc).
+
+A **Rust GUI binary** (`apps/gui-rust/`) drives the click-to-count
+counter window; it spawns a substrate server from Sutra-side
+(`external/Sutra/demos/gui/counter_substrate_server.py`) for the
+per-frame substrate compute.
+
+The earlier `apps/font/` (text-input 5×5 pixel font), `apps/gui/`
+(Python tkinter GUIs over count.su / frame.su / toggle.su), and their
+tests migrated to Sutra under `external/Sutra/demos/{font,gui}/` on
+2026-05-28 — the work was language-level (exercising what the substrate
+can do), not OS-level, so it lives next to the language now. See Sutra
+`DEVLOG.md` 2026-05-28 for the migration and the three substrate-leak
+categories that prompted it.
+
+The kernel + apps test gate covers admission control, the axon router,
+capability checks, real `.su` programs compiled and executed through
+the router (on the real GPU — admit allocates GPU memory,
+`_VSA.device == cuda`), the calculator, the terminal, echo content
+round-trip, the orchestrator checkpoint + RAM cold-store tier
+(`Init.cold_store` / `restore_from_cold`, bit-exact through the
+kernel), and 1024/1024-symbol fidelity; it passes (**206 passed, 1
+xfailed**, measured 2026-05-28). The one strict `xfail` is the
+cross-program axon-projection case — see `planning/18`, `planning/20`.
 The Sutra compiler/runtime live in the `external/Sutra` submodule
 (pinned at a `main` commit past **v0.7.0**, which ships the
 formal-verification tooling `from sutra_compiler import fv`; plus the
