@@ -30,11 +30,15 @@ Goal + roadmap: `planning/22-meta-demo-replication.md`. Stage-1 harness, CLI cal
 
 Not in scope: replicating the *video / screen-frame generation* (NCGUIWorld) — deferred, optional, only if the GUI layer matures.
 
-### Font demo rewrite — per-char bound-vector instead of 25-way inner switch
+### Font app — MIGRATED to Sutra `demos/font/` 2026-05-28
 
-Full design + 2026-05-28 negative-result measurement in `planning/26-font-bound-vector-rewrite.md`. First attempt (bind(pos, LIT)/(pos, UNLIT) per cell) failed at every dim from 16 to 256 — bundle crosstalk biases toward whichever filler appears more often, so lit and unlit cosines overlap. Two corrections queued: antipodal-filler encoding, sparse-only-LIT encoding. Capacity isn't the bottleneck; encoding shape is.
-
-Triggered by Emma's pushback on 2026-05-27: "a 20,000-thing switch is just bizarre." She's right — that's bloat. The dim drop (font_demo runtime_dim=8) handled most of the cost; this rewrite is the further dispatch-count reduction follow-up, gated on a working encoding.
+The font app (`apps/font/font.su`, `font_bound.su`, `font_demo.py`,
+`font_data.py`, both generators, all three test files, the d108 fixture)
+landed Sutra-side in commit `e12e1ebd`. Further work on the font happens
+Sutra-side now — including the queued antipodal-filler variant of the
+bound-vector rewrite, the d484 fixture for CI test coverage, and the
+demo-wiring decision. See Sutra `demos/font/` + the queue items appended
+to Sutra's `queue.md`.
 
 ### GUI — substrate-computed pixels: open follow-ups
 
