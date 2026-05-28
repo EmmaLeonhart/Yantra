@@ -17,14 +17,14 @@ needs. This is bloat masquerading as substrate work.
 | App | `runtime_dim` | `basis_vector` calls | Right-sized dim | Notes |
 |---|---|---|---|---|
 | `apps/font/` | 8 (fixed today) | 0 | **8 measured exact** at 80 tests | DONE, commit `e22c80a` |
-| `apps/calc/digits.su` | 768 (via `apps/calc/calc.py:63 AXON_WIDTH=768`) | 0 | likely 8 or 16 | UNFIXED — coupled to manifest axon_width, larger test scope |
-| `apps/calc/parse_int2.su` | same | 0 | same | UNFIXED — same coupling |
-| `apps/calc/parse_op.su` | same | 0 | same | UNFIXED — same coupling |
-| `apps/calc/switch.su` | same | 0 | same | UNFIXED — same coupling |
-| `apps/gui/count.su` | 8 (fixed today) | 0 | **8 measured exact** at step+pixel | DONE, this commit |
-| `apps/gui/frame.su` | 8 (fixed today) | 0 | **8 measured exact** at pixel | DONE, this commit |
-| `apps/gui/toggle.su` | 8 (fixed today) | 0 | **8 measured exact** at flip | DONE, this commit |
-| `apps/echo/echo.su` | inherited from kernel default 768 | 0 | likely 16 | UNFIXED — kernel-service path, separate concern |
+| `apps/calc/digits.su` | 8 (fixed today via `AXON_WIDTH=8`) | 0 | **8 measured exact** | DONE, 64 calc tests + 3 parse tests green |
+| `apps/calc/parse_int2.su` | 8 | 0 | **8 measured exact** | DONE |
+| `apps/calc/parse_op.su` | 8 | 0 | **8 measured exact** | DONE |
+| `apps/calc/switch.su` | 8 | 0 | **8 measured exact** (2+3=5, 7*8=56, etc.) | DONE |
+| `apps/gui/count.su` | 8 (fixed today) | 0 | **8 measured exact** at step+pixel | DONE, commit `4ac0421` |
+| `apps/gui/frame.su` | 8 (fixed today) | 0 | **8 measured exact** at pixel | DONE, commit `4ac0421` |
+| `apps/gui/toggle.su` | 8 (fixed today) | 0 | **8 measured exact** at flip | DONE, commit `4ac0421` |
+| `apps/echo/echo.su` | 16 (fixed today) | 0 | **16 measured exact** — uses Axon.add/axon_item (rotation-binding), 1 bound key, dim=16 above noise floor | DONE, 5 echo tests green |
 | `apps/terminal/` | host-only Python wrapper at `AXON_WIDTH=768`; no compiled .su | n/a | n/a until terminal gets a .su component | UNFIXED |
 | `kernel/services.py` | default `runtime_dim=768` (line 425) | manifest-dependent | per-manifest TBD | UNFIXED |
 

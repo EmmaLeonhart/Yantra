@@ -37,7 +37,7 @@ def parse_int2():
     parser = Parser(toks, file="parse_int2.su", diagnostics=lexer.diagnostics)
     module = parser.parse_module()
     assert not lexer.diagnostics.has_errors(), list(lexer.diagnostics)
-    py = torch_translate(module, llm_model="nomic-embed-text", runtime_dim=768)
+    py = torch_translate(module, llm_model="unused-no-basis-vectors", runtime_dim=8)
     ns: dict = {}
     exec(compile(py, "parse_int2.su", "exec"), ns)
     return ns["parse_int2"], ns["_VSA"]
@@ -82,7 +82,7 @@ def op_code():
     parser = Parser(toks, file="parse_op.su", diagnostics=lexer.diagnostics)
     module = parser.parse_module()
     assert not lexer.diagnostics.has_errors(), list(lexer.diagnostics)
-    py = torch_translate(module, llm_model="nomic-embed-text", runtime_dim=768)
+    py = torch_translate(module, llm_model="unused-no-basis-vectors", runtime_dim=8)
     ns: dict = {}
     exec(compile(py, "parse_op.su", "exec"), ns)
     return ns["op_code"], ns["_VSA"]
