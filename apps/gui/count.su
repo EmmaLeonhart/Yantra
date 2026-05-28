@@ -1,19 +1,23 @@
-// count.su — a GUI counter whose state lives ON THE SUBSTRATE (Emma's
-// recurrent-loop demo). Two substrate computations:
+// count.su — a GUI counter. The +1 IS computed on the substrate, but the
+// recurrence is HOST-state-shuttle, not a substrate-state RNN. Plainly:
 //
-//   step(n) = n + 1   — the recurrent step. The current count goes in, the
-//                       incremented count comes out and is fed back as the
-//                       next state. The +1 happens on the substrate, not in a
-//                       host `n += 1`; the host only holds and re-feeds the
-//                       decoded value (the register role toggle.su's flip plays
-//                       in the red<->blue demo).
+//   step(n) = n + 1   — substrate computes one increment per call. The host
+//                       extracts the scalar via real(), holds it in a Python
+//                       variable, feeds it back as the next call's input.
+//                       State lives on the host between ticks; the substrate
+//                       function is stateless. Calling this a "recurrent
+//                       loop" or "state lives on the substrate" was the same
+//                       framing error font.su carried until 2026-05-27 —
+//                       the audit flagged both. A real substrate-state RNN
+//                       would keep n as a vector across ticks without the
+//                       host extracting it; that refactor is queued for the
+//                       Sutra migration.
 //
-//   pixel(x, y, n)    — the displayed FIELD: a radial glow whose centre steps
-//                       left -> right as the count rises (cx = -1 at n=0, +1 at
-//                       n=9), so each click walks the glow across the screen.
-//                       The position is chosen FROM n HERE, on the substrate;
-//                       the host only paints. Same "substrate computes the
-//                       picture, host is I/O" split as frame.su.
+//   pixel(x, y, n)    — radial-glow field. The host passes the scalar n
+//                       (decoded from a prior step() call); the substrate
+//                       computes cx = 2n/9 - 1 and the gaussian-shaped
+//                       brightness. The host paints. No recurrence in this
+//                       function; it's a stateless dispatch per cell.
 //
 // make_real lifts each result onto the real axis so the host reads it with
 // real(). We do NOT wrap back to 0 after 9 (Emma: don't care past the count);

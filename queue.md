@@ -30,9 +30,12 @@ commit e22c80a. Per-app fix items:
 - ~~`apps/echo/echo.su` (inherits kernel default 768) → measure + per-manifest dim.~~ DONE (axon_width=16 in echo.toml; 5 echo tests green).
 - `kernel/services.py:425` default `runtime_dim=768` → review whether the default
   should require explicit choice instead of silently bloating. PENDING.
-- Separate framing pass per app: is the recurrence host-shaped (state on host
-  via `vsa.real()` between ticks)? `count.su`'s `step(n) = make_real(n+1.0)` is
-  exactly this pattern, same as the font cycle — host-state-shuttle, not RNN.
+- ~~Separate framing pass per app: is the recurrence host-shaped (state on host
+  via `vsa.real()` between ticks)?~~ DONE for font.su / count.su / toggle.su —
+  each .su's header now plainly says "host-state-shuttle, not substrate-state
+  RNN" with a pointer to planning/27. The actual substrate-state-RNN refactor
+  for these is queued separately (planning/26 covers font; analogous for the
+  others) and per Emma's migration plan belongs Sutra-side, not here.
 
 ### 🤖 Daily-audit GitHub Action — prepend a substrate-honesty check to queue.md each day
 
