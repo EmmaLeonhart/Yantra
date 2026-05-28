@@ -61,7 +61,7 @@ def linux_000():
          "output_role": "R_console"},
         {"name": "console", "source_path": SERVICES / "console.su",
          "output_role": "R_console_done"},
-    ])
+    ], runtime_dim=16)
     init = Init(compute_pool=10)
     init.admit(
         Manifest(
