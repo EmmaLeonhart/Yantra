@@ -40,15 +40,16 @@ bound-vector rewrite, the d484 fixture for CI test coverage, and the
 demo-wiring decision. See Sutra `demos/font/` + the queue items appended
 to Sutra's `queue.md`.
 
-### GUI — substrate-computed pixels: open follow-ups
+### GUI apps — MIGRATED to Sutra `demos/gui/` 2026-05-28
 
-DONE 2026-05-24/25: static radial frame (`apps/gui/frame.su` + `window.py`) and the interactive click red↔blue toggle (`apps/gui/toggle.su` + `click_demo.py`) — substrate parts tested, run via `python apps/gui/click_demo.py`. Open:
-
-1. **Live window + click verification** — not headless-testable; the substrate parts pass, the tkinter window + click event need a human at the screen.
-2. **Per-pixel render batching** — BLOCKED on a Sutra-side change: `make_real` is scalar-only, so the compiled `pixel` graph can't take a batch dim. Not a clean Yantra-side fix.
-3. **Reverse-CNN decoder** (Emma's "return a vector → reorganise into pixels") — unbuilt; the bigger next GUI step (`planning/24-first-gui.md`).
-4. **Window belongs in the orchestrator eventually** — host tkinter is the stand-in; the real window is a Rust-orchestrator unit (`planning/01`).
-5. Host does tint/colormap + event handling; the field + state are substrate. Keep that split — don't let host-drawn content masquerade as substrate output.
+Phase 2 of the migration landed Sutra-side at `ff5183ef`. `apps/gui/`'s
+count.su / frame.su / toggle.su + their Python tkinter demos + the
+Rust-GUI subprocess server + the 9 GUI tests all live at
+`external/Sutra/demos/gui/` now. The Rust binary at
+`apps/gui-rust/` stays Yantra-side but spawns the substrate server from
+the Sutra location (path updated in src/main.rs). Further GUI work
+(live-window verification, per-pixel render batching, reverse-CNN
+decoder) happens Sutra-side.
 
 ### 🏁 LAST ITEM — migrate GUI / I-O apps from Yantra → Sutra (Emma 2026-05-27)
 

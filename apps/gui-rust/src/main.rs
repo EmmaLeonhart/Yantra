@@ -32,10 +32,12 @@ struct Substrate {
 
 impl Substrate {
     fn spawn(size: usize) -> Substrate {
-        // Resolve the server relative to THIS crate (repo/apps/gui-rust), so the
-        // binary works from any cwd: ../../apps/gui/counter_substrate_server.py.
+        // Resolve the server relative to THIS crate (repo/apps/gui-rust). The
+        // counter_substrate_server.py migrated to Sutra 2026-05-28 (Yantra commit
+        // following Sutra ff5183ef); spawn path is now the Sutra submodule's
+        // demos/gui/ rather than Yantra's apps/gui/.
         let server = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../apps/gui/counter_substrate_server.py");
+            .join("../../external/Sutra/demos/gui/counter_substrate_server.py");
         let mut child = Command::new("python")
             .arg(&server)
             .arg("--size")
