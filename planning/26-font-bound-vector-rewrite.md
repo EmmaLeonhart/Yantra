@@ -159,6 +159,27 @@ pure).
 7. **Update the cycle_step demo** — `cycle_step` itself is unchanged
    (operates on `char_code`, doesn't care how `glyph_pixel` is implemented).
 
+## Updated urgency after the 2026-05-27 dim drop (planning/27)
+
+Once the font demo dropped from runtime_dim=768 to 8 (commit `e22c80a`,
+96× per-op cost cut), the per-render latency improved but did NOT
+collapse:
+
+  measured 2026-05-28: render_glyph() takes ~2540 ms/call at dim=8
+  (single-threaded, ~0.4 fps).
+
+The 96× tensor-work reduction translated to only ~4-6× wall-clock
+because the bottleneck is Python→torch dispatch overhead per substrate
+op, not the tensor math itself. Each keypress dispatches ~22,500
+substrate ops sequentially (25 cells × 36 outer × 25 inner =
+22,500 selects) and pays the per-op Python/torch overhead 22,500 times.
+
+So the bound-vector rewrite remains worthwhile: collapsing the inner
+25-way switch to a single bind/unbind drops the dispatch count per cell
+from ~900 to ~37, a ~24× reduction in dispatch overhead. The bigger
+win (batching the 25 cells into ONE substrate call) is still upstream-
+blocked on Sutra-side batched `make_real`.
+
 ## Why this is queued, not done today
 
 The cycle demo is the user-visible work Emma asked for in this session:
