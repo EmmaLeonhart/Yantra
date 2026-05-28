@@ -60,7 +60,14 @@ from kernel import Init, Manifest, PythonService, SutraService  # noqa: E402
 from kernel.router import Axon  # noqa: E402
 
 APPS_CALC = pathlib.Path(__file__).resolve().parent
-AXON_WIDTH = 768
+# Width of every axon AND of every substrate vector (compile_su's runtime_dim).
+# Was 768 (the nomic-embed-text default); dropped to 8 on 2026-05-27 after
+# audit (planning/27-substrate-honesty-audit-2026-05-27.md) found none of the
+# four .su files in this app call basis_vector. The semantic block of the
+# extended-state layout was therefore unused — every op carried 766 dead-weight
+# tensor elements per call. Measured exact at width 8: 2+3=5, 7*8=56, 100-50=50,
+# 2*(3+4)=14, 15/3=5; full test_calc.py suite (57 cases) green at width 8.
+AXON_WIDTH = 8
 
 # digits.su is compiled directly (its `digit(n, place)` is a pure substrate
 # function call, not an axon service — the same direct-substrate pattern the GUI
