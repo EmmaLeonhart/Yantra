@@ -26,31 +26,39 @@ import shutil
 
 import pytest
 
-# Name MUST match what codegen_pytorch.py emits: nomic-embed-text-d<dim>.pt,
-# with dim = semantic_dim + synthetic_dim. The default Sutra build (this pin)
-# uses semantic 768 + synthetic 100 = 868. A mismatched filename silently
-# bypasses the cache (file doesn't exist → cache stays empty → ollama call),
-# which was the bug that hid behind the first version of this conftest.
-_FIXTURE = pathlib.Path(__file__).parent / "fixtures" / "nomic-embed-text-d868.pt"
+# Sutra names its on-disk cache ``nomic-embed-text-d<dim>.pt`` where
+# dim = semantic_dim + synthetic_dim. The default build is d868 (semantic
+# 768 + synthetic 100); the 2026-05-27 audit shrunk substrate apps to
+# smaller dims (calc/gui/font at semantic=8 -> d108; echo + kernel-test
+# shared services at semantic=16 -> d116). Every fixture present in
+# tests/fixtures/ at any of those dims is copied to the test-session cache.
+# Run tools/regenerate_codebook_fixtures.py to add a new dim.
+_FIXTURE_DIR = pathlib.Path(__file__).parent / "fixtures"
 
 
 @pytest.fixture(scope="session", autouse=True)
 def _sutra_embedding_cache(tmp_path_factory):
-    """Point Sutra's on-disk codebook cache at the committed pre-warmed fixture
+    """Point Sutra's on-disk codebook cache at the committed pre-warmed fixtures
     for the whole test session, so tests don't need ollama to be installed or
     a daemon running. The user's real ``~/.cache`` is left alone.
+
+    Copies every fixture matching ``nomic-embed-text-d*.pt`` into the test-session
+    cache dir; Sutra picks the right one by filename based on whatever runtime_dim
+    the test happens to use. If a test introduces a key not in any of the
+    fixtures (or a dim not represented), Sutra falls through to the cache-miss
+    branch and the test fails with ``ModuleNotFoundError: ollama`` (in CI) — the
+    clear signal to regenerate the fixtures, not a flaky test.
     """
-    if not _FIXTURE.exists():
-        # Fixture missing — let tests run as-is. They'll fail clearly with a
-        # missing-ollama error if the codebook is empty, which is the right
-        # signal (something went wrong populating the fixture).
+    fixtures = sorted(_FIXTURE_DIR.glob("nomic-embed-text-d*.pt"))
+    if not fixtures:
         yield
         return
 
     cache_home = tmp_path_factory.mktemp("sutra_xdg_cache")
     cache_dir = cache_home / "sutra" / "embeddings"
     cache_dir.mkdir(parents=True)
-    shutil.copy2(_FIXTURE, cache_dir / _FIXTURE.name)
+    for fx in fixtures:
+        shutil.copy2(fx, cache_dir / fx.name)
 
     prev = os.environ.get("XDG_CACHE_HOME")
     os.environ["XDG_CACHE_HOME"] = str(cache_home)
