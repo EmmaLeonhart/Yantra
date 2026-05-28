@@ -211,16 +211,70 @@ bindings, swamping the per-cell signal.
    as `bind(p, MARKER)` and unlit cells as `bind(p, -MARKER)` (or via a
    negation primitive — Sutra must expose vector negation; check the
    stdlib). Crosstalk averages to ~0 instead of biasing toward LIT.
+   STILL UNTRIED.
 
 2. **Sparse-only-LIT encoding.** Only bind lit cells into the bundle;
    omit unlit. Unbinding a missing role returns noise ~0; unbinding a
    present role returns approximately MARKER. Gap is then `~MARKER_cos`
    vs `~0`, clean separation. (Same shape as `axon_item` in echo.su /
    the Sutra rotation_hashmap example.)
+   **MEASURED-WORKING 2026-05-28 — see § below.**
 
 Both reduce crosstalk by changing what the bundle stores, not its size.
 Capacity is still ≤25 items per glyph; the dim just needs to support that
 binding count cleanly, not to make a biased encoding work.
+
+## ✅ Sparse-only-LIT encoding works at runtime_dim ≥ 384 (2026-05-28)
+
+After the first encoding failed, the generator was switched to emit only
+`bind(p_NN, LIT)` for lit cells (no UNLIT bindings at all; UNLIT stays a
+basis-vector declaration only for the antipodal variant to use later).
+Measured cosine separation across all 36 glyphs (`A..Z, 0..9`, all 25
+cells each, 900 samples total):
+
+| `runtime_dim` | lit_mean | lit_min | unlit_mean | unlit_max | gap |
+|---|---|---|---|---|---|
+|  16 | 0.249 | -0.364 | -0.019 |  0.472 | -0.836 |
+|  32 | 0.286 | -0.197 |  0.089 |  0.448 | -0.645 |
+|  64 | 0.280 | -0.031 | -0.032 |  0.270 | -0.301 |
+| 128 | 0.263 |  0.063 | -0.002 |  0.142 | -0.079 |
+| 256 | 0.266 |  0.147 |  0.017 |  0.185 | -0.038 |
+| **384** | **0.288** | **0.182** | **-0.003** |  **0.106** | **+0.076** |
+| 512 | 0.288 |  0.153 | -0.000 |  0.125 | +0.028 |
+| 768 | 0.288 |  0.175 |  0.009 |  0.096 | +0.079 |
+
+Threshold of 0.14 at runtime_dim=384 recovers **36/36 glyphs
+pixel-exact** vs the font oracle (every one of the 900 cells lands on the
+correct side). Speed: **91 ms/render = 11 fps** single-threaded — about
+**28× faster** than the existing `font.su` defuzzified-select path
+(2540 ms/render at dim=8).
+
+The dim choice is non-obvious: at the small dims used elsewhere (8-16)
+this fails completely; the rotation-binding capacity for 25 bindings genuinely
+needs ~384 semantic dims. That's a real trade-off — the integer-cycle demo
+uses dim=8 because it has no bound items; the bound-vector glyph demo
+needs ~50× that. Different apps, different dims, both honestly named.
+
+## What's still TODO before wiring this into the demo
+
+- **CI-safe test.** `tests/test_font_bound.py` should measure the encoding
+  end-to-end against the oracle at dim=384. The .su uses basis_vector
+  calls for 63 new keys (`font_bound_p_00..p_24`, `font_bound_LIT`,
+  `font_bound_UNLIT`, `font_bound_c_A..c_9`) — none of which are in the
+  current `tests/fixtures/nomic-embed-text-d484.pt` (which doesn't exist
+  either; only d108/d116/d868 are committed). The test needs either:
+  (a) a d484 fixture with the 63 new keys generated via ollama on a dev
+  machine and committed, or (b) a graceful skip when the fixture is
+  missing. Picking (b) for the first version; (a) is the right fix.
+- **Wire the demo.** `apps/font/font_demo.py` could optionally use
+  `font_bound.su` at runtime_dim=384 for ~28× speed. NOT done in this
+  tick — the existing path at dim=8 still renders the same glyphs
+  correctly (just slower), and switching paths is a user-visible change
+  worth deliberation.
+- **Antipodal-filler variant** (the other queued correction) — STILL
+  UNTRIED. Sparse-only works at ~384; antipodal might work at smaller
+  dim (~64-128?) because crosstalk cancels rather than just diffusing.
+  Worth measuring but not the next blocker.
 
 ## Why this is queued, not done today
 
