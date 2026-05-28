@@ -218,7 +218,7 @@ def test_shared_runtime_service_refuses_individual_unload():
     runtime, (svc,) = make_shared_sutra_services([
         {"name": "shared_echo", "source_path": ECHO_SU,
          "output_role": "R_o"},
-    ])
+    ], runtime_dim=16)
     init = Init(compute_pool=5)
     init.admit(
         Manifest(

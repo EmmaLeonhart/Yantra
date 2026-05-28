@@ -26,7 +26,7 @@ needs. This is bloat masquerading as substrate work.
 | `apps/gui/toggle.su` | 8 (fixed today) | 0 | **8 measured exact** at flip | DONE, commit `4ac0421` |
 | `apps/echo/echo.su` | 16 (fixed today) | 0 | **16 measured exact** — uses Axon.add/axon_item (rotation-binding), 1 bound key, dim=16 above noise floor | DONE, 5 echo tests green |
 | `apps/terminal/` | host-only Python wrapper at `AXON_WIDTH=768`; no compiled .su | n/a | n/a until terminal gets a .su component | UNFIXED |
-| `kernel/services.py` | default `runtime_dim=768` (line 425) | manifest-dependent | per-manifest TBD | UNFIXED |
+| `kernel/services.py` | **default removed** — `runtime_dim` now required keyword | manifest-dependent | each caller explicit | DONE — 5 test callers updated to `runtime_dim=16`, 295/295 + 1 xfail green |
 
 (`echo.su` not yet read — included for completeness.)
 

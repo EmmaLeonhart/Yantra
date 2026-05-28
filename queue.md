@@ -28,8 +28,10 @@ commit e22c80a. Per-app fix items:
 - ~~`apps/gui/frame.su` + `window.py:39` → measure + drop.~~ DONE.
 - ~~`apps/gui/toggle.su` + `click_demo.py:47` → measure + drop.~~ DONE.
 - ~~`apps/echo/echo.su` (inherits kernel default 768) → measure + per-manifest dim.~~ DONE (axon_width=16 in echo.toml; 5 echo tests green).
-- `kernel/services.py:425` default `runtime_dim=768` → review whether the default
-  should require explicit choice instead of silently bloating. PENDING.
+- ~~`kernel/services.py:425` default `runtime_dim=768` → review whether the default
+  should require explicit choice instead of silently bloating.~~ DONE: default removed,
+  `runtime_dim` is now a required keyword argument. 5 test callers updated to
+  pass `runtime_dim=16` explicitly. Full suite 295/295 + 1 xfail green.
 - ~~Separate framing pass per app: is the recurrence host-shaped (state on host
   via `vsa.real()` between ticks)?~~ DONE for font.su / count.su / toggle.su —
   each .su's header now plainly says "host-state-shuttle, not substrate-state

@@ -515,7 +515,7 @@ def test_make_shared_sutra_services_share_one_vsa(tmp_path: pathlib.Path) -> Non
     runtime, services = make_shared_sutra_services([
         {"name": "a", "source_path": src_a, "output_role": "R_a"},
         {"name": "b", "source_path": src_b, "output_role": "R_b"},
-    ])
+    ], runtime_dim=16)
 
     init = Init(compute_pool=10)
     init.admit(
@@ -568,7 +568,7 @@ def test_shared_runtime_axon_passing_through_router(tmp_path: pathlib.Path) -> N
     runtime, (prod, cons) = make_shared_sutra_services([
         {"name": "prod", "source_path": producer_src, "output_role": "R_out"},
         {"name": "cons", "source_path": consumer_src, "output_role": "R_done"},
-    ])
+    ], runtime_dim=16)
 
     init = Init(compute_pool=10)
     init.admit(
@@ -624,7 +624,7 @@ def test_sutraservice_runtime_with_unknown_program_raises(tmp_path: pathlib.Path
     )
     runtime, _ = make_shared_sutra_services([
         {"name": "real", "source_path": src, "output_role": "R_real"},
-    ])
+    ], runtime_dim=16)
     # Wire a SutraService claiming to be admitted under a name the
     # runtime doesn't know — bind() should raise.
     bad = SutraService(

@@ -422,7 +422,7 @@ def make_shared_sutra_services(
     specs: list[dict],
     *,
     llm_model: str = "nomic-embed-text",
-    runtime_dim: int = 768,
+    runtime_dim: int,
 ) -> tuple[Any, list["SutraService"]]:
     """Construct N SutraServices over a single shared MultiProcessRuntime.
 
