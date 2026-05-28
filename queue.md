@@ -12,33 +12,6 @@ See `CLAUDE.md` § "Workflow Rules" for how this file, planning mode, and the ta
 
 ## Active
 
-### 🚨 Substrate-honesty audit across every Yantra app (Emma 2026-05-27) — IN PROGRESS
-
-**Survey done** (planning/27-substrate-honesty-audit-2026-05-27.md):
-NONE of apps/{calc,gui/count,gui/frame,gui/toggle,echo}.su call `basis_vector`,
-yet ALL use `runtime_dim=768`. Same 96× bloat the font demo had until
-commit e22c80a. Per-app fix items:
-
-- ~~`apps/calc/calc.py:63 AXON_WIDTH=768` → measure correctness at dim=8/16, drop dim.~~ DONE (8; 64 calc + 3 parse tests green).
-- ~~`apps/gui/count.su` + `counter_demo.py:61` → measure + drop to dim=8.~~ DONE (measured exact, 9 GUI tests green).
-- ~~`apps/gui/frame.su` + `window.py:39` → measure + drop.~~ DONE.
-- ~~`apps/gui/toggle.su` + `click_demo.py:47` → measure + drop.~~ DONE.
-- ~~`apps/echo/echo.su` (inherits kernel default 768) → measure + per-manifest dim.~~ DONE (axon_width=16 in echo.toml; 5 echo tests green).
-- ~~`kernel/services.py:425` default `runtime_dim=768` → review whether the default
-  should require explicit choice instead of silently bloating.~~ DONE: default removed,
-  `runtime_dim` is now a required keyword argument. 5 test callers updated to
-  pass `runtime_dim=16` explicitly. Full suite 295/295 + 1 xfail green.
-- ~~Separate framing pass per app: is the recurrence host-shaped (state on host
-  via `vsa.real()` between ticks)?~~ DONE for font.su / count.su / toggle.su —
-  each .su's header now plainly says "host-state-shuttle, not substrate-state
-  RNN" with a pointer to planning/27. The actual substrate-state-RNN refactor
-  for these is queued separately (planning/26 covers font; analogous for the
-  others) and per Emma's migration plan belongs Sutra-side, not here.
-
-### 🤖 Daily-audit GitHub Action — prepend a substrate-honesty check to queue.md each day
-
-Trigger: Emma asked for a daily action on BOTH Sutra and Yantra that prepends an audit-task to the top of `queue.md` (Yantra) / the daily-audit queue (Sutra), so the next session's first action is to do a substrate-break / hallucination audit on recent commits. Yantra side: `.github/workflows/daily-audit.yml` at `cron: '0 7 * * *'` opens a small PR (or pushes to a daily branch) that prepends one item to queue.md asking the next session to review the previous day's commits for fake-substrate / host-shaped patterns. Sutra side: same workflow against Sutra's queue.md. Both should reuse the existing GH Actions auth pattern from the repo's CI workflows.
-
 ### ⚙️ Environment pin — this machine IS capable (read before doubting hardware)
 
 Emma's machine has a real, good GPU — an RTX 4070, `torch.cuda.is_available() == True`, ample compute. Do NOT assume CPU-only, do NOT assume "the GPU path won't work," do NOT pre-emptively frame Emma's algorithms/logic as unworkable on this hardware. Measured 2026-05-24: admitting a Sutra program allocates real GPU memory; the GPU-tier residency tests pass 4/4 in isolation; the calc runs float64 exactly. When a GPU-dependent test looks like it "fails," first check whether it's a test-isolation / shared-substrate artifact (it usually is) — run it alone before concluding a capability is missing.
@@ -59,9 +32,9 @@ Not in scope: replicating the *video / screen-frame generation* (NCGUIWorld) —
 
 ### Font demo rewrite — per-char bound-vector instead of 25-way inner switch
 
-Full design in `planning/26-font-bound-vector-rewrite.md`. The existing `apps/font/font.su` pays ~22,500 inner-select branches per keypress because each `bit_<C>(pos)` is a 25-way switch — a switch-as-lookup-table antipattern. Rewrite encodes each character as a single rotation-binding bundle (the Sutra-paper hashmap pattern); per-cell cost drops to ~63 ops (~14× fewer). Risks: rotation-binding capacity at N=25 in 768-d is unmeasured; tolerance shifts from exact (1e-9) to fuzzy (~1e-1); existing tests break. Plan in the planning doc.
+Full design + 2026-05-28 negative-result measurement in `planning/26-font-bound-vector-rewrite.md`. First attempt (bind(pos, LIT)/(pos, UNLIT) per cell) failed at every dim from 16 to 256 — bundle crosstalk biases toward whichever filler appears more often, so lit and unlit cosines overlap. Two corrections queued: antipodal-filler encoding, sparse-only-LIT encoding. Capacity isn't the bottleneck; encoding shape is.
 
-Triggered by Emma's pushback on 2026-05-27: "a 20,000-thing switch is just bizarre." She's right — that's bloat, not "the cost of substrate purity." The cycle_step demo shipped first (commit `3d8dae4`) so the recurrent step is visible today; this rewrite is the follow-up.
+Triggered by Emma's pushback on 2026-05-27: "a 20,000-thing switch is just bizarre." She's right — that's bloat. The dim drop (font_demo runtime_dim=8) handled most of the cost; this rewrite is the further dispatch-count reduction follow-up, gated on a working encoding.
 
 ### GUI — substrate-computed pixels: open follow-ups
 

@@ -180,6 +180,48 @@ from ~900 to ~37, a ~24× reduction in dispatch overhead. The bigger
 win (batching the 25 cells into ONE substrate call) is still upstream-
 blocked on Sutra-side batched `make_real`.
 
+## ❌ Measured-negative result for the bind(p, LIT)/bind(p, UNLIT) encoding (2026-05-28)
+
+The first version (`tools/generate_font_bound_su.py` → `apps/font/font_bound.su`)
+encoded each glyph as `bundle(bind(p_NN, LIT_or_UNLIT) for cell in 25)`. Smoke
+test (compile + render 'A' + measure cosine-to-LIT per cell, compared to the
+font oracle):
+
+| `runtime_dim` | lit-cell cos mean | unlit-cell cos mean | min_lit - max_unlit gap |
+|---|---|---|---|
+| 16  | 0.194 | 0.160 | **-0.483 (overlap)** |
+| 32  | 0.195 | 0.307 | **-0.840 (overlap)** |
+| 64  | 0.169 | 0.224 | **-0.446 (overlap)** |
+| 128 | 0.179 | 0.223 | **-0.295 (overlap)** |
+| 256 | 0.217 | 0.194 | **-0.227 (overlap)** |
+
+Even at dim=256, individual unlit cells return cosine ~0.35 to LIT while
+some lit cells return cosine ~0.12. **There is no threshold that recovers
+the oracle bit pattern.**
+
+Why this fails: the bundle crosstalk is BIASED toward whichever filler
+appears more often in the encoding. Glyph 'A' has 14 lit + 11 unlit cells,
+so the bundle has a slight LIT-direction bias; when you unbind any
+position, you get LIT direction + crosstalk noise from the other 24
+bindings, swamping the per-cell signal.
+
+**Two corrections to try next (separate ticks):**
+
+1. **Antipodal filler.** Use a single MARKER basis vector; encode lit cells
+   as `bind(p, MARKER)` and unlit cells as `bind(p, -MARKER)` (or via a
+   negation primitive — Sutra must expose vector negation; check the
+   stdlib). Crosstalk averages to ~0 instead of biasing toward LIT.
+
+2. **Sparse-only-LIT encoding.** Only bind lit cells into the bundle;
+   omit unlit. Unbinding a missing role returns noise ~0; unbinding a
+   present role returns approximately MARKER. Gap is then `~MARKER_cos`
+   vs `~0`, clean separation. (Same shape as `axon_item` in echo.su /
+   the Sutra rotation_hashmap example.)
+
+Both reduce crosstalk by changing what the bundle stores, not its size.
+Capacity is still ≤25 items per glyph; the dim just needs to support that
+binding count cleanly, not to make a biased encoding work.
+
 ## Why this is queued, not done today
 
 The cycle demo is the user-visible work Emma asked for in this session:
