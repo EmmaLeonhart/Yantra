@@ -85,22 +85,44 @@ def gen_basis_block() -> str:
 
 
 def gen_glyph_bundles() -> str:
-    """36 bundles, one per char: bundle(bind(p_NN, LIT or UNLIT) for each cell)."""
+    """36 bundles, one per char: bundle(bind(p_NN, LIT) for ONLY LIT cells).
+
+    Encoding shape (2026-05-28, after the bind(p,LIT)/(p,UNLIT) version failed
+    — see planning/26 § "Measured-negative result"): only lit cells are bound.
+    Unbinding a missing-from-bundle role returns rotation-binding noise ~0,
+    while unbinding a present (lit) role returns approximately LIT (cosine ~1
+    minus capacity-dependent crosstalk). Gap is `cos_lit - noise` instead of
+    a contest between two biased fillers. Same shape as `axon_item` in
+    echo.su / the Sutra rotation_hashmap example.
+
+    UNLIT is no longer used in any binding; it's kept as a basis-vector
+    declaration in the basis block for symmetry with the antipodal-filler
+    variant (the other follow-up that planning/26 names).
+    """
     lines: list[str] = []
     lines.append("// --- Per-character glyph bundles (rotation-bindings) ---")
-    lines.append("// Each glyph_X is one substrate vector encoding the 25 lit/unlit bits via")
-    lines.append("// 25 (position -> LIT/UNLIT) bindings. The bundle's rotation-binding capacity")
-    lines.append("// at N=25 bindings in a small runtime_dim is what determines the noise floor;")
-    lines.append("// the measured-tolerance test reports the actual cosine gap.")
+    lines.append("// SPARSE-ONLY-LIT encoding: only lit cells are bound. Unbinding a missing")
+    lines.append("// position returns rotation-binding noise ~0; unbinding a present (lit)")
+    lines.append("// position returns approximately LIT with capacity-dependent crosstalk. Gap")
+    lines.append("// is `cos_to_LIT_for_lit ~ 1` vs `cos_to_LIT_for_unlit ~ 0`, separated by the")
+    lines.append("// rotation-binding noise floor. Same shape as axon_item in echo.su.")
     for c in CHARS_ORDER:
         suffix = c if c.isalpha() else f"d{c}"
         bits = bits_for(c)  # 25 floats in row-major (y*5+x)
+        lit_positions = [pos for pos in range(25) if bits[pos] > 0.5]
         lines.append("")
+        if not lit_positions:
+            lines.append(f"// '{c}' has zero lit cells — encode as bind(p_00, LIT) * 0.0")
+            lines.append(f"// (a degenerate one-binding bundle scaled to zero so unbind returns noise).")
+            lines.append(f"vector glyph_{suffix} = bind(p_00, LIT) * 0.0;")
+            continue
+        if len(lit_positions) == 1:
+            # Single bind is itself a vector; no bundle() needed for one entry.
+            pos = lit_positions[0]
+            lines.append(f"vector glyph_{suffix} = bind(p_{pos:02d}, LIT);")
+            continue
         lines.append(f"vector glyph_{suffix} = bundle(")
-        binds = []
-        for pos in range(25):
-            marker = "LIT" if bits[pos] > 0.5 else "UNLIT"
-            binds.append(f"    bind(p_{pos:02d}, {marker})")
+        binds = [f"    bind(p_{pos:02d}, LIT)" for pos in lit_positions]
         lines.append(",\n".join(binds))
         lines.append(");")
     return "\n".join(lines)
