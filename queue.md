@@ -12,6 +12,18 @@ See `CLAUDE.md` § "Workflow Rules" for how this file, planning mode, and the ta
 
 ## Active
 
+### 🔍 Daily substrate-honesty audit — 2026-05-30
+
+Auto-prepended by .github/workflows/daily-audit.yml. The next autonomous-loop session should, as its first action: (a) review every commit landed since the previous daily audit; (b) for each commit that touched a .su or its compile/admit path, verify runtime_dim matches what the .su actually needs (basis_vector usage → embedding dim; no basis_vector → tiny dim, typically 8-16); (c) for any commit that frames work as "recurrent" / "RNN" / "substrate-pure" / "verified", verify the claim against measurement, not against earlier session framing; (d) if anything is amiss, write a finding under planning/ and a fix item under queue.md, BEFORE doing other queue work. Then delete this item.
+
+### 🔍 Daily substrate-honesty audit — 2026-05-29
+
+Auto-prepended by .github/workflows/daily-audit.yml. The next autonomous-loop session should, as its first action: (a) review every commit landed since the previous daily audit; (b) for each commit that touched a .su or its compile/admit path, verify runtime_dim matches what the .su actually needs (basis_vector usage → embedding dim; no basis_vector → tiny dim, typically 8-16); (c) for any commit that frames work as "recurrent" / "RNN" / "substrate-pure" / "verified", verify the claim against measurement, not against earlier session framing; (d) if anything is amiss, write a finding under planning/ and a fix item under queue.md, BEFORE doing other queue work. Then delete this item.
+
+### 🔍 Daily substrate-honesty audit — 2026-05-28
+
+Auto-prepended by .github/workflows/daily-audit.yml. The next autonomous-loop session should, as its first action: (a) review every commit landed since the previous daily audit; (b) for each commit that touched a .su or its compile/admit path, verify runtime_dim matches what the .su actually needs (basis_vector usage → embedding dim; no basis_vector → tiny dim, typically 8-16); (c) for any commit that frames work as "recurrent" / "RNN" / "substrate-pure" / "verified", verify the claim against measurement, not against earlier session framing; (d) if anything is amiss, write a finding under planning/ and a fix item under queue.md, BEFORE doing other queue work. Then delete this item.
+
 ### ⚙️ Environment pin — this machine IS capable (read before doubting hardware)
 
 Emma's machine has a real, good GPU — an RTX 4070, `torch.cuda.is_available() == True`, ample compute. Do NOT assume CPU-only, do NOT assume "the GPU path won't work," do NOT pre-emptively frame Emma's algorithms/logic as unworkable on this hardware. Measured 2026-05-24: admitting a Sutra program allocates real GPU memory; the GPU-tier residency tests pass 4/4 in isolation; the calc runs float64 exactly. When a GPU-dependent test looks like it "fails," first check whether it's a test-isolation / shared-substrate artifact (it usually is) — run it alone before concluding a capability is missing.
