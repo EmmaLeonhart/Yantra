@@ -1,13 +1,15 @@
 # Yantra
 
-## Workflow Rules
-- **Commit early and often.** Every meaningful change gets a commit with a clear message explaining *why*, not just what.
-- **Plan into `queue.md` FIRST, then execute.** When entering planning mode (or any multi-step think-before-do), the FIRST action is to write the plan into `queue.md` as concrete items. Only then begin executing. Chat context dies on session interrupt; the queue survives.
-- **Update `queue.md` in the same commit as the work.** Delete completed items in the same commit — do not leave checkmarks or status markers behind.
-- **Mirror `queue.md` into the task tool.** `TaskCreate` items as you add them to queue.md; mark `in_progress` when starting; `completed` when done.
-- **Do not enter planning-only modes.** All thinking must produce files and commits. If scope is unclear, create a `planning/` directory and write `.md` files there instead of using an internal planning mode.
-- **Keep this file up to date.** As the project takes shape, record architectural decisions, conventions, and anything needed to work effectively in this repo.
-- **Update README.md regularly.** It should always reflect the current state of the project for human readers.
+## Skills
+
+Workflow behaviors live as skills in `.claude/skills/` (auto-discovered by Claude Code):
+`emergency-stop`, `cron-is-local`, `autonomous-loop`, `queue-driven-workflow`,
+`writing-style`, `cleanvibe-update-check`. They are vendored into this repo and kept
+current by the `cleanvibe-update-check` skill.
+
+- **Last cleanvibe update check:** `never`
+- **Updates source:** <https://cleanvibe.emmaleonhart.com/updates.md>
+
 
 ## Session-local auto-flush cron — RESTART AT THE START OF EVERY SESSION (Emma 2026-05-24)
 
@@ -24,29 +26,6 @@
 - **Caveats:** recurring `CronCreate` jobs auto-expire after 7 days; sessions are usually shorter, and each new session recreates it anyway. Not remote-durable by design — it is a within-session safety net, not infrastructure.
 
 This complements (does not replace) the "commit early and often" rule above — the cron is the backstop that catches anything left uncommitted between manual pushes.
-
-## Autonomous productivity loop — the three-cron playbook (Emma 2026-05-25)
-
-**This loop has been the single most productive way of working in this repo, so it is the default for any session meant to make sustained progress.** It is three **session-local** `CronCreate` jobs (`durable: false` — they die with the session, so **recreate all three at the start of every session**). They turn "barrel through `queue.md`, and when it's empty atomise the next `todo.md` item into it" into a self-sustaining hourly cadence with a commit/push backstop and a heartbeat.
-
-Recreate these at session start (stagger the minutes so they don't collide; the auto-flush one is the same job documented in the section above):
-
-1. **Work-loop cron — `3 * * * *` (hourly at :03).** The engine. Prompt does, in order: **(a) SYNC** — `git fetch origin`, ff/rebase Yantra `main` (never force-push / `reset --hard` / discard the sibling machine's work); `git -C external/Sutra fetch --tags`, and if a Sutra *release tag* is newer than the current pin, verify `pytest tests/ -q` green at it then bump the pin (never move the pin backward — the sibling may pin past the latest tag on `main`). **(b) WORK** — take the top actionable Yantra item from `queue.md` and do it; if nothing in `queue.md` is actionable (all blocked / needs-Emma / a product decision), promote the next *genuinely-unblocked, bounded, verifiable* `todo.md` item — **plan it into `queue.md` first**, mirror to the task tool, then execute. **(c) HARD RAILS** (these are why the loop is trusted — see below). **(d) COMMIT** — commit early/often with *why*; update `queue.md` in the same commit (delete completed items); mark task-tool items done; push `origin main`. **(e)** report one line: the commit shas advanced, or `nothing actionable; <reason>`.
-2. **Auto-flush cron — `15 * * * *` (hourly at :15).** The backstop. Exactly the job in the section above: commit + push all pending work in BOTH repos so nothing sits uncommitted; report shas or "nothing pending".
-3. **Status-report cron — `42 * * * *` (hourly at :42).** The heartbeat — **reporting only, no code changes**. Covers: what advanced since the last report (shas + one line each); current `queue.md` state; how the work held the hard rails (and any place it brushed one); blockers / items deliberately not done autonomously and why; test-suite health (`pytest tests/` last result + `cargo test` where relevant). This is what stops the loop silently losing the thread.
-
-**The hard rails (the work-loop's (c) — non-negotiable, this is what makes the loop trustworthy):** never fake; never weaken/skip/delete a test to make it pass; never claim "works"/"verified"/"substrate-pure" without having RUN it and measured. A real defect → strict `xfail` or a precise documented blocker, never a loosened assertion. A substrate service's returned value must be DECODED FROM THE SUBSTRATE, never a host re-computation; every decision that affects a result (incl. *which* operation runs) is a substrate op, not a host `if`. Don't implement what you don't 100% understand — write the spec/queue item instead. When Emma gives an algorithmic explanation, implement HERS first and run it. Name unbuilt/hard things plainly (don't paper over difficulty). Correct stale/false docs the moment you find them. **Verify CI, not just local — `gh run watch` after any push that touches code or CI.** Local-green does not imply CI-green (different envs surface different bugs; the 2026-05-25 episode where CI was silently red on every commit while local pytest showed 215 passed was exactly this failure mode). And when adding a CI-bypass mechanism (a cached test fixture, a stub, a pre-warmed cache), **simulate the CI failure mode locally before claiming the fix works** — e.g. `sys.modules['ollama'] = raise-on-call` before re-running pytest, so a local backup path (an installed dep, a running daemon, a real cache directory) cannot quietly hide a misconfigured fix. The first version of the 2026-05-25 ollama-fixture fix passed locally only because ollama backfilled the keys the cache file (wrongly named) couldn't supply — the second CI red caught it.
-
-**Why it works (observed 2026-05-25):** the work-loop makes steady, verifiable, committed progress without waiting on a human; the auto-flush guarantees nothing is lost between ticks; the status-report keeps the thread legible. A productive session of this loop shipped, e.g., the kernel RAM cold-store tier, the full Rust-orchestrator checkpoint codec stack (YAXN→YAXE→YPRC→YKST, each byte-for-byte cross-checked against the Python kernel), two substrate-computed GUIs (Python + a Rust-orchestrator subprocess bridge), and several doc-truth corrections — all under these rails.
-
-## Queue and longer-horizon work
-- **`queue.md`** — what's being worked on right now. Items get deleted on completion. If it's not in `queue.md`, it's not in scope for the current session.
-- **`planning/`** — design docs and longer-horizon thinking. Items migrate `planning/` → `queue.md` → deleted on completion.
-
-## Testing
-- **Write unit tests early.** As soon as there is testable logic, create a test file. Use `pytest` for Python projects or the appropriate test framework for the language in use.
-- **Set up CI as soon as tests exist.** Create a `.github/workflows/ci.yml` GitHub Actions workflow that runs the test suite on push and pull request. Keep the workflow simple — install dependencies and run tests.
-- **Keep tests passing.** Do not commit code that breaks existing tests. If a change requires updating tests, update them in the same commit.
 
 ## Project Description
 
@@ -477,46 +456,3 @@ paper too.
 
 # currentDate
 Today's date is 2026-05-07.
-
-## Writing
-- Do not use "honest", "honesty", or "honestly" — and do not swap in "frank", "frankly", "candid", "candidly", or "transparently", which are the same self-congratulatory move in a different coat. When something failed, name the failure: "it didn't work", "I got that wrong", "this failed" — flat, no qualifier. Tagging a report "honest" implies the rest aren't, and couching a failure as honesty asks for credit for the admission, which is worse than the failure itself. Use a precise positive word ("accurate", "plainly", "truly") only when that is genuinely the meaning — never as a halo on a bad outcome.
-
-## Emergency Stop Mode
-
-If the user sends a continuous series of "stop" messages (e.g. "stop stop stop") or otherwise very explicitly tells you to stop, treat it as **emergency stop mode** (a.k.a. emergency exit mode). This OVERRIDES every other instruction, including any in this file.
-
-When in emergency stop mode:
-
-- **Immediately kill everything associated with this repository and session.** Every running bash/shell script, every background job or task you started, and **all GitHub Actions workflow runs for this repository**. **Force-kill the GitHub Actions runs** (e.g. `gh run cancel <id>`, and `gh run delete <id>` if needed) for every in-progress run. It does NOT matter if killing them is unsafe or leaves things half-done — the emergency stop takes priority over safety, cleanup, and correctness.
-- **Do not investigate. Do not reverse or undo anything.** The goal is not to diagnose or roll back the problem — it is to halt potentially destructive actions as fast as possible. Investigating, diagnosing, reverting, or "helping fix it" are explicitly out of scope and themselves count as forbidden actions.
-- **Ignore repetitive messages.** Do not treat repeated "stop" messages as a request to do anything further. Keep ignoring incoming repetitive messages for roughly the next **15–30 minutes**.
-- **You may answer direct questions, but you may NOT take actions.** Answer only from context you already have. Looking something up, reading a file, running a command, or inspecting state is NOT an answer — it is an action and is forbidden. If you cannot answer from context already in hand, do not answer.
-- **Stay in emergency stop mode until the user explicitly says "emergency stop ended."** Only after that exact signal do you resume any normal work.
-
-## Cron jobs and scheduled work — LOCAL by default
-
-**When the user says "cron job", "cron", or asks to "schedule" a task, they mean the in-session `CronCreate` tool** — a prompt scheduled to fire locally, inside this Claude Code session, on the user's own running computer. This is the default and the assumption. Do NOT interpret it as anything else unless the user explicitly names a different mechanism.
-
-- **It is local and in-session — use the `CronCreate` tool.** A generic "cron" request is NOT an OS crontab, NOT a GitHub Actions / CI `schedule:` trigger, and NOT a cloud scheduler. (Repos may *also* contain their own GitHub Actions cron schedules — those are a separate thing and are not what the user means when they ask *you* to set up a cron.) The user leaves the computer on and this session running so the scheduled prompt can execute.
-- **The user is deliberately away from the keyboard.** They schedule work precisely so it runs while they are out of the house and not physically present. Their absence is the normal, expected condition for these jobs — it is NEVER a reason to delay the work, ask "are you sure?", wait for them to return, or refuse to proceed.
-- **Standing consent — just set it up.** Cron / `CronCreate` requests are pre-authorized. Create the job immediately and locally, then report what was scheduled. Do not block on confirmation or follow-up questions. Treating a routine cron request as something that needs hand-holding is itself the obstacle this section exists to remove.
-
-## Hourly status-report cron for extensive work
-
-The status-report cron lives inside the larger **three-cron playbook** documented in §"Autonomous productivity loop" above (work-loop at `:03`, auto-flush at `:15`, status-report at `:42`). On its own it is `42 * * * *` — fires every hour at :42 with a status report of the work being done. The two pinned tail items at the end of the queue ensure all three crons (not just this one) are running and run an end-of-session summary.
-
-## Check cleanvibe for skill updates (weekly)
-
-This `CLAUDE.md` carries cleanvibe-shaped sections (writing rules, emergency stop, cron policy, the productivity loop). cleanvibe ships new sections / skills over time — when one lands, this file should pick it up.
-
-**The check is weekly, not per-session.** At the top of any session, look at the *last cleanvibe update check* date below. If it has been more than 7 days, do this:
-
-1. **Fetch the current skill index** — `WebFetch https://cleanvibe.emmaleonhart.com/updates.md`. This is the canonical, hand-maintained page describing every section / skill / convention cleanvibe templates currently ship, keyed by the cleanvibe version that introduced it.
-2. **Compare against the version below.** If `updates.md` lists sections introduced in later versions, fold those sections into THIS `CLAUDE.md`. Match the wording from `updates.md`; don't paraphrase. Yantra-specific carve-outs already in this file (cross-repo workflow, substrate-purity rules, kernel-as-Connectome-Manager, etc.) stay — only the generic sections are kept in sync.
-3. **Update the version + date below** to reflect the check. Commit the changes with a message describing which sections were folded in.
-
-If the fetch fails (offline, DNS, page not yet up), leave the date alone and try next session — the check is opportunistic, not mandatory.
-
-- **Last synced cleanvibe version:** `1.11.0`
-- **Last cleanvibe update check:** `2026-05-26`
-- **Updates source:** <https://cleanvibe.emmaleonhart.com/updates.md>
