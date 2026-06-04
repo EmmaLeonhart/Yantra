@@ -3,7 +3,7 @@ name: Deploy GitHub Pages site
 # Bare-bones static landing page living in site/. Deploys via the
 # official actions/deploy-pages flow. Pages "Source" must be
 # "GitHub Actions" — the configure-pages step enables it if needed.
-# Custom domain (yantra.emmaleonhart.com) comes from site/CNAME,
+# Custom domain (yantraos.org) comes from site/CNAME,
 # which GitHub picks up from the deployed artifact. DNS is configured
 # at the registrar, outside this repo.
 

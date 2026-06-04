@@ -133,7 +133,7 @@ the Yantra side.
 ## Shipping it — a downloadable demo on the site
 
 Once enough of a demo exists, put a **downloadable, runnable artifact
-on the Yantra website** (yantra.emmaleonhart.com) so anyone can run it
+on the Yantra website** (yantraos.org) so anyone can run it
 and watch the symbol stability for themselves — the terminal first, the
 calculator when it lands. A thing people can download and run beats any
 screenshot, and it is the natural place to host the contrast against a
