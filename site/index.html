@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Yantra is an interpretable neural-network-based operating system — the readable, verifiable alternative to the emerging opaque 'neural computer.'">
+  <meta name="description" content="Yantra is a GPU-native operating system that is one neural network — kernel, processes, IPC, and interface as a single differentiable graph. Unlike the opaque 'neural computers' now emerging, every operation in it is readable and verifiable.">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Yantra — an interpretable operating system">
-  <meta property="og:description" content="The readable alternative to the emerging, opaque 'neural computer.' An operating system you can inspect, verify, and trust.">
+  <meta property="og:title" content="yantraOS — the operating system that is a neural network">
+  <meta property="og:description" content="A GPU-native OS where the whole system is one differentiable neural network — readable and verifiable, unlike the opaque neural computers now emerging.">
   <meta property="og:url" content="https://yantraos.org/">
-  <title>Yantra — an interpretable operating system</title>
+  <title>yantraOS — the operating system that is a neural network</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -22,10 +22,15 @@
     .topbar{position:relative;z-index:2;display:flex;align-items:center;
       justify-content:space-between;gap:16px;padding:20px 28px;
       border-bottom:1px solid var(--border)}
-    .topbar a{font-family:var(--mono);font-size:.82rem;font-weight:500;
-      text-decoration:none;transition:color .2s}
-    .topbar .home{color:var(--text-mute)}
-    .topbar .home:hover{color:var(--accent-bright)}
+    .brand{font-family:var(--mono);font-size:1rem;font-weight:600;letter-spacing:-.3px;
+      color:var(--text-strong);text-decoration:none}
+    .brand span{color:var(--accent-bright)}
+    .topbar .cta-link{font-family:var(--mono);font-size:.82rem;font-weight:500;
+      text-decoration:none;color:var(--accent);padding:8px 16px;border-radius:8px;
+      border:1px solid var(--border-hover);background:var(--accent-soft);
+      transition:color .2s,border-color .2s,transform .2s}
+    .topbar .cta-link:hover{color:var(--accent-bright);border-color:var(--accent);
+      transform:translateY(-1px)}
 
     main{position:relative;z-index:2;flex:1;width:100%;max-width:760px;
       margin:0 auto;padding:0 28px}
@@ -76,6 +81,17 @@
     .cta p.body{margin-bottom:22px}
     .who{font-size:1rem;line-height:1.7;color:var(--text-mute);max-width:660px;margin-bottom:24px}
     .who b{color:var(--text-strong);font-weight:600}
+    .founder{margin-top:34px;margin-bottom:0}
+
+    /* Waitlist — primary CTA */
+    .waitlist{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px;max-width:560px}
+    .waitlist input[type=email]{flex:1;min-width:220px;font-family:var(--sans);
+      font-size:1rem;padding:12px 16px;border-radius:8px;border:1px solid var(--border-hover);
+      background:var(--bg-card);color:var(--text-strong);transition:border-color .2s}
+    .waitlist input[type=email]::placeholder{color:var(--text-faint)}
+    .waitlist input[type=email]:focus{outline:none;border-color:var(--accent)}
+    .waitlist-note{font-size:.85rem;line-height:1.5;color:var(--text-faint);
+      margin-top:12px;font-family:var(--mono);max-width:560px}
 
     footer{position:relative;z-index:2;padding:28px;
       border-top:1px solid var(--border);font-family:var(--mono);
@@ -100,22 +116,17 @@
   <div class="aurora" aria-hidden="true"></div>
 
   <header class="topbar">
-    <a class="home" href="https://emmaleonhart.com">&larr; emmaleonhart.com</a>
-    <a class="gh" href="https://github.com/EmmaLeonhart/Yantra" data-gh-repo="EmmaLeonhart/Yantra" aria-label="EmmaLeonhart/Yantra on GitHub">
-      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-      <span class="gh-name">GitHub</span>
-      <span class="gh-stat gh-stars" hidden title="GitHub stars"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.75.75 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z"/></svg><span class="gh-stars-n">&ndash;</span></span>
-      <span class="gh-stat gh-ver" hidden title="Latest release / tag"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 7.775V2.75C1 1.784 1.784 1 2.75 1h5.025c.464 0 .91.184 1.238.513l6.25 6.25a1.75 1.75 0 0 1 0 2.474l-5.026 5.026a1.75 1.75 0 0 1-2.474 0l-6.25-6.25A1.75 1.75 0 0 1 1 7.775ZM2.75 2.5a.25.25 0 0 0-.25.25v5.025c0 .066.026.13.073.177l6.25 6.25a.25.25 0 0 0 .354 0l5.025-5.025a.25.25 0 0 0 0-.354l-6.25-6.25a.25.25 0 0 0-.177-.073H2.75ZM6 5a1 1 0 1 1 0 2 1 1 0 0 1 0-2Z"/></svg><span class="gh-ver-n">&ndash;</span></span>
-    </a>
+    <a class="brand" href="/">yantra<span>OS</span></a>
+    <a class="cta-link" href="#waitlist">Request early access</a>
   </header>
 
   <main>
     <section class="hero">
-      <span class="eyebrow">Yantra &middot; independent research, early-stage</span>
-      <h1>An interpretable operating system.</h1>
-      <p class="lede">A new kind of computer is emerging &mdash; one whose behaviour comes from a neural network rather than from code anyone can read. Yantra is the <em>readable</em> alternative: an operating system you can inspect, verify, and trust.</p>
+      <span class="eyebrow">yantraOS &middot; the neural operating system</span>
+      <h1>The whole operating system is a neural network.</h1>
+      <p class="lede">Yantra is a GPU-native OS where the kernel, processes, IPC, and the interface are <em>one differentiable neural network</em> &mdash; not an operating system with AI features bolted on. And unlike the opaque &ldquo;neural computers&rdquo; now emerging, every operation in it is readable and verifiable.</p>
       <div class="links">
-        <a class="primary" href="mailto:contact@emmaleonhart.com?subject=Yantra">Get in touch</a>
+        <a class="primary" href="#waitlist">Request early access</a>
         <a href="https://arxiv.org/abs/2605.20919">Read the paper &rarr;</a>
       </div>
     </section>
@@ -143,36 +154,25 @@
       <p class="body">From there the same properties carry into the other safety-critical domains &mdash; defense, aerospace, medical, autonomous. Long-term, Yantra is a general-purpose operating system.</p>
     </section>
 
-    <section id="who" class="cta">
-      <h2>Who's building it</h2>
-      <p class="who">Yantra is built by <b>Emma Leonhart</b>, an independent researcher &mdash; the full stack, from the language and its published paper to a booting kernel, in about three months. Looking for a commercial co-founder for the safety-critical-systems market, and open to research collaboration and funding conversations.</p>
-      <div class="links">
-        <a class="primary" href="mailto:contact@emmaleonhart.com?subject=Yantra">Get in touch</a>
-        <a href="https://github.com/EmmaLeonhart/Yantra">View source on GitHub</a>
-        <a href="https://emmaleonhart.com/projects/">All projects</a>
-      </div>
+    <section id="waitlist" class="cta">
+      <h2>Request early access</h2>
+      <p class="body">Yantra is moving toward a prototype for design partners in finance and other safety-critical domains. Join the waitlist to be in the first wave &mdash; or to open a commercial, research, or funding conversation.</p>
+      <!-- Formspree: replace REPLACE_WITH_FORM_ID with the form ID from a free
+           account at https://formspree.io. Until then the form posts nowhere
+           useful — swapping the ID makes signups land in the connected inbox. -->
+      <form class="waitlist" action="https://formspree.io/f/REPLACE_WITH_FORM_ID" method="POST">
+        <input type="email" name="email" placeholder="you@company.com" required aria-label="Your email address">
+        <button class="btn btn-primary" type="submit">Join the waitlist</button>
+      </form>
+      <p class="waitlist-note">Early access to the prototype, rolled out in waves. No spam, no list-selling.</p>
+      <p class="who founder">Founded by <b>Emma Leonhart</b>. <b>Seeking a commercial co-founder</b> to take Yantra into the financial-infrastructure market.</p>
     </section>
   </main>
 
   <footer>
-    <span>yantraos.org</span>
+    <span>yantraOS.org</span>
     <span>built in Sutra</span>
   </footer>
-  <!-- GitHub repo facts: live star count + latest release/tag from the public API. -->
-  <script>
-  (function(){
-    var el=document.querySelector('a.gh[data-gh-repo]');if(!el)return;
-    var repo=el.getAttribute('data-gh-repo');
-    function put(sel,val){var s=el.querySelector(sel);if(!s)return;
-      var n=s.querySelector('span');if(n)n.textContent=val;s.hidden=false;}
-    fetch('https://api.github.com/repos/'+repo).then(function(r){return r.ok?r.json():null;})
-      .then(function(d){if(d&&typeof d.stargazers_count==='number')put('.gh-stars',d.stargazers_count.toLocaleString());}).catch(function(){});
-    fetch('https://api.github.com/repos/'+repo+'/releases/latest').then(function(r){return r.ok?r.json():null;})
-      .then(function(d){if(d&&d.tag_name){put('.gh-ver',d.tag_name);return;}
-        return fetch('https://api.github.com/repos/'+repo+'/tags').then(function(r){return r.ok?r.json():null;})
-          .then(function(t){if(t&&t.length&&t[0].name)put('.gh-ver',t[0].name);});}).catch(function(){});
-  })();
-  </script>
   <script>(function(){var b=document.getElementById('theme-toggle');if(!b)return;b.addEventListener('click',function(){var c=document.documentElement.getAttribute('data-theme')==='light'?'light':'dark';var n=c==='light'?'dark':'light';document.documentElement.setAttribute('data-theme',n);try{localStorage.setItem('theme',n);}catch(e){}});})();</script>
 </body>
 </html>
