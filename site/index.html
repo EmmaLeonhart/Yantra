@@ -130,16 +130,17 @@
       <h2>What's built</h2>
       <p class="body">Early, but real and running &mdash; not a slide deck. The foundations are in the open today:</p>
       <ul class="built">
+        <li><b>Interpretability, measured &mdash; not asserted.</b> Sutra's defining property is that information bound into the substrate comes back out <strong>exactly</strong>. The kernel fidelity harness carries over 1,000 distinct symbols through the live system and recovers every one bit-for-bit, with <strong>zero drift</strong>. The Sutra paper documents the same round-trip property at ~1.5&times;10<sup>&minus;15</sup> error across four compute substrates.</li>
         <li><b>A published language and paper.</b> <em>Sutra</em> &mdash; a typed, interpretable substrate where every operation is readable, not a learned black box. <a href="https://arxiv.org/abs/2605.20919">arXiv:2605.20919</a>, with a reference compiler, a language spec, and VS&nbsp;Code + IntelliJ plugins.</li>
         <li><b>A v0.0 kernel.</b> The Connectome Manager &mdash; real Sutra programs routed through a capability-checked kernel, with disc&harr;GPU load/unload measured on real hardware. ~48 passing tests.</li>
-        <li><b>A bare-metal bootloader, verified in QEMU.</b> Boots on virtualized hardware: scans the PCI bus, initializes the GPU framebuffer, and transitions to 64-bit long mode.</li>
-        <li><b>A bit-exact fidelity harness.</b> Over 1,000 distinct symbols carried through the kernel and recovered <strong>exactly, with zero drift</strong> &mdash; the interpretability claim, measured rather than asserted.</li>
+        <li><b>And, at the bottom of the stack, a booting bootloader.</b> Bare-metal, verified in QEMU: scans the PCI bus, initializes the GPU framebuffer, and transitions to 64-bit long mode.</li>
       </ul>
     </section>
 
     <section id="market">
       <h2>Where it goes</h2>
-      <p class="body"><span class="lead-in">Long-term, Yantra is a general-purpose operating system.</span> The first market is <strong>safety-critical systems</strong> &mdash; defense, aerospace, medical, autonomous &mdash; where a readable, verifiable system is worth more than mass-market compatibility, and where <em>&ldquo;we can't tell you what it will do&rdquo;</em> is not an acceptable answer.</p>
+      <p class="body"><span class="lead-in">The first market is financial infrastructure.</span> Trading, settlement, and risk systems live or die on <strong>deterministic latency, auditability, and a small attack surface</strong> &mdash; and the firms that run them have the capital to pay for verification. It is the market where <em>&ldquo;we can't tell you what it will do&rdquo;</em> is most expensive, and where a readable, formally verifiable system converts directly into risk removed and money saved.</p>
+      <p class="body">From there the same properties carry into the other safety-critical domains &mdash; defense, aerospace, medical, autonomous. Long-term, Yantra is a general-purpose operating system.</p>
     </section>
 
     <section id="who" class="cta">
