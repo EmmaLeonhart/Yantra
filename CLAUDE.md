@@ -20,12 +20,21 @@ current by the `cleanvibe-update-check` skill.
 - **Schedule:** `15 * * * *` (every hour at :15).
 - **What it does:** commit + push ALL pending work in BOTH repos so nothing sits uncommitted —
   1. `external/Sutra`: `git -C external/Sutra fetch origin --quiet`; fast-forward if behind; if the working tree has changes, commit them on the current branch (**`main`** unless told otherwise this session — Emma works on `main`, not `yantra-driven`); push if ahead. **Never force-push, never `reset --hard`, never discard the other machine's work.**
-  2. Yantra: `git fetch origin --quiet`; ff if behind; if the pin moved (`M external/Sutra`) or files changed, commit + push `origin main` (bump the pin in the same commit).
+  2. Yantra: `git fetch origin --quiet`; ff if behind; if **non-submodule files** changed, commit + push `origin main`. **Do NOT bump the `external/Sutra` pin here.** As of 2026-06-05 the Sutra pin tracks **release tags only**, advanced solely by the 6am release-pin cron (see next section). If the working tree shows `M external/Sutra` (the submodule HEAD drifted off the pinned release), leave it for the 6am job — never `git add external/Sutra` in auto-flush.
   3. Only commit/push when something is actually pending — no empty commits.
   4. Report one line: what was pushed (shas) or "nothing pending".
 - **Caveats:** recurring `CronCreate` jobs auto-expire after 7 days; sessions are usually shorter, and each new session recreates it anyway. Not remote-durable by design — it is a within-session safety net, not infrastructure.
 
 This complements (does not replace) the "commit early and often" rule above — the cron is the backstop that catches anything left uncommitted between manual pushes.
+
+## Sutra submodule pin = RELEASE TAGS ONLY (Emma 2026-06-05)
+
+**Decision:** Yantra's `external/Sutra` pin advances **only to Sutra release tags**, never to `main` HEAD. This is the stricter procurement posture the cross-repo workflow always allowed (see `external/` § "pin a specific tag, never `main`").
+
+- **The daily auto-bump-to-main is retired.** `.github/workflows/sutra-submodule-bump.yml` (which tracked Sutra's default-branch HEAD) was **deleted 2026-06-05**. Do not reintroduce a HEAD-tracking bump; it contradicts this policy.
+- **A 6am local cron owns the pin.** Each morning it checks out the latest Sutra **release tag** in the submodule, and if the pin moved, syncs the documented version refs (`paper/paper.md` "Sutra, pinned at vX.Y.Z"; the three `CLAUDE.md` version refs) and commits + pushes the bump. Session-local — recreate it each session (like the auto-flush above).
+- **The auto-flush and submodule-sync crons must NOT move the pin** — they push Sutra-side *work* (don't lose commits) but leave `external/Sutra` pin advancement to the 6am release job.
+- **When Yantra needs a Sutra change that isn't released yet:** cut a Sutra release (tag + `gh release`) per the cross-repo workflow, then the 6am job (or a manual bump) pins to it. A red Yantra CI after a release-pin means the release is missing something Yantra depends on — cut a new Sutra release, don't fall back to main-HEAD pinning.
 
 ## Project Description
 
