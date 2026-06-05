@@ -298,9 +298,17 @@ When something is hard or unbuilt, name it. Specific things that
 are hard, that are not yet built, and that should be called out
 plainly when they come up rather than waved past:
 
-- **The bootloader.** Doesn't exist. Rust target. Has to deal with
-  bare-metal CPU + GPU initialization, BIOS/UEFI handoff,
-  loading the compiled Sutra image into GPU memory.
+- **The bootloader.** An early version **exists and boots in QEMU**
+  (`bootloader/`, v0.4 — multiboot1 boot, PCI scan, GPU-framebuffer
+  write, kernel-image handoff, 32→64-bit long-mode transition; plus a
+  bare-metal Linux 0.00 replica). It is a **boot demo, not the
+  production boot path**: the handoff target is a stub and real
+  Sutra-on-GPU execution is gated on GPU passthrough (VFIO + a spare
+  GPU) the QEMU dev tier lacks. Still ahead, and Rust target: firmware
+  (BIOS/UEFI) handoff, real bare-metal CPU+GPU init, and loading the
+  compiled Sutra image into actual GPU memory. Don't say "the
+  bootloader doesn't exist" — say what the demo does and where the
+  production boot path stops.
 - **The Rust orchestrator.** Doesn't exist. The Python in
   `kernel/` is a behavioural reference for what its API surface
   should look like, not a "smaller version" of it.
@@ -320,7 +328,9 @@ plainly when they come up rather than waved past:
   Python prototype. Real per-process arenas need the multi-process
   Sutra runtime.
 - **Boot-time hardware discovery (PCI scan, GPU init, MMIO
-  setup).** Bootloader-stage work. None of it exists.
+  setup).** Bootloader-stage work. PCI enumeration and GPU-framebuffer
+  init exist in the QEMU bootloader demo above; MMIO/interrupt setup
+  against real target hardware does not.
 
 When writing docs, code comments, commit messages, or paper text,
 if you find yourself reaching for "the prototype demonstrates the
