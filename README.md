@@ -2,7 +2,7 @@
 
 **Website · [yantraos.org](https://yantraos.org)**
 
-A neuro-symbolic, GPU-native operating system written in Sutra.
+An interpretable neural computer: a GPU-native operating system written in Sutra where the whole running system is one inspectable neural network.
 
 ## What it is
 
