@@ -12,6 +12,10 @@ See `CLAUDE.md` § "Workflow Rules" for how this file, planning mode, and the ta
 
 ## Active
 
+### 🔍 Daily substrate-honesty audit — 2026-06-08
+
+Auto-prepended by .github/workflows/daily-audit.yml. The next autonomous-loop session should, as its first action: (a) review every commit landed since the previous daily audit; (b) for each commit that touched a .su or its compile/admit path, verify runtime_dim matches what the .su actually needs (basis_vector usage → embedding dim; no basis_vector → tiny dim, typically 8-16); (c) for any commit that frames work as "recurrent" / "RNN" / "substrate-pure" / "verified", verify the claim against measurement, not against earlier session framing; (d) if anything is amiss, write a finding under planning/ and a fix item under queue.md, BEFORE doing other queue work. Then delete this item.
+
 ### 🔍 Daily substrate-honesty audit — 2026-06-07
 
 Auto-prepended by .github/workflows/daily-audit.yml. The next autonomous-loop session should, as its first action: (a) review every commit landed since the previous daily audit; (b) for each commit that touched a .su or its compile/admit path, verify runtime_dim matches what the .su actually needs (basis_vector usage → embedding dim; no basis_vector → tiny dim, typically 8-16); (c) for any commit that frames work as "recurrent" / "RNN" / "substrate-pure" / "verified", verify the claim against measurement, not against earlier session framing; (d) if anything is amiss, write a finding under planning/ and a fix item under queue.md, BEFORE doing other queue work. Then delete this item.
