@@ -156,13 +156,18 @@
     <section id="waitlist" class="cta">
       <h2>Request early access</h2>
       <p class="body">Yantra is moving toward a prototype for design partners in finance and other safety-critical domains. Join the waitlist to be in the first wave &mdash; or to open a commercial, research, or funding conversation.</p>
-      <!-- Formspree: replace REPLACE_WITH_FORM_ID with the form ID from a free
-           account at https://formspree.io. Until then the form posts nowhere
-           useful — swapping the ID makes signups land in the connected inbox. -->
-      <form class="waitlist" action="https://formspree.io/f/REPLACE_WITH_FORM_ID" method="POST">
-        <input type="email" name="email" placeholder="you@company.com" required aria-label="Your email address">
+      <!-- Posts into a Google Form (responses collect in the linked Sheet).
+           Form ID 1FAIpQLSe7ZXwFpOAVADmKkmOvcVsFAv1qhdJb_pwMP2c3mNMTvifdHw;
+           email field is entry.900213640. The hidden iframe target keeps the
+           visitor on this page instead of redirecting to Google's confirmation. -->
+      <form class="waitlist" target="yantra-waitlist-sink" method="POST"
+            action="https://docs.google.com/forms/d/e/1FAIpQLSe7ZXwFpOAVADmKkmOvcVsFAv1qhdJb_pwMP2c3mNMTvifdHw/formResponse"
+            onsubmit="this.style.display='none';document.getElementById('waitlist-thanks').style.display='block';">
+        <input type="email" name="entry.900213640" placeholder="you@company.com" required aria-label="Your email address">
         <button class="btn btn-primary" type="submit">Join the waitlist</button>
       </form>
+      <iframe name="yantra-waitlist-sink" title="waitlist form target" style="display:none" aria-hidden="true"></iframe>
+      <p id="waitlist-thanks" class="waitlist-note" style="display:none">Thanks &mdash; you&rsquo;re on the list. We&rsquo;ll reach out as the prototype rolls out in waves.</p>
       <p class="waitlist-note">Early access to the prototype, rolled out in waves. No spam, no list-selling.</p>
       <p class="who founder">Founded by <b>Emma Leonhart</b>. <b>Seeking a commercial co-founder</b> to take Yantra into the financial-infrastructure market. <a href="https://calendly.com/contact-emmaleonhart">Book a call</a>.</p>
     </section>
