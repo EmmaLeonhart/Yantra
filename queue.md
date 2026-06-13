@@ -27,17 +27,12 @@ Yantra is now treated primarily as the **website repository**. The OS / language
 ## Active
 
 > **Gate lifted 2026-06-13 14:51** — Sutra submodule pulled to `11026ca` (v0.7.1-745, +312 commits).
-> **Step 1 audit DONE** — see `planning/24-website-repo-refocus.md`. It surfaced two decisions only Emma can make (⛔ below). Steps 2/4/6 are blocked on them; step 3 (CSS) is positioning-neutral and may proceed.
+> **Step 1 audit DONE** — see `planning/24-website-repo-refocus.md`. **Emma's decisions (2026-06-13):** (1) Positioning → **pivot the public site to the current GTM wedge** (self-optimizing landing pages), NOT the OS/critical-systems framing. (2) **Archive nothing yet** — leave all code in place. So: archive step is dropped; copy rewrite (step 4) becomes draft-and-confirm-with-Emma; CSS + Sutra restyle + Sutra docs proceed.
 
-### ⛔ BLOCKED ON EMMA — two decisions before archive + copy work (raised 2026-06-13, see planning/24)
-1. **Scope of archive.** The audit found most "non-website" code is NOT duplicated in Sutra (kernel, orchestrator, bootloader, paper, planning are Yantra-only). Only `apps/{calc,echo,terminal}` are genuine Sutra duplicates. Decide: archive ONLY those three demos (narrow), or still gut `main` to website-only (discards substantive Yantra-only work)?
-2. **Positioning.** The current `site/index.html` market framing appears to predate Emma's latest go-to-market direction (in her PRIVATE planning repos — not to be reproduced on this public repo/site). Confirm the current public framing before any copy rewrite. → gates steps 4 and 6.
-
-### 2. Archive the demos (scope pending decision #1)
-- Cut branch `archive/kernel-prototype-2026-06-13` from current `main` (preserves everything).
-- Narrow default per the audit: remove `apps/{calc,echo,terminal}` + their `!run*.bat` from `main`; keep kernel/orchestrator/bootloader/paper/planning unless Emma says otherwise.
-- Decide `daily-audit.yml` fate (archive with the demos if the `.su` apps move).
-- Update `README.md`/`CLAUDE.md` to match whatever scope Emma picks. Commit, push, CI green.
+### ⚠️ Standing rails for the copy work (do not violate)
+- **No private business content on this public repo or site.** Emma's `emmas-gstack/business/` is private; do not copy its wording, pricing, funding, founder-personal, or experiment specs. Public-safe high-level framing only.
+- **The one-liner is Emma's and not finalized.** The work-loop must NOT autonomously ship live marketing copy. Draft copy, show Emma, ship only after she confirms.
+- No bootloader in copy. Don't edit shared `identity.css`. Sutra edits only on `website-celestial`.
 
 ### 3. Yantra site — celestial / glow aesthetic layer  ✅ unblocked (positioning-neutral)
 - Study reference: `extropic.ai` (deep space-black, glowing accents, celestial gradients, subtle grain/starfield, slow animated glow). Cooler palette than Extropic's warm orange — lean into the existing periwinkle `--accent`, push toward cyan/violet/celestial.
@@ -45,9 +40,11 @@ Yantra is now treated primarily as the **website repository**. The OS / language
 - Build: glowing gradient hero, intensified animated aurora/nebula, subtle starfield or grain, glow on buttons/eyebrow/pills, celestial section dividers. Respect `prefers-reduced-motion`.
 - Keep dark default; confirm light theme still reads.
 
-### 4. Yantra site — copy pass to real current capabilities
-- **Remove the bootloader bullet** from `index.html`'s "What's built"; rewrite that section so it is accurate without it.
-- Update "Why now" / "What's built" / "Where it goes" to reflect Sutra's actual current state (after the 2h Sutra-pull cron refreshes the submodule). Talk on-the-ground: what the language can do today and how it relates to the OS. No overclaim; cite Sutra-paper numbers where used.
+### 4. Yantra site — copy pivot to the GTM wedge  ⚠️ DRAFT + confirm with Emma; do not ship autonomously
+- Re-point copy from the OS/critical-systems framing to the **self-optimizing landing pages** wedge (Emma's decision). Public-safe wording only — NO private business-repo content; the one-liner is Emma's pick and pending.
+- **Remove the bootloader bullet** and the financial-infrastructure/defense market section (retired framing).
+- Keep Sutra cited as the substrate/credibility anchor; cite only public, verifiable Sutra-paper numbers.
+- Process: draft the new copy, present it to Emma, ship to `site/index.html` only after she confirms wording.
 
 ### 5. Sutra site — celestial restyle on the `website-celestial` branch
 - In `external/Sutra`: create/checkout `website-celestial` off `main` (merge latest `main` first).
