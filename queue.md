@@ -33,6 +33,9 @@ Yantra is now treated primarily as the **website repository**. The OS / language
 - **No private business content on this public repo or site.** Emma's `emmas-gstack/business/` is private; do not copy its wording, pricing, funding, founder-personal, or experiment specs. Public-safe high-level framing only.
 - **The one-liner is Emma's and not finalized.** The work-loop must NOT autonomously ship live marketing copy. Draft copy, show Emma, ship only after she confirms.
 - No bootloader in copy. Don't edit shared `identity.css`. Sutra edits only on `website-celestial`.
+- **CI red is ACCEPTED — stop flagging it (Emma 2026-06-13: "ignore it").** The kernel/apps pytest CI fails against current Sutra (HEAD-tracking drift). It's the parked prototype, not the site. GitHub Pages (the website) deploys green. Do NOT spend cycles fixing it; do NOT list it as a blocker in status reports beyond a one-line "kernel CI red, accepted".
+- **Celestial intensity:** Emma approved "push it bolder" (bolder pass committed). Mirror the SAME look onto Sutra (step 5) only after she confirms the bolder version reads right.
+- **PR cron:** one-shot `5f4aa096` fires ~19:55 local to PR `website-celestial` → Sutra main.
 
 ### 3. Yantra site — celestial / glow aesthetic layer  ✅ unblocked (positioning-neutral)
 - Study reference: `extropic.ai` (deep space-black, glowing accents, celestial gradients, subtle grain/starfield, slow animated glow). Cooler palette than Extropic's warm orange — lean into the existing periwinkle `--accent`, push toward cyan/violet/celestial.
@@ -43,6 +46,7 @@ Yantra is now treated primarily as the **website repository**. The OS / language
 ### 4. Yantra site — copy pivot to the GTM wedge  ⚠️ DRAFT + confirm with Emma; do not ship autonomously
 - Re-point copy from the OS/critical-systems framing to the **self-optimizing landing pages** wedge (Emma's decision). Public-safe wording only — NO private business-repo content; the one-liner is Emma's pick and pending.
 - **Remove the bootloader bullet** and the financial-infrastructure/defense market section (retired framing).
+- **Remove the "Read the paper →" hero CTA** (Emma 2026-06-13: the paper isn't appropriate on the Yantra front page for the wedge audience).
 - Keep Sutra cited as the substrate/credibility anchor; cite only public, verifiable Sutra-paper numbers.
 - Process: draft the new copy, present it to Emma, ship to `site/index.html` only after she confirms wording.
 
