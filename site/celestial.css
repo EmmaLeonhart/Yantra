@@ -28,11 +28,27 @@
 html[data-theme="dark"] body {
   background-color: var(--bg);
   background-image:
-    radial-gradient(1200px 820px at 50% -12%, rgba(139,155,255,0.11), transparent 62%),
-    radial-gradient(1000px 720px at 86%  12%, rgba(185,140,255,0.075), transparent 60%),
-    radial-gradient(900px  820px at  8%  92%, rgba(121,230,255,0.055), transparent 60%),
-    radial-gradient(700px  600px at 70%  88%, rgba(139,155,255,0.05),  transparent 60%);
+    radial-gradient(820px 560px at 50% 2%,  rgba(150,168,255,0.16), transparent 64%),  /* bright hero core */
+    radial-gradient(1500px 980px at 50% -14%, rgba(139,155,255,0.22), transparent 60%), /* big central bloom */
+    radial-gradient(1100px 800px at 88%  10%, rgba(185,140,255,0.15),  transparent 60%),
+    radial-gradient(1000px 900px at  6%  90%, rgba(121,230,255,0.11),  transparent 60%),
+    radial-gradient(820px  720px at 74%  86%, rgba(139,155,255,0.10),  transparent 60%);
   background-attachment: fixed;
+}
+/* A strong glowing bloom sitting right behind the hero headline. */
+html[data-theme="dark"] .hero { position: relative; }
+html[data-theme="dark"] .hero::before {
+  content: ""; position: absolute; z-index: -1; pointer-events: none;
+  left: -18%; right: -18%; top: -8%; height: 560px;
+  background:
+    radial-gradient(60% 70% at 38% 42%, rgba(150,168,255,0.30), transparent 70%),
+    radial-gradient(55% 60% at 72% 38%, rgba(185,140,255,0.20), transparent 72%);
+  filter: blur(36px);
+  animation: celest-breathe 12s ease-in-out infinite;
+}
+@keyframes celest-breathe {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50%      { opacity: 1;    transform: scale(1.04); }
 }
 
 /* ---- Twinkling starfield (pure CSS, tiled) -------------------------- */
