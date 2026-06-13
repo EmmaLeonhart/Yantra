@@ -24,9 +24,19 @@ Yantra is now treated primarily as the **website repository**. The OS / language
 
 ---
 
-## Active
+## ⛔ HARD GATE — NOTHING in this session runs until the Sutra submodule is pulled to current (Emma 2026-06-13)
 
-### 1. Audit the Yantra repo for what is genuinely website / Yantra-only vs. duplicated Sutra work
+**The Sutra pull gates the ENTIRE session — the audit included.** Sutra's work-loop is still publishing; until `external/Sutra` is pulled to its latest, fully-published state (first Sutra-pull cron fire ~14:50 local, "around 2pm"), **we do not know what is actually on the Sutra repo**, so there is nothing reliable to audit, archive, restyle, or document against. EVERY item below — including step 1 (the audit) and step 3 (the CSS) — is blocked.
+
+**Until the pull lands, the work-loop cron does NOTHING but report "blocked — waiting on the ~2pm Sutra pull."** It must NOT promote any item, NOT start the audit, NOT write any CSS or copy.
+
+**The Sutra-pull cron lifts this gate:** after it successfully refreshes `external/Sutra`, it deletes this HARD GATE section from queue.md (commit + push). Only then does the work-loop begin at step 1.
+
+---
+
+## Active  ⛔ (all blocked until the gate above is lifted)
+
+### 1. Audit the Yantra repo for what is genuinely website / Yantra-only vs. duplicated Sutra work  ⛔ GATED until Sutra pull
 - Inventory: `kernel/`, `apps/`, `orchestrator/`, `bootloader/`, `paper/`, `planning/`, `tests/`, `tools/`, `scripts/`, the `!run*.bat` files, `Dockerfile`, `.devcontainer/`.
 - For each, decide: (a) duplicates Sutra-side work / already migrated → archive; (b) genuinely Yantra-only worth keeping on `main` (e.g. the paper? the vision planning docs? the website?) → keep.
 - Cross-check `external/Sutra` to confirm what already lives there (font/gui demos already migrated per old queue).
