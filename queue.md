@@ -26,24 +26,20 @@ Yantra is now treated primarily as the **website repository**. The OS / language
 
 ## Active
 
-> **Gate lifted 2026-06-13 14:51** — Sutra submodule pulled to `11026ca` (v0.7.1-745, +312 commits). Website work may begin at step 1.
+> **Gate lifted 2026-06-13 14:51** — Sutra submodule pulled to `11026ca` (v0.7.1-745, +312 commits).
+> **Step 1 audit DONE** — see `planning/24-website-repo-refocus.md`. It surfaced two decisions only Emma can make (⛔ below). Steps 2/4/6 are blocked on them; step 3 (CSS) is positioning-neutral and may proceed.
 
-### 1. Audit the Yantra repo for what is genuinely website / Yantra-only vs. duplicated Sutra work
-- Inventory: `kernel/`, `apps/`, `orchestrator/`, `bootloader/`, `paper/`, `planning/`, `tests/`, `tools/`, `scripts/`, the `!run*.bat` files, `Dockerfile`, `.devcontainer/`.
-- For each, decide: (a) duplicates Sutra-side work / already migrated → archive; (b) genuinely Yantra-only worth keeping on `main` (e.g. the paper? the vision planning docs? the website?) → keep.
-- Cross-check `external/Sutra` to confirm what already lives there (font/gui demos already migrated per old queue).
-- Skim Emma's local context repos for messaging input: `C:\Users\Immanuelle\Documents\Github\life-planning` (life/business planning) and `C:\Users\Immanuelle\Documents\Github\emmas-gstack` (Y-Combinator / Web-Combinator application + misc). Pull anything that should shape the website's positioning.
-- Decide the fate of `.github/workflows/daily-audit.yml` (it auto-prepends kernel substrate-honesty audits — moot on a website repo; likely move with the archive).
-- Output: `planning/24-website-repo-refocus.md` — findings + the keep/archive list.
+### ⛔ BLOCKED ON EMMA — two decisions before archive + copy work (raised 2026-06-13, see planning/24)
+1. **Scope of archive.** The audit found most "non-website" code is NOT duplicated in Sutra (kernel, orchestrator, bootloader, paper, planning are Yantra-only). Only `apps/{calc,echo,terminal}` are genuine Sutra duplicates. Decide: archive ONLY those three demos (narrow), or still gut `main` to website-only (discards substantive Yantra-only work)?
+2. **Positioning.** The current `site/index.html` market framing appears to predate Emma's latest go-to-market direction (in her PRIVATE planning repos — not to be reproduced on this public repo/site). Confirm the current public framing before any copy rewrite. → gates steps 4 and 6.
 
-### 2. Archive the non-website code; make `main` website-first
-- Cut branch `archive/kernel-prototype-2026-06-13` from current `main` (preserves everything, including the kernel queue items below).
-- On `main`, remove the archived code per step 1's list; keep `site/`, the website-relevant planning/vision docs, `README.md`, `CLAUDE.md`, `LICENSE`.
-- Rewrite `README.md` + `CLAUDE.md` so the repo reads clearly as "the Yantra website (kernel/language prototype archived on a branch; active dev is in Sutra)."
-- Disable/remove `daily-audit.yml` (and any CI that referenced removed code) so it stops prepending kernel audits.
-- Commit, push, verify CI green.
+### 2. Archive the demos (scope pending decision #1)
+- Cut branch `archive/kernel-prototype-2026-06-13` from current `main` (preserves everything).
+- Narrow default per the audit: remove `apps/{calc,echo,terminal}` + their `!run*.bat` from `main`; keep kernel/orchestrator/bootloader/paper/planning unless Emma says otherwise.
+- Decide `daily-audit.yml` fate (archive with the demos if the `.su` apps move).
+- Update `README.md`/`CLAUDE.md` to match whatever scope Emma picks. Commit, push, CI green.
 
-### 3. Yantra site — celestial / glow aesthetic layer
+### 3. Yantra site — celestial / glow aesthetic layer  ✅ unblocked (positioning-neutral)
 - Study reference: `extropic.ai` (deep space-black, glowing accents, celestial gradients, subtle grain/starfield, slow animated glow). Cooler palette than Extropic's warm orange — lean into the existing periwinkle `--accent`, push toward cyan/violet/celestial.
 - Add `site/celestial.css` — a NEW layer linked AFTER `/identity.css` in `index.html`. Do not modify `identity.css`.
 - Build: glowing gradient hero, intensified animated aurora/nebula, subtle starfield or grain, glow on buttons/eyebrow/pills, celestial section dividers. Respect `prefers-reduced-motion`.
