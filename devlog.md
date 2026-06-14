@@ -7,6 +7,27 @@ recorded here, dated, in the same commit as the work. Releases and milestones to
 
 ## 2026-06-13
 
+### End-of-session summary (website refocus + celestial restyle)
+
+Yantra repurposed as primarily the website repo for this session. Shipped:
+- **Yantra site** (`yantraos.org`): pivoted off the OS / interpretable-neural-
+  computer framing to the self-optimizing-landing-pages GTM wedge (mechanism-
+  forward headline); stripped AI-safety framing (kept "interpretable" per Emma);
+  removed paper CTA / bootloader / finance-defense market / co-founder asks;
+  added a bolder celestial/glow CSS layer (`site/celestial.css`, separate from
+  the shared `identity.css`). Live on Pages.
+- **Sutra site** (`sutra.yantraos.org`): matching celestial layer + a docs
+  accuracy refresh (introspection accessors marked removed per the no-readout
+  ruling; TS import status corrected). Shipped via **PR #35**, auto-merged to
+  Sutra main; submodule back on main, branch deleted.
+- **Crons:** ran the 2:30pm-gated Sutra-pull/ignition + the three-cron
+  autonomous loop all session; pin HEAD-tracked Sutra per Emma's override.
+- **Accepted as-is:** kernel/apps CI red vs current Sutra (Emma's call). **Not
+  done (Emma's call):** archive of non-website code (kept everything); public
+  documentation of Sutra's 7 other language frontends + the stale AGENTS.md.
+
+
+
 - **Website-refocus session set up.** Planned the repository-refocus + celestial
   restyle into `queue.md`; created the 2:30pm Sutra-pull/ignition cron and (after
   the pull) the work-loop / auto-flush / status-report crons. All session-local.
