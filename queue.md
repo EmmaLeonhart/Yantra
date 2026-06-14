@@ -37,13 +37,15 @@ Yantra is now treated primarily as the **website repository**. The OS / language
 
 ---
 
-## Pinned tail (run in this order, last)
+## Session complete (2026-06-13)
 
-### Z2. Ensure the four session crons are still running
-- `CronList`; recreate any of work-loop `:03`, auto-flush `:15`, status-report `:42`, Sutra-pull `every 2h` that a planning burst or restart killed.
+All website-session steps done; pinned tail (Z2 crons-running, Z3 final summary)
+discharged. See `devlog.md` for the end-of-session summary. Four session crons
+still running (work-loop :03, auto-flush :15, status :42, Sutra-pull every 2h).
 
-### Z3. Final status report
-- Run the status-report action once more, independently: end-of-session summary of everything done this session.
+**Open follow-up for Emma (optional, not actioned):** document Sutra's 7 other
+language frontends (Rust/Clojure/F#/Haskell/Elixir/OCaml/Scala) on the public
+site, and/or fix the stale agent-facing `AGENTS.md` ("TS is the sole transpiler").
 
 ---
 
