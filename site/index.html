@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Yantra is an interpretable neural computer — a GPU-native operating system that runs as one neural network (kernel, processes, IPC, and interface as a single differentiable graph). Unlike the opaque 'neural computers' now emerging, every operation in it is readable and verifiable.">
+  <meta name="description" content="Yantra builds self-optimizing landing pages. Your page becomes a program that learns from real visitor behavior and improves itself — no experiments to set up, no traffic threshold to clear.">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Yantra — an interpretable neural computer">
-  <meta property="og:description" content="An interpretable neural computer: a GPU-native OS that runs as one differentiable neural network — readable and verifiable, unlike the opaque neural computers now emerging.">
+  <meta property="og:title" content="Yantra — your page, improving itself">
+  <meta property="og:description" content="Self-optimizing landing pages: your page becomes a program that reads real visitor behavior and tunes itself. No experiments to set up, no traffic threshold to clear.">
   <meta property="og:url" content="https://yantraos.org/">
-  <title>Yantra — an interpretable neural computer</title>
+  <title>Yantra — self-optimizing landing pages</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -124,41 +124,37 @@
 
   <main>
     <section class="hero">
-      <span class="eyebrow">Yantra &middot; an interpretable neural computer</span>
-      <h1>An interpretable neural computer.</h1>
-      <p class="lede">Yantra is a GPU-native operating system that runs as <em>one differentiable neural network</em> &mdash; kernel, processes, IPC, and the interface in a single graph, not an OS with AI features bolted on. And unlike the opaque &ldquo;neural computers&rdquo; now emerging, <strong>every operation in it is readable and verifiable</strong>.</p>
+      <span class="eyebrow">Yantra &middot; self-optimizing pages</span>
+      <h1>Your page, improving itself.</h1>
+      <p class="lede">Built in <em>Sutra</em>, your landing page becomes a <strong>continuously adjustable program</strong>. It reads real visitor behavior &mdash; every scroll, hover, and click &mdash; and tunes itself, with <strong>no experiments to set up and no traffic threshold to clear</strong>.</p>
       <div class="links">
         <a class="primary" href="#waitlist">Request early access</a>
-        <a href="https://arxiv.org/abs/2605.20919">Read the paper &rarr;</a>
       </div>
     </section>
 
-    <section id="why">
-      <h2>Why now</h2>
-      <p class="body">A new computing paradigm is forming &mdash; the <em>neural computer</em>, where what the machine does emerges from a neural network instead of from instructions a person wrote. The first versions are <strong>opaque by construction</strong>: they <em>generate</em> their own interface and behaviour, so what they will do can't be inspected before they do it.</p>
-      <p class="body">Paradigms harden fast. The architectures chosen in the next few years are the ones the field gets stuck with &mdash; in the operating system, the layer everything else is built on top of. An interpretable, verifiable version has to exist <strong>before that window closes.</strong> Yantra is that version &mdash; an interpretable neural computer.</p>
+    <section id="how">
+      <h2>How it works</h2>
+      <p class="body"><strong>Your page is a program, not a static file.</strong> Compiled through Sutra, its layout, emphasis, and copy are adjustable parameters &mdash; not fixed HTML.</p>
+      <p class="body"><strong>Real behavior is the signal.</strong> The page reads how people actually use it &mdash; scrolls, hovers, dwell, clicks &mdash; and treats that as feedback, far richer than &ldquo;converted, or didn&rsquo;t.&rdquo;</p>
+      <p class="body"><strong>It tunes itself, smoothly.</strong> Updates are bounded and batched &mdash; nightly, or every few hundred visitors &mdash; so every visitor sees one stable page and your brand never thrashes.</p>
     </section>
 
-    <section id="built">
-      <h2>What's built</h2>
-      <p class="body">Early, but real and running &mdash; not a slide deck. The foundations are in the open today:</p>
-      <ul class="built">
-        <li><b>Interpretability, measured &mdash; not asserted.</b> Sutra's defining property is that information bound into the substrate comes back out <strong>exactly</strong>. The kernel fidelity harness carries over 1,000 distinct symbols through the live system and recovers every one bit-for-bit, with <strong>zero drift</strong>. The Sutra paper documents the same round-trip property at ~1.5&times;10<sup>&minus;15</sup> error across four compute substrates.</li>
-        <li><b>A published language and paper.</b> <em>Sutra</em> &mdash; a typed, interpretable substrate where every operation is readable, not a learned black box. <a href="https://arxiv.org/abs/2605.20919">arXiv:2605.20919</a>, with a reference compiler, a language spec, and VS&nbsp;Code + IntelliJ plugins.</li>
-        <li><b>A v0.0 kernel.</b> The Connectome Manager &mdash; real Sutra programs routed through a capability-checked kernel, with disc&harr;GPU load/unload measured on real hardware. ~48 passing tests.</li>
-        <li><b>And, at the bottom of the stack, a booting bootloader.</b> Bare-metal, verified in QEMU: scans the PCI bus, initializes the GPU framebuffer, and transitions to 64-bit long mode.</li>
-      </ul>
+    <section id="different">
+      <h2>Why it&rsquo;s different</h2>
+      <p class="body"><span class="lead-in">A/B testing needs traffic you don&rsquo;t have.</span> One clean test takes tens of thousands of visitors; most sites never reach that, so their owners just guess. Yantra learns at the traffic you actually have.</p>
+      <p class="body"><strong>AI builders generate once, then freeze.</strong> A page made on day one never learns from a single real visit. Yantra keeps improving after launch.</p>
+      <p class="body"><strong>A continuous design space, not a handful of variants.</strong> Instead of routing between a few pages a human wrote, the page moves toward designs no one hand-authored.</p>
     </section>
 
-    <section id="market">
-      <h2>Where it goes</h2>
-      <p class="body"><span class="lead-in">The first market is financial infrastructure.</span> Trading, settlement, and risk systems live or die on <strong>deterministic latency, auditability, and a small attack surface</strong> &mdash; and the firms that run them have the capital to pay for verification. It is the market where <em>&ldquo;we can't tell you what it will do&rdquo;</em> is most expensive, and where a readable, formally verifiable system converts directly into risk removed and money saved.</p>
-      <p class="body">From there the same properties carry into the other safety-critical domains &mdash; defense, aerospace, medical, autonomous. Long-term, Yantra is a general-purpose operating system.</p>
+    <section id="sutra">
+      <h2>Built on Sutra</h2>
+      <p class="body">Yantra runs on <em>Sutra</em>, a language that compiles programs into differentiable tensor graphs &mdash; which is what lets a landing page behave as a single, continuously adjustable program in the first place. Sutra&rsquo;s compiler is open and on PyPI. <a href="https://sutra.emmaleonhart.com">sutra.emmaleonhart.com &rarr;</a></p>
+      <p class="body">Yantra is for solo founders and small teams whose pages are too small to A/B test but still need to convert. If you&rsquo;ve ever frozen whatever a page builder handed you because you had no way to improve it &mdash; this is for you.</p>
     </section>
 
     <section id="waitlist" class="cta">
       <h2>Request early access</h2>
-      <p class="body">Yantra is moving toward a prototype for design partners in finance and other safety-critical domains. Join the waitlist to be in the first wave &mdash; or to open a commercial, research, or funding conversation.</p>
+      <p class="body">Yantra is rolling out to early users in waves. Join the waitlist to be in the first &mdash; and to put your own page on the learning loop.</p>
       <!-- Posts into a Google Form (responses collect in the linked Sheet).
            Form ID 1FAIpQLSe7ZXwFpOAVADmKkmOvcVsFAv1qhdJb_pwMP2c3mNMTvifdHw;
            email field is entry.900213640. The hidden iframe target keeps the
@@ -172,7 +168,7 @@
       <iframe name="yantra-waitlist-sink" title="waitlist form target" style="display:none" aria-hidden="true"></iframe>
       <p id="waitlist-thanks" class="waitlist-note" style="display:none">Thanks &mdash; you&rsquo;re on the list. We&rsquo;ll reach out as the prototype rolls out in waves.</p>
       <p class="waitlist-note">Early access to the prototype, rolled out in waves. No spam, no list-selling.</p>
-      <p class="who founder">Founded by <b>Emma Leonhart</b>. <b>Seeking a commercial co-founder</b> to take Yantra into the financial-infrastructure market. <a href="https://calendly.com/contact-emmaleonhart">Book a call</a>.</p>
+      <p class="who founder">Founded by <b>Emma Leonhart</b>.</p>
     </section>
   </main>
 
