@@ -7,6 +7,17 @@ recorded here, dated, in the same commit as the work. Releases and milestones to
 
 ## 2026-06-13
 
+### Follow-up — documented Sutra's other language frontends (PR #36, Emma-requested)
+
+Emma: "do the sutra stuff and merge it in." Verified `sdk/` has 9 transpiler
+frontends (ts 19, ocaml 45, rust 9, scala 9, clojure 8, elixir 7, fsharp 7,
+haskell 6, c 2 fixtures) vs the docs' stale "TS is the sole transpiler, C
+parked." Fixed `AGENTS.md` (agent-facing) and added an "Other language
+frontends" section to `docs/typescript-to-sutra.md` (public site) with honest
+maturity framing (fixture-tested, none as complete as TS). Counts verified
+against actual `sdk/` dirs. **PR EmmaLeonhart/Sutra#36 auto-merged (squash)
+to main**; submodule reconciled to main (9d30c6e), branch deleted.
+
 ### End-of-session summary (website refocus + celestial restyle)
 
 Yantra repurposed as primarily the website repo for this session. Shipped:
