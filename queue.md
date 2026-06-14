@@ -37,13 +37,6 @@ Yantra is now treated primarily as the **website repository**. The OS / language
 - **Celestial intensity:** Emma approved "push it bolder" (bolder pass committed). Mirror the SAME look onto Sutra (step 5) only after she confirms the bolder version reads right.
 - **PR cron:** one-shot `5f4aa096` fires ~19:55 local to PR `website-celestial` → Sutra main.
 
-### 4. Yantra site — copy pivot to the GTM wedge  ⚠️ DRAFT presented; awaiting Emma's "ship it"
-- Re-point copy from the OS/critical-systems framing to the **self-optimizing landing pages** wedge (Emma's decision). Public-safe wording only — NO private business-repo content; the one-liner is Emma's pick and pending.
-- **Remove the bootloader bullet** and the financial-infrastructure/defense market section (retired framing).
-- **Remove the "Read the paper →" hero CTA** (Emma 2026-06-13: the paper isn't appropriate on the Yantra front page for the wedge audience).
-- Keep Sutra cited as the substrate/credibility anchor; cite only public, verifiable Sutra-paper numbers.
-- STATUS 2026-06-13: Emma picked the **mechanism-forward** headline ("Your page, improving itself."). Full page copy drafted + presented in chat. Awaiting her "ship it" + two open calls (co-founder line keep/soften/drop; whether to add a verifiable Sutra number). Ship to `index.html` only after she confirms.
-
 ### 5. Sutra site — celestial restyle on the `website-celestial` branch
 - In `external/Sutra`: create/checkout `website-celestial` off `main` (merge latest `main` first).
 - Apply the matching celestial/glow aesthetic to the Sutra docs site (MkDocs Material — custom `extra_css` layer; do not touch language/runtime code).
