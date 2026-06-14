@@ -26,10 +26,6 @@ Yantra is now treated primarily as the **website repository**. The OS / language
 
 ## Active
 
-### 🔍 Daily substrate-honesty audit — 2026-06-14
-
-Auto-prepended by .github/workflows/daily-audit.yml. The next autonomous-loop session should, as its first action: (a) review every commit landed since the previous daily audit; (b) for each commit that touched a .su or its compile/admit path, verify runtime_dim matches what the .su actually needs (basis_vector usage → embedding dim; no basis_vector → tiny dim, typically 8-16); (c) for any commit that frames work as "recurrent" / "RNN" / "substrate-pure" / "verified", verify the claim against measurement, not against earlier session framing; (d) if anything is amiss, write a finding under planning/ and a fix item under queue.md, BEFORE doing other queue work. Then delete this item.
-
 > **✅ ALL WEBSITE STEPS DONE (2026-06-13).** Yantra: wedge copy + bolder celestial + "interpretable" kept, live on Pages. Sutra: celestial restyle + docs accuracy refresh — **PR #35 merged to Sutra main**. Both render-verified. See `devlog.md`. Only the pinned tail (Z2/Z3) remains. The "to-be-archived" kernel section below is moot (Emma: archive nothing).
 
 ### ⚠️ Standing rails for the copy work (do not violate)
