@@ -35,26 +35,12 @@ Yantra is now treated primarily as the **website repository**. The OS / language
 - No bootloader in copy. Don't edit shared `identity.css`. Sutra edits only on `website-celestial`.
 - **CI red is ACCEPTED — stop flagging it (Emma 2026-06-13: "ignore it").** The kernel/apps pytest CI fails against current Sutra (HEAD-tracking drift). It's the parked prototype, not the site. GitHub Pages (the website) deploys green. Do NOT spend cycles fixing it; do NOT list it as a blocker in status reports beyond a one-line "kernel CI red, accepted".
 - **Celestial intensity:** Emma approved "push it bolder" (bolder pass committed). Mirror the SAME look onto Sutra (step 5) only after she confirms the bolder version reads right.
-- **PR cron:** one-shot `5f4aa096` fires ~19:55 local to PR `website-celestial` → Sutra main.
-
-### 5. Sutra site — celestial restyle on the `website-celestial` branch
-- In `external/Sutra`: create/checkout `website-celestial` off `main` (merge latest `main` first).
-- Apply the matching celestial/glow aesthetic to the Sutra docs site (MkDocs Material — custom `extra_css` layer; do not touch language/runtime code).
-- Commit + push the branch.
-
-### 6. Sutra docs — content pass to current capabilities
-- Light, accurate updates to `docs/index.md`, `what-is-sutra.md`, `capabilities.md`, `vision.md`, etc. to reflect the 433+ commits past `v0.7.1`. Correct, don't rewrite what's already right.
-
-### 7. Verify both sites
-- Yantra: open `site/index.html`, confirm the celestial layer renders, theme toggle works, no broken links, bootloader gone, copy accurate.
-- Sutra: build docs locally if tooling present, else visually verify the CSS layer.
+### 6. Sutra docs — content pass to current capabilities  ⏸️ DEFERRED to Emma
+- NOT done autonomously. Rewriting Sutra language docs for "current capabilities" needs accurate review of the +300 commits (substrate-honesty), and it's unclear whether Emma's AI-safety-debranding extends to Sutra's own "interpretable/verifiable" technical framing (that's a real Sutra property, not safety marketing). Surface to Emma before touching Sutra docs *content*. The celestial restyle (step 5) shipped without any content change.
 
 ---
 
 ## Pinned tail (run in this order, last)
-
-### Z1. Open the Sutra website PR
-- After `website-celestial` is complete and pushed, `gh pr create` merging `website-celestial` → Sutra `main`, titled as docs/website-only so it can merge alongside the language loop. Report the PR URL.
 
 ### Z2. Ensure the four session crons are still running
 - `CronList`; recreate any of work-loop `:03`, auto-flush `:15`, status-report `:42`, Sutra-pull `every 2h` that a planning burst or restart killed.
