@@ -7,6 +7,15 @@ recorded here, dated, in the same commit as the work. Releases and milestones to
 
 ## 2026-06-13
 
+### 2026-06-14 daily substrate-honesty audit — clean
+
+Discharged the auto-prepended audit. No `.su` / kernel / apps / compile-admit
+files changed on Yantra main since the 2026-06-13 audit — every commit was
+website (`site/`), docs/planning, queue bookkeeping, or Sutra submodule pin
+bumps. No "recurrent/RNN/substrate-pure" claims were made (no substrate work);
+the only "verified" claims were render-verification (Playwright runs) and
+fixture counts (counted against `sdk/`). Nothing amiss; item deleted.
+
 ### Follow-up — documented Sutra's other language frontends (PR #36, Emma-requested)
 
 Emma: "do the sutra stuff and merge it in." Verified `sdk/` has 9 transpiler
