@@ -37,18 +37,12 @@ Yantra is now treated primarily as the **website repository**. The OS / language
 - **Celestial intensity:** Emma approved "push it bolder" (bolder pass committed). Mirror the SAME look onto Sutra (step 5) only after she confirms the bolder version reads right.
 - **PR cron:** one-shot `5f4aa096` fires ~19:55 local to PR `website-celestial` → Sutra main.
 
-### 3. Yantra site — celestial / glow aesthetic layer  ✅ unblocked (positioning-neutral)
-- Study reference: `extropic.ai` (deep space-black, glowing accents, celestial gradients, subtle grain/starfield, slow animated glow). Cooler palette than Extropic's warm orange — lean into the existing periwinkle `--accent`, push toward cyan/violet/celestial.
-- Add `site/celestial.css` — a NEW layer linked AFTER `/identity.css` in `index.html`. Do not modify `identity.css`.
-- Build: glowing gradient hero, intensified animated aurora/nebula, subtle starfield or grain, glow on buttons/eyebrow/pills, celestial section dividers. Respect `prefers-reduced-motion`.
-- Keep dark default; confirm light theme still reads.
-
-### 4. Yantra site — copy pivot to the GTM wedge  ⚠️ DRAFT + confirm with Emma; do not ship autonomously
+### 4. Yantra site — copy pivot to the GTM wedge  ⚠️ DRAFT presented; awaiting Emma's "ship it"
 - Re-point copy from the OS/critical-systems framing to the **self-optimizing landing pages** wedge (Emma's decision). Public-safe wording only — NO private business-repo content; the one-liner is Emma's pick and pending.
 - **Remove the bootloader bullet** and the financial-infrastructure/defense market section (retired framing).
 - **Remove the "Read the paper →" hero CTA** (Emma 2026-06-13: the paper isn't appropriate on the Yantra front page for the wedge audience).
 - Keep Sutra cited as the substrate/credibility anchor; cite only public, verifiable Sutra-paper numbers.
-- Process: draft the new copy, present it to Emma, ship to `site/index.html` only after she confirms wording.
+- STATUS 2026-06-13: Emma picked the **mechanism-forward** headline ("Your page, improving itself."). Full page copy drafted + presented in chat. Awaiting her "ship it" + two open calls (co-founder line keep/soften/drop; whether to add a verifiable Sutra number). Ship to `index.html` only after she confirms.
 
 ### 5. Sutra site — celestial restyle on the `website-celestial` branch
 - In `external/Sutra`: create/checkout `website-celestial` off `main` (merge latest `main` first).
