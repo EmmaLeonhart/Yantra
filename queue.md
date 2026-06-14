@@ -35,8 +35,10 @@ Yantra is now treated primarily as the **website repository**. The OS / language
 - No bootloader in copy. Don't edit shared `identity.css`. Sutra edits only on `website-celestial`.
 - **CI red is ACCEPTED — stop flagging it (Emma 2026-06-13: "ignore it").** The kernel/apps pytest CI fails against current Sutra (HEAD-tracking drift). It's the parked prototype, not the site. GitHub Pages (the website) deploys green. Do NOT spend cycles fixing it; do NOT list it as a blocker in status reports beyond a one-line "kernel CI red, accepted".
 - **Celestial intensity:** Emma approved "push it bolder" (bolder pass committed). Mirror the SAME look onto Sutra (step 5) only after she confirms the bolder version reads right.
-### 6. Sutra docs — content pass to current capabilities  ⏸️ DEFERRED to Emma
-- NOT done autonomously. Rewriting Sutra language docs for "current capabilities" needs accurate review of the +300 commits (substrate-honesty), and it's unclear whether Emma's AI-safety-debranding extends to Sutra's own "interpretable/verifiable" technical framing (that's a real Sutra property, not safety marketing). Surface to Emma before touching Sutra docs *content*. The celestial restyle (step 5) shipped without any content change.
+### 6. Sutra docs — content pass to current capabilities  ✅ branding question resolved; content refresh optional
+- Emma 2026-06-13: the debranding is **safety only**; **"interpretable" stays** ("interpretable neural computer is a word we still use"). Restored "interpretable" as a Sutra descriptor on the Yantra site (I'd over-stripped it).
+- Sutra docs grep: **no AI-safety branding present** (no safety/defense/critical-systems language) — nothing to debrand; interpretable framing stays as-is.
+- Remaining = an OPTIONAL content-accuracy refresh of Sutra docs for the +300 commits. Not branding; judgment-heavy / substrate-honesty-sensitive. Leave for Emma to direct; do NOT autonomously rewrite language docs.
 
 ---
 
