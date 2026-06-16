@@ -510,20 +510,22 @@ in-repo uses on the Yantra side.
 
 ## Project wind-down & loose-ends cleanup (Emma 2026-06-16)
 
-Yantra is being wound down as an "OS company" and rebranded to **Noldor
-Technologies** (noldor.tech). The Sanskrit/OS framing caused more problems than
-it was worth. `yantraos.org` redirects to `noldor.tech` (Yantra PR #1, cutover
-2026-06-18 3pm Pacific). This is the backlog to tie off the remaining loose ends
-so the repo is clean and self-consistent. Decompose into `queue.md` and barrel
-through it.
+The public brand is moving to **Noldor Technologies** (noldor.tech) and the
+Sanskrit/OS framing is being dropped from the *website*. `yantraos.org` redirects
+to `noldor.tech` (Yantra PR #1, cutover 2026-06-18 3pm Pacific). **The OS
+prototype itself is PRESERVED, not wound down** (Emma 2026-06-16: "worth
+definitely preserving the stuff" — the OS may still be continued). This backlog
+tidies the *meta* (stale queue, doc drift, noisy CI) without destroying code.
+Decompose into `queue.md` and barrel through it.
 
-- **Action the content audit recommendations** (`CONTENT_AUDIT.md`):
-  - Delete `apps/gui-rust` — thin wrapper; the real GUI demo lives in
-    `external/Sutra/demos/gui/`.
-  - Consolidate `apps/calc` — move the Yantra-unique substrate-parsing `.su`
-    (`parse_op.su`, `parse_int2.su`) into Sutra's `demos/calc/` so the work
-    isn't lost, then reduce Yantra's copy to a thin kernel-routing demo (or
-    drop it). Update `apps/README.md`.
+- **PRESERVE the OS prototype.** Do NOT delete kernel/, orchestrator/,
+  bootloader/, or apps/. Content-audit recommendations apply
+  *additively/preservationally*:
+  - `apps/gui-rust` — KEEP. The real GUI demo also lives in
+    `external/Sutra/demos/gui/`; that's a safety duplicate, not grounds to delete.
+  - `apps/calc` — COPY the Yantra-unique substrate-parsing `.su`
+    (`parse_op.su`, `parse_int2.su`) into Sutra's `demos/calc/` so it's preserved
+    in the active repo too. KEEP Yantra's copy. Update `apps/README.md`.
 - **Clear stale `queue.md` cruft** — the completed 2026-06-13 website session,
   the daily substrate-honesty audit auto-prepends, and the "to be dispositioned /
   archived" kernel section.

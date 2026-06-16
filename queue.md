@@ -20,28 +20,29 @@ push on Sutra `main` per `CLAUDE.md` § "Cross-repo workflow".
 
 ---
 
-## Active — cleanup
+## Active — cleanup (PRESERVE MODE — Emma 2026-06-16: "worth definitely preserving the stuff")
 
-1. **Delete `apps/gui-rust`.** It's a thin Rust `minifb` wrapper that
-   subprocess-calls `external/Sutra/demos/gui/`, which has the real demo. Remove
-   the directory; update `apps/README.md` to drop the reference and point at the
-   Sutra gui demo.
+**Do NOT delete OS-prototype code (kernel/, orchestrator/, bootloader/, apps/).**
+The OS may still be continued; it's worth keeping. Cleanup tidies the *meta*
+(stale queue, doc drift, noisy CI) and is **additive/preservational** only.
 
-2. **Consolidate `apps/calc`.** Yantra's copy has substrate-parsing `.su` that
-   Sutra's `demos/calc/` lacks (`parse_op.su`, `parse_int2.su`). Cross-repo:
-   copy those two `.su` into `external/Sutra/demos/calc/`, commit + push on Sutra
-   `main`. Then reduce Yantra `apps/calc` to the thin kernel-routing demo
-   (`calc.py` wrapper) or drop it; update `apps/README.md`. Don't lose the
-   parsing work.
+1. **Preserve the substrate-parsing work in Sutra (additive).** Yantra's
+   `apps/calc` has `.su` that Sutra's `demos/calc/` lacks (`parse_op.su`,
+   `parse_int2.su`). Cross-repo: COPY those two `.su` into
+   `external/Sutra/demos/calc/` (commit + push on Sutra `main`) so the work
+   lives in the actively-developed repo too. **Keep Yantra's copy** — this is
+   duplication-for-safety, not a move. Note in both repos' devlogs.
 
-3. **Stop the daily-audit queue spam.** `.github/workflows/daily-audit.yml`
+2. **Stop the daily-audit queue spam.** `.github/workflows/daily-audit.yml`
    prepends a substrate-honesty audit item to `queue.md` daily. The repo does no
    `.su` work now. Disable the `schedule:` trigger (keep the file, reversible);
    note it in `devlog.md`.
 
-4. **Reconcile docs to the rebrand.** `README.md`: add a short note that the
-   site redirects to noldor.tech and OS/language work lives in Sutra. Light
-   touch — don't rewrite the whole README.
+3. **Reconcile docs to the rebrand, preservation-framed.** `README.md`: short
+   note that the public site redirects to noldor.tech, and the OS/kernel
+   prototype here is **preserved/parked** (not abandoned, not deleted) while the
+   language work continues in Sutra. Light touch. Fix the stale `apps/README.md`
+   `font/` row (font moved to Sutra) while there.
 
 ---
 
