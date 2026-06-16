@@ -13,7 +13,10 @@
 
 ## stuff Emma is saying to do
 
-fix up the claude.md because it has bloat
+(claude.md de-staled 2026-06-16: cross-repo master→main, stale hardcoded date
+removed, pin-ownership reconciled, rebrand/preserve status noted. OPTIONAL
+deeper de-bloat — move long rationale into planning/ and keep CLAUDE.md terse —
+left undone: it touches load-bearing rules, wants Emma's OK before cutting.)
 
 barrel through all of the blocked things below
 

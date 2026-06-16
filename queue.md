@@ -26,8 +26,8 @@ push on Sutra `main` per `CLAUDE.md` § "Cross-repo workflow".
 The OS may still be continued; it's worth keeping. Cleanup tidies the *meta*
 (stale queue, doc drift, noisy CI) and is **additive/preservational** only.
 
-_All cleanup items drained (2026-06-16) — see `devlog.md`. Only the pinned tail
-remains._
+_2026-06-16 cleanup + CLAUDE.md de-stale drained — see `devlog.md`. Optional
+deeper CLAUDE.md de-bloat parked in `todo.md` (needs Emma's OK)._
 
 ---
 

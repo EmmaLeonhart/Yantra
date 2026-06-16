@@ -52,6 +52,12 @@ under `kernel/` (a Python orchestration layer over real Sutra
 compute). The Sutra compiler/runtime and the JS/TS transpiler live
 in adjacent projects.
 
+**Status (2026-06-16):** the public brand is moving to **Noldor
+Technologies** (noldor.tech) and the OS/website framing is being
+wound down (`yantraos.org` → noldor.tech). The kernel/OS prototype
+here is **preserved/parked, not abandoned** — it may still be
+continued; do not delete it. See `README.md` + `CONTENT_AUDIT.md`.
+
 ## Architecture and Conventions
 
 - All design notes live in [`planning/`](planning/README.md), numbered for
@@ -212,40 +218,40 @@ requires a change to the other in the same session.
 When working in this repo and a Sutra-side change is needed, do
 **not** treat that as someone else's problem. The submodule is a
 real git checkout you have push access to. Edit it, commit on
-Sutra master, push, tag a release, bump the submodule pointer
-here.
+Sutra `main`, push, and tag a release if Yantra needs to depend on
+it. **Pin advancement is owned by the 6am release-pin cron** — see
+§ "Sutra submodule pin = RELEASE TAGS ONLY"; don't bump the pin
+by hand mid-session.
 
 ### The mechanics
 
 ```bash
-# 1. Move into the submodule, get on master.
+# 1. Move into the submodule, get on main (Sutra's default branch —
+#    master is FROZEN at v0.4.1; do NOT use it).
 cd external/Sutra
-git checkout master
-git pull origin master --ff-only
+git checkout main
+git pull origin main --ff-only
 
 # 2. Edit Sutra-side files. (The Sutra repo has its own CLAUDE.md
 #    with its own workflow rules — read it first; in particular,
 #    Sutra requires plan-into-queue.md and commit + push immediately
 #    rather than batching local commits.)
 
-# 3. Commit + push on Sutra master.
+# 3. Commit + push on Sutra main (rebase if rejected; never force-push).
 git add ...
 git commit -m "..."
-git push origin master
+git push origin main
 
-# 4. (If the change is meaningful) tag a release.
+# 4. (If Yantra must depend on this change) tag a release.
 git tag -a vX.Y.Z -m "..."
 git push origin vX.Y.Z
 gh release create vX.Y.Z --repo EmmaLeonhart/Sutra ...
 
-# 5. Pin the submodule at the tag.
-git checkout vX.Y.Z
-
-# 6. Back in Yantra: bump the submodule pointer + commit + push.
-cd ../..
-git add external/Sutra
-git commit -m "Bump Sutra submodule to vX.Y.Z — <reason>"
-git push origin master
+# 5. The 6am release-pin cron moves external/Sutra to the latest
+#    release TAG and pushes the bump. For a manual bump:
+#    git -C external/Sutra checkout vX.Y.Z
+#    git add external/Sutra && git commit -m "Bump Sutra pin to vX.Y.Z — <why>"
+#    git push origin main   # (Yantra's default branch is main)
 ```
 
 ### When NOT to do this
@@ -472,6 +478,3 @@ cross-repo workflow, and the paper auto-submits to clawRxiv via
 The discipline above (one coherent change per revision, name the con,
 cite the Sutra paper, scope-limit over overclaim) applies to the FV
 paper too.
-
-# currentDate
-Today's date is 2026-05-07.

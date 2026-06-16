@@ -97,3 +97,22 @@ block. Stale daily-audit items were also cleared from `queue.md` in the
 
 This drains the 2026-06-16 PRESERVE-mode cleanup queue (calc-preserve,
 daily-audit-disable, docs-reconcile all done). OS prototype untouched/preserved.
+
+## 2026-06-16 — CLAUDE.md de-stale pass (todo item promoted)
+
+Promoted "fix up the claude.md because it has bloat" from todo.md. Did a
+conservative doc-truth pass, not an aggressive cut (every section is a
+load-bearing rule):
+- Cross-repo § "The mechanics": `master` → `main` throughout (Sutra migrated its
+  default branch; master frozen at v0.4.1 — the loop's "start here" note flagged
+  this stale ref).
+- Reconciled the mechanics with the release-tags-only pin policy (the 6am cron
+  owns pin advancement; don't hand-bump mid-session).
+- Removed the wrong hardcoded `# currentDate 2026-05-07` block (the harness
+  supplies the real date).
+- Added a short Status note: rebrand to Noldor + OS prototype preserved/parked.
+- Verified all rule sections still present; no stale Sutra-`master` refs remain.
+
+Net 477→480 lines — this was de-staling, not net shrink. The deeper de-bloat
+(move long rationale to planning/, keep CLAUDE.md terse) is left as an OPTIONAL
+todo item pending Emma's OK, since cutting risks dropping a load-bearing rule.
