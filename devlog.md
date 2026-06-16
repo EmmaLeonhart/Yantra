@@ -66,3 +66,12 @@ Yantra repurposed as primarily the website repo for this session. Shipped:
   are genuine Sutra duplicates. Two decisions raised for Emma (archive scope;
   current public positioning) that block queue steps 2/4/6. Step 3 (celestial CSS)
   is positioning-neutral and stays unblocked.
+
+## 2026-06-16 — Preserve calc substrate-parsing in Sutra (additive)
+
+Copied `apps/calc/parse_op.su` + `parse_int2.su` into Sutra's `demos/calc/`
+(Sutra main `0f80c6a3`) so the substrate operator/int parsing building blocks
+live in the actively-developed language repo too. Yantra's copies are kept —
+duplication for safety, not a move. Part of the 2026-06-16 PRESERVE-mode cleanup
+(Emma: "worth definitely preserving the stuff"; OS prototype is parked, not
+deleted).
