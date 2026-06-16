@@ -1,6 +1,14 @@
 # Yantra
 
-**Website · [yantraos.org](https://yantraos.org)**
+**Website · [yantraos.org](https://yantraos.org) → rebranding to [noldor.tech](https://noldor.tech)**
+
+> **Note (2026-06-16) — rebrand + preservation.** The public brand is moving to
+> **Noldor Technologies** ([noldor.tech](https://noldor.tech)); `yantraos.org`
+> redirects there from 2026-06-18. We're stepping back from the "OS company"
+> framing on the website — but **the OS/kernel prototype in this repo is
+> preserved, not abandoned.** It may still be continued. The language it's built
+> in (Sutra) is actively developed in [`external/Sutra`](external/Sutra). Treat
+> the code below as parked-and-kept, not deprecated.
 
 An interpretable neural computer: a GPU-native operating system written in Sutra where the whole running system is one inspectable neural network.
 

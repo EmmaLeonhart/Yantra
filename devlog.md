@@ -84,3 +84,16 @@ file + `workflow_dispatch` for manual re-enable). The repo does no `.su` work no
 was only cluttering `queue.md`. Reversible: restore the commented `schedule:`
 block. Stale daily-audit items were also cleared from `queue.md` in the
 2026-06-16 cleanup rewrite.
+
+## 2026-06-16 — Reconcile docs to the rebrand (preservation-framed)
+
+- `README.md`: added a top banner — public brand moving to Noldor Technologies
+  (noldor.tech), `yantraos.org` redirects there from 2026-06-18, and the
+  OS/kernel prototype is **preserved/parked, not abandoned**; Sutra is actively
+  developed.
+- `apps/README.md`: fixed the stale `font/` row (migrated to Sutra 2026-05-28),
+  added a `gui-rust/` row (preserved/parked), and noted the 2026-06-16 calc
+  `.su` preservation copy to Sutra.
+
+This drains the 2026-06-16 PRESERVE-mode cleanup queue (calc-preserve,
+daily-audit-disable, docs-reconcile all done). OS prototype untouched/preserved.

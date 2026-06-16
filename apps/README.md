@@ -26,7 +26,12 @@ the eventual Rust-orchestrator / browser layer.
 |---|---|---|
 | `calc/` | CLI calculator (2026-05-24) | Full expressions, `+ - * /`, precedence + parens; operator **selected on the substrate** (`switch.su`), float64 so exact integers reach 2⁵³. Exact or refused. Known step-c purity gap (returns a host `Fraction` behind a host-oracle refuse-gate; see `planning/23`). |
 | `terminal/` | Stage-2 terminal surface (2026-05-24) | A command reader (`terminal.py`) over kernel-admitted utilities: `echo <text>` carries text bit-exact through `echo.su` and decodes the substrate's output verbatim; `calc <expr>` evaluates on the calc substrate; `help`. `run_script` runs an N-step interaction trace exact at every step (zero drift — the headline-demo measurement, planning/22). Choosing *which utility* a typed command names is admission/routing = host orchestration by design (distinct from calc's *which-operation* dispatch, which is substrate compute). `tests/test_terminal.py` (19 cases); `python apps/terminal/demo.py` prints a transcript. |
-| `font/` | Text-input pixel-font demo (2026-05-26) | Press A–Z / 0–9 → the typed character renders as a 5×5 glyph. Emma's recurrent step (`state = prev*0 + glyph_pixel(...)` — the substrate forgets, then adds the new glyph) over a 36-way defuzzified `select` on the character codepoint. No host font lookup on the runtime path. Font shape data in `tools/font_data.py`; `apps/font/font.su` is generated from it via `tools/generate_font_su.py`. Tests: `tests/test_font.py` (one per glyph). See `apps/font/README.md`. |
+| `gui-rust/` | Rust GUI counter front-end | A `minifb` window in Rust that spawns the Sutra substrate server (`external/Sutra/demos/gui/counter_substrate_server.py`) and paints per-frame compute from it. Preserved (parked) — the richer GUI demo lives Sutra-side under `external/Sutra/demos/gui/`. |
+
+`font/` and the Python `gui/` (tkinter) demos **migrated to Sutra** on 2026-05-28
+(`external/Sutra/demos/{font,gui}/`) — they were language-level, not OS-level.
+The calc substrate-parsing `.su` (`parse_op.su`, `parse_int2.su`) was also copied
+to `external/Sutra/demos/calc/` on 2026-06-16 (kept here too — preservation).
 
 ## What's coming (not started)
 
