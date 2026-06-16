@@ -505,3 +505,34 @@ Note: the arXiv-frozen `paper/paper.md` (+ its supplementary, e.g. `paper/SKILL.
 still use "tensor normal form" and cannot change until the freeze lifts (June 1).
 Review records (`paper/reviews/*`) are left as-is. These are the only remaining
 in-repo uses on the Yantra side.
+
+---
+
+## Project wind-down & loose-ends cleanup (Emma 2026-06-16)
+
+Yantra is being wound down as an "OS company" and rebranded to **Noldor
+Technologies** (noldor.tech). The Sanskrit/OS framing caused more problems than
+it was worth. `yantraos.org` redirects to `noldor.tech` (Yantra PR #1, cutover
+2026-06-18 3pm Pacific). This is the backlog to tie off the remaining loose ends
+so the repo is clean and self-consistent. Decompose into `queue.md` and barrel
+through it.
+
+- **Action the content audit recommendations** (`CONTENT_AUDIT.md`):
+  - Delete `apps/gui-rust` — thin wrapper; the real GUI demo lives in
+    `external/Sutra/demos/gui/`.
+  - Consolidate `apps/calc` — move the Yantra-unique substrate-parsing `.su`
+    (`parse_op.su`, `parse_int2.su`) into Sutra's `demos/calc/` so the work
+    isn't lost, then reduce Yantra's copy to a thin kernel-routing demo (or
+    drop it). Update `apps/README.md`.
+- **Clear stale `queue.md` cruft** — the completed 2026-06-13 website session,
+  the daily substrate-honesty audit auto-prepends, and the "to be dispositioned /
+  archived" kernel section.
+- **Stop the daily-audit queue spam** — `.github/workflows/daily-audit.yml`
+  prepends a substrate-honesty audit item to `queue.md` every day. The repo does
+  no `.su` work anymore and is winding down; disable the schedule so it stops
+  cluttering the queue (keep the file, reversible).
+- **Reconcile docs to the rebrand** — note in `README.md` (and `CLAUDE.md` where
+  relevant) that the site now redirects to noldor.tech and the OS/language work
+  lives in Sutra.
+- **Kernel/apps CI is red and accepted** (Emma 2026-06-13: "ignore it") — do not
+  spend cycles fixing the parked-prototype pytest CI; Pages deploys green.
