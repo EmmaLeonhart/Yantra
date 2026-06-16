@@ -8,7 +8,8 @@
 <link rel="canonical" href="https://noldor.tech/">
 <meta http-equiv="refresh" content="0; url=https://noldor.tech/">
 <script>
-// Path-preserving redirect: yantraos.org/<path> -> noldor.tech/<path>
+// GitHub Pages serves this for any unknown path, so every yantraos.org/<path>
+// redirects to noldor.tech/<path> preserving the path, query, and hash.
 (function () {
   var base = "https://noldor.tech";
   var dest = base + window.location.pathname + window.location.search + window.location.hash;
