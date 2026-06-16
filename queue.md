@@ -26,12 +26,7 @@ push on Sutra `main` per `CLAUDE.md` § "Cross-repo workflow".
 The OS may still be continued; it's worth keeping. Cleanup tidies the *meta*
 (stale queue, doc drift, noisy CI) and is **additive/preservational** only.
 
-1. **Stop the daily-audit queue spam.** `.github/workflows/daily-audit.yml`
-   prepends a substrate-honesty audit item to `queue.md` daily. The repo does no
-   `.su` work now. Disable the `schedule:` trigger (keep the file, reversible);
-   note it in `devlog.md`.
-
-2. **Reconcile docs to the rebrand, preservation-framed.** `README.md`: short
+1. **Reconcile docs to the rebrand, preservation-framed.** `README.md`: short
    note that the public site redirects to noldor.tech, and the OS/kernel
    prototype here is **preserved/parked** (not abandoned, not deleted) while the
    language work continues in Sutra. Light touch. Fix the stale `apps/README.md`

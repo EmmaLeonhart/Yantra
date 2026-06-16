@@ -75,3 +75,12 @@ live in the actively-developed language repo too. Yantra's copies are kept —
 duplication for safety, not a move. Part of the 2026-06-16 PRESERVE-mode cleanup
 (Emma: "worth definitely preserving the stuff"; OS prototype is parked, not
 deleted).
+
+## 2026-06-16 — Disable daily-audit queue prepend
+
+Disabled the `schedule:` trigger in `.github/workflows/daily-audit.yml` (kept the
+file + `workflow_dispatch` for manual re-enable). The repo does no `.su` work now
+(OS prototype parked, site rebranding), so the daily substrate-honesty prepend
+was only cluttering `queue.md`. Reversible: restore the commented `schedule:`
+block. Stale daily-audit items were also cleared from `queue.md` in the
+2026-06-16 cleanup rewrite.

@@ -24,10 +24,13 @@ name: Daily substrate-honesty audit prepend
 # can land in either repo (Yantra apps OR Sutra examples).
 
 on:
-  schedule:
-    # 04:23 UTC daily. Odd minute, well-spaced from sutra-submodule-bump
-    # at 06:17 so the two jobs never queue together on the runner.
-    - cron: '23 4 * * *'
+  # Daily schedule DISABLED 2026-06-16 (Emma): the repo does no .su work now —
+  # the OS prototype is preserved/parked and the public site is rebranding to
+  # noldor.tech — so the daily prepend was only cluttering queue.md. Kept the
+  # workflow + manual trigger so it can be re-enabled if .su work resumes; just
+  # restore the `schedule:` block below.
+  #   schedule:
+  #     - cron: '23 4 * * *'   # 04:23 UTC daily, spaced from sutra-submodule-bump
   workflow_dispatch: {}
 
 permissions:
