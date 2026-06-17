@@ -116,3 +116,14 @@ load-bearing rule):
 Net 477→480 lines — this was de-staling, not net shrink. The deeper de-bloat
 (move long rationale to planning/, keep CLAUDE.md terse) is left as an OPTIONAL
 todo item pending Emma's OK, since cutting risks dropping a load-bearing rule.
+
+## 2026-06-16 — Redirect cutover is now TIME-BASED in GitHub Actions (not a cron/PR)
+
+Replaced the session-cron + merge-PR cutover with a date check in pages.yml
+(Emma: "it's literally time based — have the Actions build check the date").
+- Added redirect/ (index.html + 404.html path-preserving to noldor.tech + CNAME
+  yantraos.org), separate from site/ so the normal page stays live until the date.
+- pages.yml now picks site/ before 2026-06-18 and redirect/ on/after, and runs
+  on a daily `schedule` (17 22 UTC ≈ 3:17pm Pacific) so it flips with no human
+  action and no session dependency.
+- Superseded: closed Yantra PR #1 and removed the local 3pm cutover cron.
