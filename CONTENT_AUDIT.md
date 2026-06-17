@@ -48,3 +48,42 @@ bootloader + a couple of apps), backed by a real 206-test suite and a thorough
 planning corpus. It is a small but coherent, honestly-scoped codebase — not a
 bootloader sitting alone in an empty repo. The only real "move to Sutra"
 candidates are `apps/calc` (the `.su` half) and `apps/gui-rust`.
+
+---
+
+# Content audit — 2026-06-17 (automated 4 AM pass)
+
+Delta-focused re-scan since the 2026-06-16 audit above. **PRESERVE MODE: no code
+deleted; this pass only recommends.**
+
+## What changed since 2026-06-16
+
+- 7 commits on `main` (`3b02f55..6401eec`): rebrand docs, PRESERVE-mode cleanup,
+  daily-audit schedule disabled, calc `.su` preserved to Sutra, CLAUDE.md
+  de-stale, and the **time-based redirect cutover** in `pages.yml`.
+- **New top-level `redirect/`** (`index.html` + `404.html` + `CNAME`) — part of
+  the Yantra→Noldor cutover mechanism (`pages.yml` deploys it on/after
+  2026-06-18). **KEEP.**
+- `apps/calc/` gained `parse_op.su` + `parse_int2.su` (and their compile caches);
+  these are also preserved in `external/Sutra/demos/calc/`. **KEEP** (preserved
+  both sides by design).
+- OS prototype (`kernel/`, `orchestrator/`, `bootloader/`, `apps/`): **unchanged
+  → PRESERVE-PARKED.**
+
+## Cruft scan
+
+- **19 committed `.compiled-sutra*.py` files** (11 `apps/calc/`, 4 `apps/echo/`,
+  4 `kernel/services/`) — Sutra compile caches, **not** in `.gitignore`,
+  regenerable via `scripts/precompile_all_su.py`. **Verdict: CANDIDATE-TO-CLEAR,
+  but NOT cleared** — they're likely committed on purpose to speed CI / cold-start
+  demos, so clearing isn't "clearly safe." If you want them gone: add
+  `*.compiled-sutra*.py` to `.gitignore`, `git rm` them, and confirm CI/tests
+  stay green (they recompile on first run).
+- Untracked/ignored on disk only: `bootloader/target/` (cargo output) and
+  `.claude/` — correctly ignored, nothing tracked. No committed `__pycache__`,
+  `.pytest_cache`, `.pyc`, `.DS_Store`, or empty dirs found.
+
+## Headline
+
+1 clear-candidate class (19 regenerable compile caches) — **preserve-flagged, not
+cleared**. Everything else KEEP or PRESERVE-PARKED. No deletions made.

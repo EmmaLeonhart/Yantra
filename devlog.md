@@ -127,3 +127,12 @@ Replaced the session-cron + merge-PR cutover with a date check in pages.yml
   on a daily `schedule` (17 22 UTC ≈ 3:17pm Pacific) so it flips with no human
   action and no session dependency.
 - Superseded: closed Yantra PR #1 and removed the local 3pm cutover cron.
+
+## 2026-06-17 — Automated content audit (4 AM)
+
+Delta re-scan since the 2026-06-16 audit. No code deleted (preserve mode).
+Findings appended to CONTENT_AUDIT.md: new redirect/ dir (KEEP, cutover
+mechanism); calc parse_op/parse_int2 .su preserved both sides; OS prototype
+unchanged (PRESERVE-PARKED). One clear-candidate flagged-not-cleared: 19
+committed .compiled-sutra caches (regenerable but likely intentional CI cache —
+not clearly safe to remove).
