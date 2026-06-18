@@ -87,3 +87,12 @@ deleted; this pass only recommends.**
 
 1 clear-candidate class (19 regenerable compile caches) — **preserve-flagged, not
 cleared**. Everything else KEEP or PRESERVE-PARKED. No deletions made.
+
+---
+
+# Content audit — 2026-06-18 (automated 4 AM pass)
+
+**No change since the 2026-06-17 audit.** HEAD unchanged (`6cf0fbf`), zero commits
+since, repo content identical. All prior verdicts stand: OS prototype
+PRESERVE-PARKED; new `redirect/` KEEP; 19 `.compiled-sutra` caches still the one
+clear-candidate (flagged, not cleared). Nothing to add or remove.

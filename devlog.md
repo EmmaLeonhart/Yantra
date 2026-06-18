@@ -136,3 +136,9 @@ mechanism); calc parse_op/parse_int2 .su preserved both sides; OS prototype
 unchanged (PRESERVE-PARKED). One clear-candidate flagged-not-cleared: 19
 committed .compiled-sutra caches (regenerable but likely intentional CI cache —
 not clearly safe to remove).
+
+## 2026-06-18 — Automated content audit (4 AM): no-change
+
+No commits since the 2026-06-17 audit; repo content identical. Prior verdicts
+stand. Short no-change entry appended to CONTENT_AUDIT.md to keep the daily trail
+without re-surveying redundantly.
