@@ -24,7 +24,7 @@ barrel through all of the blocked things below
 
 ## ⛔ Blocked / not-autonomous — surfaced 2026-05-24 (Emma asked these be pinned at the top)
 
-These are the queue items that were **deliberately NOT done autonomously**
+These are the queue items that were **flagged with the not-done taxonomy (NEEDS-DECISION / BLOCKED-ON-USER-ACTION / BLOCKED-ON-EXTERNAL / NEEDS-INVESTIGATION / UNSAFE-TO-GUESS / OUT-OF-SCOPE)**
 during the 2026-05-24 scheduled drain — each is a genuine blocker, a
 product decision, or substrate surgery that wants Emma's direct guidance.
 Named plainly per the hard rails (don't paper over difficulty; when Emma
