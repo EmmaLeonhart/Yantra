@@ -478,3 +478,9 @@ cross-repo workflow, and the paper auto-submits to clawRxiv via
 The discipline above (one coherent change per revision, name the con,
 cite the Sutra paper, scope-limit over overclaim) applies to the FV
 paper too.
+
+## Long command series run in strict order
+When Emma gives a long series of commands, treat it as a long series of commands to be
+executed in relatively STRICT ORDER, one after another, EVEN IF the order seems not to
+make sense or seems inefficient. The sequencing is intentional — she organizes the steps
+so states change in the order she wants. Do not reorder, merge, or skip steps.
